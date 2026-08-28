@@ -1,4 +1,4 @@
-from auth import UserRegisterInput, UserRegisterOutput, UserLoginInput, UserLoginOutput
+from app.schemas.auth import UserRegisterInput, UserRegisterOutput, UserLoginInput, UserLoginOutput
 
 __all__ = [
     "UserRegisterInput",
