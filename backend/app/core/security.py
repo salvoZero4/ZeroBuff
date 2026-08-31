@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 import jwt
+from fastapi import HTTPException, status
 from pwdlib import PasswordHash
 from app.core.config import settings
 
@@ -36,3 +37,12 @@ def create_access_token(subject: str | Any) -> str:
 def create_refresh_token(subject: str | Any) -> str:
     """Genera un token di refresh JWT con scadenza più lunga (default 30 giorni)."""
     return _create_token(subject,type="refresh", expires_delta= timedelta(days=30))
+
+def decode_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
