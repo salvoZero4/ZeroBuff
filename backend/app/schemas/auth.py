@@ -37,7 +37,6 @@ class UserLoginInput(BaseModel):
     password: str
 
 
-
 class TokenRefreshInput(BaseModel):
     refresh_token: str
 
