@@ -1,7 +1,6 @@
 from fastapi import HTTPException, status
 from sqlmodel import Session, select, or_
 from app.models.user import User
-from uuid import UUID
 from app.schemas import UserRegisterInput, AuthOutput, UserLoginInput, TokenRefreshInput, TokenRefreshOutput 
 from app.core.security import get_password_hash, create_access_token, create_refresh_token, verify_password, decode_token
 
