@@ -1,10 +1,11 @@
-from app.schemas.auth import UserRegisterInput, UserRegisterOutput, UserLoginInput, UserLoginOutput, TokenRefreshInput, TokenRefreshOutput
+from app.schemas.auth import UserRegisterInput, AuthOutput, UserLoginInput, TokenRefreshInput, TokenRefreshOutput, ChangePassword, ResetPasswordRequest
 
 __all__ = [
     "UserRegisterInput",
-    "UserRegisterOutput",
+    "AuthOutput",
     "UserLoginInput",
-    "UserLoginOutput",
     "TokenRefreshInput",
-    "TokenRefreshOutput"
+    "TokenRefreshOutput",
+    "ChangePassword",
+    "ResetPasswordRequest"
 ]

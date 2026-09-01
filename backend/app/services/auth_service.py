@@ -1,11 +1,12 @@
 from fastapi import HTTPException, status
 from sqlmodel import Session, select, or_
 from app.models.user import User
-from app.schemas import UserRegisterInput, UserRegisterOutput, UserLoginInput, UserLoginOutput, TokenRefreshInput, TokenRefreshOutput 
+from uuid import UUID
+from app.schemas import UserRegisterInput, AuthOutput, UserLoginInput, TokenRefreshInput, TokenRefreshOutput 
 from app.core.security import get_password_hash, create_access_token, create_refresh_token, verify_password, decode_token
 
 
-def register_user(user: UserRegisterInput, session: Session) -> UserRegisterOutput:
+def register_user(user: UserRegisterInput, session: Session) -> AuthOutput:
     #verifica se l'username o l'email esistono già nel database
     query = select(User).where(or_(User.username == user.username, User.email == user.email))
     existing_user = session.exec(query).first()
@@ -32,10 +33,10 @@ def register_user(user: UserRegisterInput, session: Session) -> UserRegisterOutp
     access_token = create_access_token(subject=new_user.id)
     refresh_token = create_refresh_token(subject=new_user.id)
 
-    return UserRegisterOutput(id=new_user.id,username=new_user.username, email=new_user.email, access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+    return AuthOutput(id=new_user.id,username=new_user.username, email=new_user.email, access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
 
-def login_user(user: UserLoginInput, session: Session) -> UserLoginOutput:
+def login_user(user: UserLoginInput, session: Session) -> AuthOutput:
     #verifica se l'utente esiste nel database e se la password corrisponde all'hash salvato
     query = select(User).where(User.email == user.email)
     existing_user = session.exec(query).first()
@@ -48,7 +49,7 @@ def login_user(user: UserLoginInput, session: Session) -> UserLoginOutput:
     access_token = create_access_token(subject=existing_user.id)
     refresh_token = create_refresh_token(subject=existing_user.id)
 
-    return UserLoginOutput(id=existing_user.id, username=existing_user.username, email=existing_user.email, access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+    return AuthOutput(id=existing_user.id, username=existing_user.username, email=existing_user.email, access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
 def refresh_token(token: TokenRefreshInput) -> TokenRefreshOutput:
     
@@ -60,4 +61,20 @@ def refresh_token(token: TokenRefreshInput) -> TokenRefreshOutput:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
     access_token = create_access_token(subject=user_id)
     return TokenRefreshOutput(access_token=access_token, token_type="bearer")
+
+
+def change_password(current_user: User, new_password: str, session: Session):
+        
+    if verify_password(new_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="New password cannot be the same as the old password")
     
+    hashed_password = get_password_hash(new_password)
+    current_user.hashed_password = hashed_password
+    try:
+        session.add(current_user)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error occurred while changing password")
+
+#TODO: Implement password reset functionality with email verification and token expiration.
