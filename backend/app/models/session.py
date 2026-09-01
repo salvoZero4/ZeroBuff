@@ -1,5 +1,6 @@
 from uuid import UUID, uuid4
 from sqlmodel import SQLModel, Field
+from datetime import datetime
 
 class Session(SQLModel, table=True):
     id: UUID = Field(
@@ -8,8 +9,11 @@ class Session(SQLModel, table=True):
         unique=True, 
         nullable=False)
     user_id: UUID = Field(foreign_key="user.id")
-    routine_id: UUID = Field(foreign_key="routine.id")
+    routine_id: UUID = Field(foreign_key="routine.id", nullable=True)
     date: str = Field(index=True)
+    status : str = Field(index=True) #planned, completed, skipped
+    started_at: datetime = Field(default=None, nullable=True)
+    ended_at: datetime = Field(default=None, nullable=True)
 
 class Set_log(SQLModel, table=True):
     id: UUID = Field(
@@ -22,3 +26,4 @@ class Set_log(SQLModel, table=True):
     set_number: int
     reps: int
     weight: float
+    rir: int
