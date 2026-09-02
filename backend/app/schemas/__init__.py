@@ -1,5 +1,6 @@
 from app.schemas.auth import UserRegisterInput, AuthOutput, UserLoginInput, TokenRefreshInput, TokenRefreshOutput, ChangePassword, ResetPasswordRequest
 from app.schemas.user import UserResponse
+from app.schemas.exercise import ExerciseListResponse, ExerciseBase
 __all__ = [
     "UserRegisterInput",
     "AuthOutput",
@@ -8,5 +9,7 @@ __all__ = [
     "TokenRefreshOutput",
     "ChangePassword",
     "ResetPasswordRequest",
-    "UserResponse"
+    "UserResponse",
+    "ExerciseListResponse",
+    "ExerciseBase"
 ]

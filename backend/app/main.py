@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from app.api.v1 import auth
 from app.api.v1 import user
+from app.api.v1 import exercise
 
 from app.core.limiter import limiter
 from slowapi.errors import RateLimitExceeded
@@ -26,7 +27,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(auth.router)
 app.include_router(user.router)
-
+app.include_router(exercise.router)
 
 #Rotta di prova
 @app.get("/")
