@@ -16,7 +16,7 @@ class UserNewInfo(BaseModel):
     username: str | None = Field(default=None, min_length=3, max_length=30)
     email: EmailStr | None = None
     sex: Sex | None = None
-    date_of_birth: str | None = None
+    date_of_birth: date | None = None
     height_cm: float | None = Field(default=None, gt=0, lt=250)
 
     @field_validator("date_of_birth")

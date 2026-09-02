@@ -3,6 +3,18 @@ from app.models.user import User, UserProfile
 from sqlmodel import Session, select
 from fastapi import HTTPException, status
 
+
+def get_current_user(current_user: User, session: Session) -> UserResponse:
+    user_data = session.exec(select(UserProfile).where(UserProfile.user_id == current_user.id)).first()
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        sex=user_data.sex if user_data and user_data.sex is not None else None,
+        date_of_birth=user_data.date_of_birth if user_data and user_data.date_of_birth is not None else None,
+        height_cm=user_data.height_cm if user_data and user_data.height_cm is not None else None
+    )
+
 def update_info(new_info: UserNewInfo, current_user: User, session: Session) -> UserResponse:
     if new_info.username is not None:
         current_user.username = new_info.username
