@@ -12,7 +12,7 @@ router = APIRouter(
 def get_current_user(current_user: currentUserDep):
     return current_user
 
-#TODO: Implement endpoint for updating user information
+
 @router.patch("/me", response_model=UserResponse)
-def update_user_info(new_info: UserNewInfo,current_user: currentUserDep, session: sessionDep) :
+def update_user_info(new_info: UserNewInfo,current_user: currentUserDep, session: sessionDep):
     return update_info(new_info, current_user, session)
