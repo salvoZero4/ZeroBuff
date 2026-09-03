@@ -1,14 +1,14 @@
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field
+
+from sqlmodel import Field, SQLModel
+
 
 class Routine(SQLModel, table=True):
-    id: UUID= Field(
-        default_factory=uuid4, 
-        primary_key=True, index=True, 
-        unique=True, 
-        nullable=False)
+    id: UUID = Field(
+        default_factory=uuid4, primary_key=True, index=True, unique=True, nullable=False
+    )
     user_id: UUID = Field(foreign_key="user.id")
-    name: str= Field(index=True)
+    name: str = Field(index=True)
 
 
 class RoutineExercise(SQLModel, table=True):

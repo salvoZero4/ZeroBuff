@@ -1,8 +1,10 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
-from uuid import UUID
 from datetime import date
+from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.user import Sex
+
 
 class UserResponse(BaseModel):
     id: UUID
@@ -11,6 +13,7 @@ class UserResponse(BaseModel):
     sex: Sex | None = None
     date_of_birth: date | None = None
     height_cm: float | None = None
+
 
 class UserNewInfo(BaseModel):
     username: str | None = Field(default=None, min_length=3, max_length=30)
@@ -23,7 +26,7 @@ class UserNewInfo(BaseModel):
     @classmethod
     def validate_date_of_birth(cls, value):
         if value is not None:
-            today = date.today()
+            today = date.now().date()
 
             age = (today - value).days // 365
 
