@@ -9,7 +9,7 @@ from app.models.exercise import Exercise
 from app.models.routine import RoutineExercise
 from app.models.session import Set_log
 from app.schemas.exercise import (
-    ExerciseBase,
+    ExerciseCreated,
     ExerciseListResponse,
     ExerciseModified,
     ExerciseRead,
@@ -50,7 +50,7 @@ def exercises_list(
 
 
 def create_custom_exercise(
-    new_exercise: ExerciseBase, session: Session, current_user
+    new_exercise: ExerciseCreated, session: Session, current_user
 ) -> ExerciseRead:
     user_id = current_user.id
 

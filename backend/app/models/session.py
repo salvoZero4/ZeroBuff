@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, SQLModel
@@ -10,10 +10,10 @@ class Session(SQLModel, table=True):
     )
     user_id: UUID = Field(foreign_key="user.id")
     routine_id: UUID = Field(foreign_key="routine.id", nullable=True)
-    date: str = Field(index=True)
+    date: datetime.date = Field(index=True)
     status: str = Field(index=True)  # planned, completed, skipped
-    started_at: datetime = Field(default=None, nullable=True)
-    ended_at: datetime = Field(default=None, nullable=True)
+    started_at: datetime.datetime = Field(default=None, nullable=True)
+    ended_at: datetime.datetime = Field(default=None, nullable=True)
 
 
 class Set_log(SQLModel, table=True):

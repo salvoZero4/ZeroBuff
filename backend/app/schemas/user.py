@@ -26,7 +26,7 @@ class UserNewInfo(BaseModel):
     @classmethod
     def validate_date_of_birth(cls, value):
         if value is not None:
-            today = date.now().date()
+            today = date.today()
 
             age = (today - value).days // 365
 

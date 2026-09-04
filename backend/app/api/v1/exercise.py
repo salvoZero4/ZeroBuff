@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query
 from app.api.dependencies import currentUserDep, sessionDep
 from app.models.exercise import MuscleGroup
 from app.schemas.exercise import (
-    ExerciseBase,
+    ExerciseCreated,
     ExerciseListResponse,
     ExerciseModified,
     ExerciseRead,
@@ -42,7 +42,7 @@ def get_exercises(
     "/", response_model=ExerciseRead
 )  # rotta per creare un esercizio personalizzato per l'utente autenticato
 def post_exercise(
-    new_exercise: ExerciseBase, session: sessionDep, current_user: currentUserDep
+    new_exercise: ExerciseCreated, session: sessionDep, current_user: currentUserDep
 ) -> ExerciseRead:
     """Create a custom exercise for the authenticated user."""
     return create_custom_exercise(new_exercise, session, current_user)

@@ -15,6 +15,11 @@ class ExerciseBase(BaseModel):
     )  # Abilita lettura di oggetti SQLModel
 
 
+class ExerciseCreated(BaseModel):
+    name: str
+    muscle_group: MuscleGroup
+
+
 class ExerciseRead(ExerciseBase):
     id: UUID
 
