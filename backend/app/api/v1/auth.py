@@ -1,10 +1,7 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
 from app.api.dependencies import currentUserDep, sessionDep
 from app.core.limiter import limiter
-from app.models.user import User
 from app.schemas import (
     AuthOutput,
     ChangePassword,
@@ -53,7 +50,7 @@ def change_password_endpoint(
     request: Request,
     new_password: ChangePassword,
     session: sessionDep,
-    current_user: Annotated[User, Depends(currentUserDep)],
+    current_user: currentUserDep,
 ):
     """Change the password of the currently authenticated user."""
     change_password(current_user, new_password, session=session)

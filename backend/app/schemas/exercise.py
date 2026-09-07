@@ -16,6 +16,10 @@ class ExerciseBase(BaseModel):
     )  # Abilita lettura di oggetti SQLModel
 
 
+class ExerciseRead(ExerciseBase):
+    id: UUID
+
+
 class ExerciseSearchResult(BaseModel):
     exercise: ExerciseRead
     score: float
@@ -28,10 +32,6 @@ class SearchResponse(BaseModel):
 class ExerciseCreated(BaseModel):
     name: str
     muscle_group: MuscleGroup
-
-
-class ExerciseRead(ExerciseBase):
-    id: UUID
 
 
 class ExerciseModified(BaseModel):
