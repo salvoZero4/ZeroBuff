@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from app.models.exercise import Exercise
 from app.models.routine import RoutineExercise
+from app.models.session import Session as SessionModel
 from app.models.session import Set_log
 from app.schemas.exercise import (
     ExerciseCreated,
@@ -14,7 +15,10 @@ from app.schemas.exercise import (
     ExerciseModified,
     ExerciseRead,
     ExerciseSearchResult,
+    ExerciseSessionLog,
+    ExerciseStatsResponse,
     SearchResponse,
+    SetLog,
 )
 
 
@@ -201,3 +205,48 @@ def delete_exercise(exercise_id: UUID, session: Session, current_user):
             detail="Database operational error occurred",
         )
     return {"detail": "Exercise deleted successfully"}
+
+
+def get_stats(exercise_id: UUID, user_id: UUID, session: Session):
+    # Check if the exercise exists
+    exercise = session.get(Exercise, exercise_id)
+    if not exercise:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
+        )
+
+    response = session.exec(
+        select(
+            Set_log.session_id,
+            SessionModel.date,
+            Set_log.set_number,
+            Set_log.reps,
+            Set_log.weight,
+            Set_log.rir,
+        )
+        .join(SessionModel, Set_log.session_id == SessionModel.id)
+        .where(Set_log.exercise_id == exercise_id, SessionModel.user_id == user_id)
+        .order_by(SessionModel.date.desc(), Set_log.set_number.asc())
+    ).all()
+
+    # Raggruppamento per session_id
+    sessions_map: dict[UUID, ExerciseSessionLog] = {}
+
+    for row in response:
+        if row.session_id not in sessions_map:
+            sessions_map[row.session_id] = ExerciseSessionLog(
+                session_id=row.session_id,
+                date=row.date,
+                sets=[],
+            )
+
+        sessions_map[row.session_id].sets.append(
+            SetLog(
+                set_number=row.set_number, reps=row.reps, weight=row.weight, rir=row.rir
+            )
+        )
+
+    return ExerciseStatsResponse(
+        exercise_id=exercise_id,
+        sessions=list(sessions_map.values()),
+    )

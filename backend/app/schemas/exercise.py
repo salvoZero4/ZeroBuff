@@ -1,3 +1,4 @@
+import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -40,3 +41,23 @@ class ExerciseModified(BaseModel):
 
 class ExerciseListResponse(BaseModel):
     exercises: list[ExerciseRead]
+
+
+class SetLog(BaseModel):
+    set_number: int
+    reps: int
+    weight: float
+    rir: int | None = None
+
+
+class ExerciseSessionLog(BaseModel):
+    session_id: UUID
+    date: datetime.date
+    sets: list[SetLog]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExerciseStatsResponse(BaseModel):
+    exercise_id: UUID
+    sessions: list[ExerciseSessionLog]

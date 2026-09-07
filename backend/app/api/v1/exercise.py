@@ -10,6 +10,7 @@ from app.schemas.exercise import (
     ExerciseListResponse,
     ExerciseModified,
     ExerciseRead,
+    ExerciseStatsResponse,
     SearchResponse,
 )
 from app.services.exercise_service import (
@@ -17,6 +18,7 @@ from app.services.exercise_service import (
     delete_exercise,
     exercise_details,
     exercises_list,
+    get_stats,
     search,
     update_exercise,
 )
@@ -96,4 +98,13 @@ def delete_custom_exercise(
     return delete_exercise(exercise_id, session, current_user)
 
 
-# router.get("/{exercise_id}/stats") #rotta per ottenere le statistiche di un esercizio specifico come tutti i pesi e le ripetizioni registrate dall'utente, con filtri e paginazione
+@router.get(
+    "/{exercise_id}/stats", response_model=ExerciseStatsResponse
+)  # rotta per ottenere le statistiche di un esercizio specifico come tutti i pesi e le ripetizioni registrate dall'utente, con filtri e paginazione
+def get_exercise_stats(
+    exercise_id: UUID,
+    session: sessionDep,
+    current_user: currentUserDep,
+):
+    """Get the stats of a specific exercise for the authenticated user."""
+    return get_stats(exercise_id, current_user.id, session)
