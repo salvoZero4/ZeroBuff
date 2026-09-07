@@ -13,17 +13,33 @@ from app.schemas.exercise import (
     ExerciseListResponse,
     ExerciseModified,
     ExerciseRead,
+    ExerciseSearchResult,
+    SearchResponse,
 )
 
 
 def find_similar_exercises(name: str, session: Session, threshold: float = 0.3):
-    similarity = func.similarity(Exercise.name, name)
+    similarity_score = func.similarity(Exercise.name, name)
+
     return session.exec(
-        select(Exercise, similarity.label("score"))
-        .where(similarity > threshold)
-        .order_by(similarity.desc())
+        select(Exercise, similarity_score.label("score"))
+        .where(similarity_score > threshold)
+        .order_by(similarity_score.desc())
         .limit(5)
     ).all()
+
+
+def search(session: Session, query: str) -> SearchResponse:
+    similar_exercises = find_similar_exercises(query, session)
+
+    results = [
+        ExerciseSearchResult(
+            exercise=ExerciseRead.model_validate(exercise), score=score
+        )
+        for exercise, score in similar_exercises
+    ]
+
+    return SearchResponse(results=results)
 
 
 def exercises_list(

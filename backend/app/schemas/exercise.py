@@ -15,6 +15,15 @@ class ExerciseBase(BaseModel):
     )  # Abilita lettura di oggetti SQLModel
 
 
+class ExerciseSearchResult(BaseModel):
+    exercise: ExerciseRead
+    score: float
+
+
+class SearchResponse(BaseModel):
+    results: list[ExerciseSearchResult]
+
+
 class ExerciseCreated(BaseModel):
     name: str
     muscle_group: MuscleGroup

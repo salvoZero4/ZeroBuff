@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query
@@ -9,12 +10,14 @@ from app.schemas.exercise import (
     ExerciseListResponse,
     ExerciseModified,
     ExerciseRead,
+    SearchResponse,
 )
 from app.services.exercise_service import (
     create_custom_exercise,
     delete_exercise,
     exercise_details,
     exercises_list,
+    search,
     update_exercise,
 )
 
@@ -36,6 +39,18 @@ def get_exercises(
     return exercises_list(
         session, name=name, limit=limit, offset=offset, muscle_group=muscle_group
     )
+
+
+@router.get(
+    "/search", response_model=SearchResponse
+)  # rotta per cercare esercizi per similarità di nome
+def search_exercises(
+    session: sessionDep,
+    current_user: currentUserDep,
+    query: Annotated[str, Query(min_length=3)],
+):
+    """Search for exercises for similarity by name."""
+    return search(session, query=query)
 
 
 @router.post(
