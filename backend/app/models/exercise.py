@@ -42,5 +42,5 @@ class Exercise(SQLModel, table=True):
     name: str = Field(index=True)
     muscle_group: MuscleGroup = Field(index=True)
     created_by_user: UUID | None = Field(
-        foreign_key="user.id", index=True, nullable=True
+        default=None, foreign_key="user.id", index=True, nullable=True
     )

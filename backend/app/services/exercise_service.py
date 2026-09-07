@@ -73,9 +73,10 @@ def create_custom_exercise(
     new_exercise: ExerciseCreated, session: Session, current_user
 ) -> ExerciseRead:
     user_id = current_user.id
+    cleaned_name = new_exercise.name.strip().title()
 
     exercise = Exercise(
-        name=new_exercise.name,
+        name=cleaned_name,
         muscle_group=new_exercise.muscle_group,
         created_by_user=user_id,
     )
@@ -129,7 +130,7 @@ def update_exercise(
         )
 
     if modified_exercise.name is not None:
-        exercise.name = modified_exercise.name
+        exercise.name = modified_exercise.name.strip().title()
     if modified_exercise.muscle_group is not None:
         exercise.muscle_group = modified_exercise.muscle_group
 
@@ -159,6 +160,11 @@ def delete_exercise(exercise_id: UUID, session: Session, current_user):
     if not exercise:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
+        )
+    if not exercise.created_by_user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot delete a default exercise",
         )
     if exercise.created_by_user != current_user.id:
         raise HTTPException(
