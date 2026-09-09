@@ -105,6 +105,8 @@ def get_exercise_stats(
     exercise_id: UUID,
     session: sessionDep,
     current_user: currentUserDep,
+    limit: int = Query(default=10, le=100),
+    offset: int = Query(default=0, ge=0),
 ):
     """Get the stats of a specific exercise for the authenticated user."""
-    return get_stats(exercise_id, current_user.id, session)
+    return get_stats(exercise_id, current_user.id, limit, offset, session)

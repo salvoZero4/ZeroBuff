@@ -43,7 +43,7 @@ class ExerciseListResponse(BaseModel):
     exercises: list[ExerciseRead]
 
 
-class SetLog(BaseModel):
+class SetLogRead(BaseModel):
     set_number: int
     reps: int
     weight: float
@@ -53,7 +53,7 @@ class SetLog(BaseModel):
 class ExerciseSessionLog(BaseModel):
     session_id: UUID
     date: datetime.date
-    sets: list[SetLog]
+    sets: list[SetLogRead]
 
     model_config = ConfigDict(from_attributes=True)
 

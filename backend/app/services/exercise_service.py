@@ -18,7 +18,7 @@ from app.schemas.exercise import (
     ExerciseSessionLog,
     ExerciseStatsResponse,
     SearchResponse,
-    SetLog,
+    SetLogRead,
 )
 
 
@@ -72,8 +72,16 @@ def exercises_list(
 def create_custom_exercise(
     new_exercise: ExerciseCreated, session: Session, current_user
 ) -> ExerciseRead:
+
     user_id = current_user.id
     cleaned_name = new_exercise.name.strip().title()
+
+    similar_exercises = find_similar_exercises(cleaned_name, session, threshold=0.8)
+    if similar_exercises:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An exercise with a similar name already exists",
+        )
 
     exercise = Exercise(
         name=cleaned_name,
@@ -213,13 +221,27 @@ def delete_exercise(exercise_id: UUID, session: Session, current_user):
     return {"detail": "Exercise deleted successfully"}
 
 
-def get_stats(exercise_id: UUID, user_id: UUID, session: Session):
+def get_stats(
+    exercise_id: UUID, user_id: UUID, limit: int, offset: int, session: Session
+):
     # Check if the exercise exists
     exercise = session.get(Exercise, exercise_id)
     if not exercise:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
         )
+    session_rank = func.dense_rank().over(order_by=SessionModel.date.desc())
+
+    subq = (
+        select(
+            SessionModel.id.label("session_id"),
+            session_rank.label("rank"),
+        )
+        .join(Set_log, Set_log.session_id == SessionModel.id)
+        .where(Set_log.exercise_id == exercise_id, SessionModel.user_id == user_id)
+        .distinct()
+        .subquery()
+    )
 
     response = session.exec(
         select(
@@ -231,13 +253,19 @@ def get_stats(exercise_id: UUID, user_id: UUID, session: Session):
             Set_log.rir,
         )
         .join(SessionModel, Set_log.session_id == SessionModel.id)
-        .where(Set_log.exercise_id == exercise_id, SessionModel.user_id == user_id)
+        .join(subq, subq.c.session_id == SessionModel.id)
+        .where(
+            Set_log.exercise_id == exercise_id,
+            SessionModel.user_id == user_id,
+            subq.c.rank > offset,
+            subq.c.rank <= offset + limit,
+        )
         .order_by(SessionModel.date.desc(), Set_log.set_number.asc())
     ).all()
 
     # Raggruppamento per session_id
     sessions_map: dict[UUID, ExerciseSessionLog] = {}
-
+    # l'ordine finale dipende dall'ORDER BY della query sopra
     for row in response:
         if row.session_id not in sessions_map:
             sessions_map[row.session_id] = ExerciseSessionLog(
@@ -247,7 +275,7 @@ def get_stats(exercise_id: UUID, user_id: UUID, session: Session):
             )
 
         sessions_map[row.session_id].sets.append(
-            SetLog(
+            SetLogRead(
                 set_number=row.set_number, reps=row.reps, weight=row.weight, rir=row.rir
             )
         )
