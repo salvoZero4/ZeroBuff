@@ -78,9 +78,10 @@ def create_custom_exercise(
 
     similar_exercises = find_similar_exercises(cleaned_name, session, threshold=0.8)
     if similar_exercises:
+        similar_names = [exercise.name for exercise, _ in similar_exercises]
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="An exercise with a similar name already exists",
+            detail=f"An exercise with a similar name already exists: {', '.join(similar_names)}",
         )
 
     exercise = Exercise(
