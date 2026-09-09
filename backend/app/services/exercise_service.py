@@ -231,7 +231,9 @@ def get_stats(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
         )
-    session_rank = func.dense_rank().over(order_by=SessionModel.date.desc())
+    session_rank = func.dense_rank().over(
+        order_by=(SessionModel.date.desc(), SessionModel.id.desc())
+    )
 
     subq = (
         select(

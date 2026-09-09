@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, status
 
 from app.api.dependencies import currentUserDep, sessionDep
 from app.models.exercise import MuscleGroup
@@ -56,7 +56,7 @@ def search_exercises(
 
 
 @router.post(
-    "/", response_model=ExerciseRead
+    "/", response_model=ExerciseRead, status_code=status.HTTP_201_CREATED
 )  # rotta per creare un esercizio personalizzato per l'utente autenticato
 def post_exercise(
     new_exercise: ExerciseCreated, session: sessionDep, current_user: currentUserDep

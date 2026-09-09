@@ -7,8 +7,8 @@ from app.models.exercise import MuscleGroup
 
 
 class ExerciseBase(BaseModel):
-    name: str
-    muscle_group: MuscleGroup
+    name: str = "Bench Press"
+    muscle_group: MuscleGroup = "chest"
     created_by_user: UUID | None = None
 
     model_config = ConfigDict(
@@ -30,8 +30,8 @@ class SearchResponse(BaseModel):
 
 
 class ExerciseCreated(BaseModel):
-    name: str
-    muscle_group: MuscleGroup
+    name: str = "Bench Press"
+    muscle_group: MuscleGroup = "chest"
 
 
 class ExerciseModified(BaseModel):
