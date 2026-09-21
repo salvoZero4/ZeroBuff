@@ -9,7 +9,9 @@ class Session(SQLModel, table=True):
         default_factory=uuid4, primary_key=True, index=True, unique=True, nullable=False
     )
     user_id: UUID = Field(foreign_key="user.id")
-    routine_id: UUID = Field(foreign_key="routine.id", nullable=True)
+    routine_id: UUID = Field(
+        foreign_key="routine.id", nullable=True, ondelete="SET NULL"
+    )
     date: datetime.date = Field(index=True)
     status: str = Field(index=True)  # planned, completed, skipped
     started_at: datetime.datetime = Field(default=None, nullable=True)

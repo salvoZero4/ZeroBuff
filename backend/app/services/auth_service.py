@@ -1,4 +1,7 @@
+from uuid import UUID
+
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, or_, select
 
 from app.core.security import (
@@ -44,7 +47,7 @@ def register_user(user: UserRegisterInput, session: Session) -> AuthOutput:
     try:
         session.add(new_user)
         session.commit()
-    except Exception as e:
+    except IntegrityError:
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -70,15 +73,12 @@ def login_user(user: UserLoginInput, session: Session) -> AuthOutput:
     # verifica se l'utente esiste nel database e se la password corrisponde all'hash salvato
     query = select(User).where(User.email == user.email)
     existing_user = session.exec(query).first()
-    if not existing_user:
+    if not existing_user or not verify_password(
+        user.password, existing_user.hashed_password
+    ):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
-    if not verify_password(user.password, existing_user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
-        )
-
     # creazione dei token di accesso e refresh per l'utente esistente
     access_token = create_access_token(subject=existing_user.id)
     refresh_token = create_refresh_token(subject=existing_user.id)
@@ -93,7 +93,7 @@ def login_user(user: UserLoginInput, session: Session) -> AuthOutput:
     )
 
 
-def refresh_token(token: TokenRefreshInput) -> TokenRefreshOutput:
+def refresh_token(token: TokenRefreshInput, session: Session) -> TokenRefreshOutput:
 
     payload = decode_token(token.refresh_token)
     if payload.get("type") != "refresh":
@@ -101,7 +101,14 @@ def refresh_token(token: TokenRefreshInput) -> TokenRefreshOutput:
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
     user_id = payload.get("sub")
-    if not user_id:
+    try:
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
+    existing_user = session.exec(select(User).where(User.id == user_uuid)).first()
+    if not existing_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
@@ -122,7 +129,7 @@ def change_password(current_user: User, new_password: str, session: Session):
     try:
         session.add(current_user)
         session.commit()
-    except Exception as e:
+    except IntegrityError:
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

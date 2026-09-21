@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, select
 
 from app.models.user import User, UserProfile
@@ -26,31 +27,45 @@ def get_current_user(current_user: User, session: Session) -> UserResponse:
 def update_info(
     new_info: UserNewInfo, current_user: User, session: Session
 ) -> UserResponse:
-    if new_info.username is not None:
-        current_user.username = new_info.username
-    if new_info.email is not None:
-        current_user.email = new_info.email
+
     current_user_data = session.exec(
         select(UserProfile).where(UserProfile.user_id == current_user.id)
     ).first()
     if current_user_data is None:
         current_user_data = UserProfile(user_id=current_user.id)
         session.add(current_user_data)
-    if new_info.sex is not None:
-        current_user_data.sex = new_info.sex
-    if new_info.date_of_birth is not None:
-        current_user_data.date_of_birth = new_info.date_of_birth
-    if new_info.height_cm is not None:
-        current_user_data.height_cm = new_info.height_cm
+
+    # Unwrap the new_info model to a dictionary, excluding None fields
+    updated_data = {
+        k: v
+        for k, v in new_info.model_dump(exclude_unset=True).items()
+        if v is not None
+    }
+
+    user_fields = {"username", "email"}
+
+    # loop through a list of tuples containing the field name and value, and set the attribute on the appropriate model
+    for field, value in updated_data.items():
+        if field in user_fields:
+            setattr(current_user, field, value)
+        else:
+            setattr(current_user_data, field, value)
+
     try:
         session.add(current_user)
         session.add(current_user_data)
         session.commit()
-    except Exception as e:
+    except IntegrityError:
         session.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error occurred while updating user information",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username or email already exists.",
+        )
+    except OperationalError:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database error occurred",
         )
     session.refresh(current_user)
     session.refresh(current_user_data)

@@ -15,7 +15,7 @@ class RoutineExercise(SQLModel, table=True):
     id: UUID = Field(
         default_factory=uuid4, primary_key=True, index=True, unique=True, nullable=False
     )
-    routine_id: UUID = Field(foreign_key="routine.id")
+    routine_id: UUID = Field(foreign_key="routine.id", ondelete="CASCADE")
     exercise_id: UUID = Field(foreign_key="exercise.id")
     sets: int
     reps: int

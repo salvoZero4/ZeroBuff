@@ -89,13 +89,12 @@ def update_custom_exercise(
 
 
 @router.delete(
-    "/{exercise_id}", response_model=dict
+    "/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT
 )  # rotta per eliminare un esercizio personalizzato, eliminabile solo dall'utente che l'ha creato
 def delete_custom_exercise(
     exercise_id: UUID, session: sessionDep, current_user: currentUserDep
 ):
-    """Delete a custom exercise created by the authenticated user."""
-    return delete_exercise(exercise_id, session, current_user)
+    delete_exercise(exercise_id, session, current_user)
 
 
 @router.get(

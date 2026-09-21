@@ -10,10 +10,12 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.19.1",
     "fastapi[standard]>=0.141.1",
+    "httpx2>=2.13.0",
     "psycopg[binary]>=3.3.4",
     "pwdlib[argon2,bcrypt]>=0.3.1",
     "pydantic-settings>=2.15.0",
     "pyjwt>=2.13.0",
+    "pytest>=9.1.1",
     "python-multipart>=0.0.32",
     "slowapi>=0.1.10",
     "sqlmodel>=0.0.39",
@@ -29,3 +31,9 @@ build-backend = "uv_build"
 
 [tool.uv]
 package = false
+
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning:slowapi.*",
+]

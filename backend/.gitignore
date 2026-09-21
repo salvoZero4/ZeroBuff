@@ -10,3 +10,6 @@ wheels/
 .venv
 .env
 .DS_Store
+
+# Data set files for popolate the database
+scripts/data

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -24,7 +24,7 @@ def _create_token(
     subject: str | Any, type: str, expires_delta: timedelta | None = None
 ) -> str:
     """Genera una stringa JWT firmata contenente l'ID utente e la data di scadenza."""
-    expire = datetime.now(timezone.utc) + expires_delta
+    expire = datetime.now(UTC) + expires_delta
     to_encode = {"sub": str(subject), "type": type, "exp": expire}
 
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)

@@ -19,5 +19,5 @@ class Schedule(SQLModel, table=True):
         default_factory=uuid4, primary_key=True, index=True, unique=True, nullable=False
     )
     user_id: UUID = Field(foreign_key="user.id")
-    routine_id: UUID = Field(foreign_key="routine.id")
+    routine_id: UUID = Field(foreign_key="routine.id", ondelete="CASCADE")
     day_of_week: DayOfWeek

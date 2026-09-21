@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import AfterValidator, BaseModel, EmailStr
 
 
 def validate_password(value: str) -> str:
@@ -16,7 +16,7 @@ def validate_password(value: str) -> str:
     return value
 
 
-PasswordValided = Annotated[str, validate_password]
+PasswordValided = Annotated[str, AfterValidator(validate_password)]
 
 
 class UserBase(BaseModel):

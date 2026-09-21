@@ -74,9 +74,10 @@ def create_custom_exercise(
 ) -> ExerciseRead:
 
     user_id = current_user.id
-    cleaned_name = new_exercise.name.strip().title()
 
-    similar_exercises = find_similar_exercises(cleaned_name, session, threshold=0.8)
+    similar_exercises = find_similar_exercises(
+        new_exercise.name, session, threshold=0.8
+    )
     if similar_exercises:
         similar_names = [exercise.name for exercise, _ in similar_exercises]
         raise HTTPException(
@@ -85,8 +86,10 @@ def create_custom_exercise(
         )
 
     exercise = Exercise(
-        name=cleaned_name,
+        name=new_exercise.name,
         muscle_group=new_exercise.muscle_group,
+        secondary_muscle_groups=new_exercise.secondary_muscle_groups,
+        equipment=new_exercise.equipment,
         created_by_user=user_id,
     )
 
@@ -131,17 +134,21 @@ def update_exercise(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
         )
-
     if exercise.created_by_user != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not authorized to update this exercise",
         )
 
-    if modified_exercise.name is not None:
-        exercise.name = modified_exercise.name.strip().title()
-    if modified_exercise.muscle_group is not None:
-        exercise.muscle_group = modified_exercise.muscle_group
+    updated_fields = {
+        k: v for k, v in modified_exercise.model_dump().items() if v is not None
+    }
+    if updated_fields:
+        for field, value in updated_fields.items():
+            if field == "name":
+                setattr(exercise, field, value.strip().title())
+            else:
+                setattr(exercise, field, value)
 
     try:
         session.add(exercise)
@@ -219,7 +226,6 @@ def delete_exercise(exercise_id: UUID, session: Session, current_user):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database operational error occurred",
         )
-    return {"detail": "Exercise deleted successfully"}
 
 
 def get_stats(
