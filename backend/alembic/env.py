@@ -61,8 +61,10 @@ def run_migrations_online() -> None:
     """
     configuration = config.get_section(config.config_ini_section, {})
 
-    target_url = config.get_main_option("sqlalchemy.url") or settings.database_url
-    configuration["sqlalchemy.url"] = target_url
+    raw_url = config.get_main_option("sqlalchemy.url")
+    if not raw_url or raw_url.startswith("driver://"):
+        raw_url = settings.database_url
+    configuration["sqlalchemy.url"] = raw_url
 
     connectable = engine_from_config(
         configuration,

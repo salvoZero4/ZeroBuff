@@ -1,7 +1,7 @@
 from enum import Enum
 from uuid import UUID, uuid4
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, UniqueConstraint
 
 
 class DayOfWeek(str, Enum):
@@ -15,6 +15,8 @@ class DayOfWeek(str, Enum):
 
 
 class Schedule(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "day_of_week"),)
+
     id: UUID = Field(
         default_factory=uuid4, primary_key=True, index=True, unique=True, nullable=False
     )
