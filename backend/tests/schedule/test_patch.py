@@ -73,9 +73,7 @@ class TestPatchSchedule:
         user_id = self.get_user_id(session)
         routine1 = self.create_routine(session, user_id, "Routine 1")
         routine2 = self.create_routine(session, user_id, "Routine 2")
-        schedule1 = self.create_schedule(
-            session, user_id, routine1.id, DayOfWeek.monday
-        )
+        self.create_schedule(session, user_id, routine1.id, DayOfWeek.monday)
         schedule2 = self.create_schedule(
             session, user_id, routine2.id, DayOfWeek.tuesday
         )
