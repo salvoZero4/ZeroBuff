@@ -1,7 +1,7 @@
 import datetime
 from uuid import UUID, uuid4
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Column, DateTime, Field, SQLModel
 
 
 class Session(SQLModel, table=True):
@@ -13,9 +13,13 @@ class Session(SQLModel, table=True):
         foreign_key="routine.id", nullable=True, ondelete="SET NULL"
     )
     date: datetime.date = Field(index=True)
-    status: str = Field(index=True)  # planned, completed, skipped
-    started_at: datetime.datetime = Field(default=None, nullable=True)
-    ended_at: datetime.datetime = Field(default=None, nullable=True)
+    status: str = Field(index=True)  # ongoing, completed, paused
+    started_at: datetime.datetime = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    ended_at: datetime.datetime = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
 
 class Set_log(SQLModel, table=True):
@@ -27,4 +31,7 @@ class Set_log(SQLModel, table=True):
     set_number: int
     reps: int
     weight: float
-    rir: int
+    rir: int = Field(
+        default=None,
+        nullable=True,
+    )
