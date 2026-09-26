@@ -1,23 +1,23 @@
 services:
   db:
     image: postgres:18-alpine
-    container_name: gym_app_db
+    container_name: zerobuff_db
     restart: no
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-gym_db}
+      POSTGRES_DB: ${POSTGRES_DB:-zerobuff_db}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
   db_test:
     image: postgres:18-alpine
-    container_name: gym_app_db_test
+    container_name: zerobuff_db_test
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=gym_db_test
+      - POSTGRES_DB=zerobuff_test
     ports:
       - "5433:5432"
     tmpfs:
@@ -25,4 +25,4 @@ services:
 
 volumes:
   postgres_data:
-    name: gym-app-volume
+    name: zerobuff-volume

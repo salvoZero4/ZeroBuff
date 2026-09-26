@@ -11,10 +11,9 @@ https://github.com/hasaneyldrm/exercises-dataset e mettilo in scripts/data/exerc
 import json
 from pathlib import Path
 
-from sqlmodel import Session, create_engine, select
-
 from app.core.config import settings
 from app.models.exercise import Equipment, Exercise, MuscleGroup
+from sqlmodel import Session, create_engine, select
 
 DATA_FILE = Path(__file__).parent / "data" / "exercises.json"
 
