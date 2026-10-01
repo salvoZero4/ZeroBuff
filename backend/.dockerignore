@@ -1,0 +1,41 @@
+# Ambienti virtuali e dipendenze locali
+.venv/
+venv/
+env/
+
+# File di ambiente e segreti (CRITICO: non devono mai finire nell'immagine)
+.env
+.env.*
+*.env
+
+# Cache di Python e bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Test e strumenti di analisi/linting
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+#  Database locali temporanei o dump
+*.sqlite
+*.sqlite3
+*.db
+
+# File di sistema e degli editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+#  Documentazione e Git
+.git/
+.gitignore
+README.md
+LICENSE.md
