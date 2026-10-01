@@ -1,0 +1,14 @@
+# Ambienti e Secrets
+.env
+*.env.*
+
+# Python / Backend
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+*.pyc
+
+# Node / Mobile
+node_modules/
+.expo/
+dist/
