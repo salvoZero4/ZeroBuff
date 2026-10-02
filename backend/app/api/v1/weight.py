@@ -5,6 +5,7 @@ from app.api.dependencies import currentUserDep, sessionDep
 from app.schemas.weight import WeightLogCreate, WeightLogRead, WeightLogUpdate
 from app.services.weight_service import (
     create_weight_log,
+    delete_weight_log,
     get_weight_log_by_date,
     list_weight_logs,
     update_weight_log,
@@ -50,3 +51,12 @@ def update_weight(
     user: currentUserDep,
 ):
     return update_weight_log(session, user.id, log_id, data)
+
+
+@router.delete("/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_weight(
+    log_id: UUID,
+    session: sessionDep,
+    user: currentUserDep,
+) -> None:
+    delete_weight_log(session, user.id, log_id)

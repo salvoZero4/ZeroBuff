@@ -58,3 +58,14 @@ def update_weight_log(
     commit_with_http_error_handling(db)
     db.refresh(log)
     return log
+
+
+def delete_weight_log(db: Session, user_id: UUID, log_id: UUID) -> None:
+    log = db.get(WeightLog, log_id)
+    if log is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Weight log not found")
+    if log.user_id != user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed")
+
+    db.delete(log)
+    commit_with_http_error_handling(db)
