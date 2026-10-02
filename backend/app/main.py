@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api.v1 import auth, exercise, routine, schedule, user, workoutsession
+from app.api.v1 import auth, exercise, routine, schedule, user, weight, workoutsession
 from app.core.limiter import limiter
 
 app = FastAPI()
@@ -23,6 +23,7 @@ app.include_router(exercise.router)
 app.include_router(routine.router)
 app.include_router(schedule.router)
 app.include_router(workoutsession.router)
+app.include_router(weight.router)
 
 
 # Rotta di prova

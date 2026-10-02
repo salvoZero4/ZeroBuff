@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date as date_type, timedelta
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -6,13 +6,13 @@ from pydantic import BaseModel, Field, field_validator
 
 class WeightLogCreate(BaseModel):
     weight: float = Field(gt=0, le=500)  # kg
-    date: date | None = None  # defaults to server today in the service
+    date: date_type | None = None  # defaults to server today in the service
 
     @field_validator("date")
     @classmethod
-    def not_in_the_future(cls, v: date | None) -> date | None:
+    def not_in_the_future(cls, v: date_type | None) -> date_type | None:
         # 1 day of tolerance for clients ahead of the server's timezone
-        if v is not None and v > date.today() + timedelta(days=1):
+        if v is not None and v > date_type.today() + timedelta(days=1):
             raise ValueError("date cannot be in the future")
         return v
 
@@ -25,5 +25,5 @@ class WeightLogUpdate(BaseModel):
 
 class WeightLogRead(BaseModel):
     id: UUID
-    date: date
+    date: date_type
     weight: float
