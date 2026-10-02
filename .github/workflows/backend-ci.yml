@@ -118,3 +118,4 @@ jobs:
             echo "Deploy triggered successfully."
           else
             echo "Nessun DEPLOY_HOOK_URL impostato nei secrets di GitHub. Skip del trigger."
+          fi

@@ -11,7 +11,7 @@ class WeightLog(SQLModel, table=True):
         UniqueConstraint("user_id", "date", name="uq_weight_log_user_date"),
     )
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True, index=True)
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="user.id")
-    date: datetime.date
-    weight: float
+    date: datetime.date = Field(nullable=False)
+    weight: float = Field(nullable=False, gt=0.0, le=1000.0)  # Kg
