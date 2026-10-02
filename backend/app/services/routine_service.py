@@ -1,7 +1,6 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, String, cast, delete, func, select
 
 from app.models.exercise import Exercise
@@ -9,6 +8,7 @@ from app.models.routine import Routine, RoutineExercise
 from app.models.session import Session as WorkoutSession
 from app.models.session import Set_log
 from app.models.user import User
+from app.services.service_helpers import commit_with_http_error_handling
 from app.schemas.routine import (
     ExerciseInRoutineRead,
     ExerciseStats,
@@ -161,22 +161,9 @@ def create_routine(
     ]
 
     # Add the new routine to the session and commit
-    try:
-        session.add(new_routine)
-        session.add_all(exercises_in_routine)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Failed to create routine",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Error occurred with the database while creating the routine",
-        )
+    session.add(new_routine)
+    session.add_all(exercises_in_routine)
+    commit_with_http_error_handling(session, "Failed to create routine")
     session.refresh(new_routine)
     for exercise in exercises_in_routine:
         session.refresh(exercise)
@@ -238,21 +225,8 @@ def update_routine(
         ]
         session.add_all(new_exercises)
 
-    try:
-        session.add(routine)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Failed to update routine",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Failed to update routine",
-        )
+    session.add(routine)
+    commit_with_http_error_handling(session, "Failed to update routine")
 
     return get_exercises_in_routine(session, routine.id, user_id)
 
@@ -269,21 +243,8 @@ def delete_routine(routine_id: UUID, session: Session, user_id: UUID):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete this routine",
         )
-    try:
-        session.delete(routine)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Failed to delete routine",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Failed to delete routine",
-        )
+    session.delete(routine)
+    commit_with_http_error_handling(session, "Failed to delete routine")
 
 
 def get_routine_stats(

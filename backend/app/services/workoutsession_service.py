@@ -2,13 +2,13 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, select
 
 from app.models.exercise import Exercise
 from app.models.routine import Routine, RoutineExercise
 from app.models.session import Session as WorkoutSession
 from app.models.session import Set_log
+from app.services.service_helpers import commit_with_http_error_handling
 from app.schemas.workoutsession import (
     SessionCreate,
     SessionDetailRead,
@@ -75,22 +75,8 @@ def create_session(user_id: UUID, session_data: SessionCreate, session: Session)
         started_at=started_at,
         status="ongoing",
     )
-    try:
-        session.add(new_session)
-        session.commit()
-
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Invalid routine_id or user_id.",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operation failed.",
-        )
+    session.add(new_session)
+    commit_with_http_error_handling(session, "Invalid routine_id or user_id.")
     session.refresh(new_session)
     return SessionRead(
         id=new_session.id,
@@ -135,15 +121,8 @@ def update_session(
     elif workout_session.status == "completed" and update_data.ended_at is None:
         workout_session.ended_at = datetime.now(UTC)
 
-    try:
-        session.add(workout_session)
-        session.commit()
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operation failed.",
-        )
+    session.add(workout_session)
+    commit_with_http_error_handling(session)
 
     session.refresh(workout_session)
     return SessionRead(
@@ -215,21 +194,8 @@ def create_set_log(
         rir=set_log_data.rir,
     )
 
-    try:
-        session.add(new_set_log)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Invalid data for set log.",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operation failed.",
-        )
+    session.add(new_set_log)
+    commit_with_http_error_handling(session, "Invalid data for set log.")
 
     session.refresh(new_set_log)
     return SetLogRead(
@@ -334,15 +300,8 @@ def update_set_log(
     for field, value in patch_dict.items():
         setattr(set_log, field, value)
 
-    try:
-        session.add(set_log)
-        session.commit()
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operation failed.",
-        )
+    session.add(set_log)
+    commit_with_http_error_handling(session)
 
     session.refresh(set_log)
     exercise = session.get(Exercise, set_log.exercise_id)
@@ -385,12 +344,5 @@ def delete_set_log(
             detail="Set log not found.",
         )
 
-    try:
-        session.delete(set_log)
-        session.commit()
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operation failed.",
-        )
+    session.delete(set_log)
+    commit_with_http_error_handling(session)

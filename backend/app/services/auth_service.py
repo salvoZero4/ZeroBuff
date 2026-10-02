@@ -1,7 +1,6 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, or_, select
 
 from app.core.security import (
@@ -12,6 +11,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
+from app.services.service_helpers import commit_with_http_error_handling
 from app.schemas import (
     AuthOutput,
     TokenRefreshInput,
@@ -43,16 +43,10 @@ def register_user(user: UserRegisterInput, session: Session) -> AuthOutput:
         username=user.username, email=user.email, hashed_password=hashed_password
     )
 
-    # fallback di sicurezza in caso di errore durante l'inserimento
-    try:
-        session.add(new_user)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error occurred while registering user",
-        )
+    session.add(new_user)
+    commit_with_http_error_handling(
+        session, "Error occurred while registering user"
+    )
     session.refresh(new_user)
 
     # creazione dei token di accesso e refresh per il nuovo utente
@@ -126,15 +120,8 @@ def change_password(current_user: User, new_password: str, session: Session):
 
     hashed_password = get_password_hash(new_password)
     current_user.hashed_password = hashed_password
-    try:
-        session.add(current_user)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error occurred while changing password",
-        )
+    session.add(current_user)
+    commit_with_http_error_handling(session, "Error occurred while changing password")
 
 
 # TODO: Implement password reset functionality with email verification and token expiration.

@@ -2,12 +2,12 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, select
 
 from app.models.routine import Routine
 from app.models.schedule import Schedule
 from app.schemas.schedule import ScheduleCreate, ScheduleRead, ScheduleUpdate
+from app.services.service_helpers import commit_with_http_error_handling
 
 
 def create_schedule(
@@ -43,21 +43,8 @@ def create_schedule(
         day_of_week=schedule_create.day_of_week,
     )
 
-    try:
-        session.add(schedule)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Invalid routine_id or user_id.",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operation failed.",
-        )
+    session.add(schedule)
+    commit_with_http_error_handling(session, "Invalid routine_id or user_id.")
     session.refresh(schedule)
 
     return ScheduleRead(
@@ -130,21 +117,8 @@ def update_schedule(
             )
         schedule.day_of_week = schedule_update.day_of_week
 
-    try:
-        session.add(schedule)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Invalid routine_id or user_id.",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operation failed.",
-        )
+    session.add(schedule)
+    commit_with_http_error_handling(session, "Invalid routine_id or user_id.")
     session.refresh(schedule)
     routine = session.get(Routine, schedule.routine_id)
 
@@ -169,15 +143,8 @@ def delete_schedule(schedule_id: UUID, user_id: UUID, session: Session) -> None:
             detail="You do not have permission to delete this schedule.",
         )
 
-    try:
-        session.delete(schedule)
-        session.commit()
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operation failed.",
-        )
+    session.delete(schedule)
+    commit_with_http_error_handling(session)
 
 
 def get_today_schedule(user_id: UUID, session: Session) -> ScheduleRead | None:

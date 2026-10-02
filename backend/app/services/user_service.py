@@ -1,9 +1,9 @@
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, select
 
 from app.models.user import User, UserProfile
 from app.schemas.user import UserNewInfo, UserResponse
+from app.services.service_helpers import commit_with_http_error_handling
 
 
 def get_current_user(current_user: User, session: Session) -> UserResponse:
@@ -51,22 +51,11 @@ def update_info(
         else:
             setattr(current_user_data, field, value)
 
-    try:
-        session.add(current_user)
-        session.add(current_user_data)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Username or email already exists.",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database error occurred",
-        )
+    session.add(current_user)
+    session.add(current_user_data)
+    commit_with_http_error_handling(
+        session, "Username or email already exists."
+    )
     session.refresh(current_user)
     session.refresh(current_user_data)
     return UserResponse(

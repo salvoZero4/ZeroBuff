@@ -2,13 +2,13 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, select
 
 from app.models.exercise import Exercise
 from app.models.routine import RoutineExercise
 from app.models.session import Session as SessionModel
 from app.models.session import Set_log
+from app.services.service_helpers import commit_with_http_error_handling
 from app.schemas.exercise import (
     ExerciseCreated,
     ExerciseListResponse,
@@ -93,23 +93,11 @@ def create_custom_exercise(
         created_by_user=user_id,
     )
 
-    try:
-        session.add(exercise)
-        session.commit()
-        session.refresh(exercise)
-    except IntegrityError as exc:
-        print(f"IntegrityError: {exc.orig}")
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Error occurred while creating the exercise",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operational error occurred",
-        )
+    session.add(exercise)
+    commit_with_http_error_handling(
+        session, "Error occurred while creating the exercise"
+    )
+    session.refresh(exercise)
 
     return ExerciseRead.model_validate(exercise)
 
@@ -150,23 +138,11 @@ def update_exercise(
             else:
                 setattr(exercise, field, value)
 
-    try:
-        session.add(exercise)
-        session.commit()
-        session.refresh(exercise)
-    except IntegrityError as exc:
-        print(f"IntegrityError: {exc.orig}")
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Error occurred while updating the exercise",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operational error occurred",
-        )
+    session.add(exercise)
+    commit_with_http_error_handling(
+        session, "Error occurred while updating the exercise"
+    )
+    session.refresh(exercise)
 
     return ExerciseRead.model_validate(exercise)
 
@@ -210,22 +186,10 @@ def delete_exercise(exercise_id: UUID, session: Session, current_user):
             detail="Cannot delete exercise because it is referenced in logged workouts or routines",
         )
 
-    try:
-        session.delete(exercise)
-        session.commit()
-    except IntegrityError as exc:
-        print(f"IntegrityError: {exc.orig}")
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Error occurred while deleting the exercise",
-        )
-    except OperationalError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database operational error occurred",
-        )
+    session.delete(exercise)
+    commit_with_http_error_handling(
+        session, "Error occurred while deleting the exercise"
+    )
 
 
 def get_stats(
