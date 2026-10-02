@@ -1,30 +1,40 @@
 import os
 
 import pytest
-from alembic.config import Config
-from dotenv import load_dotenv
-from fastapi.testclient import TestClient
-from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
-
 from alembic import command
+from alembic.config import Config
 from app.api.dependencies import get_session
 from app.main import app
+from dotenv import load_dotenv
+from fastapi.testclient import TestClient
+from sqlalchemy import make_url
+from sqlmodel import Session, create_engine
 
 load_dotenv()
 
-DATABASE_URL_TEST = os.environ.get(
-    "TEST_DATABASE_URL",
-)
+DATABASE_URL_TEST = os.environ["TEST_DATABASE_URL"]
 
-engine = create_engine(DATABASE_URL_TEST, poolclass=StaticPool)
+
+def _assert_is_test_db(url: str) -> None:
+
+    db_name = make_url(url).database or ""
+    assert db_name.endswith("_test"), (
+        f"Refusing to run tests against database '{db_name}': name must end with '_test'"
+    )
+
+
+_assert_is_test_db(DATABASE_URL_TEST)
+engine = create_engine(DATABASE_URL_TEST)
 
 
 @pytest.fixture(scope="function")
 def session():
-    with Session(engine) as session:
+    connection = engine.connect()
+    transaction = connection.begin()
+    with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
         yield session
-        session.rollback()  # in questo modo ogni test non influenzerà il database, perché dopo ogni test viene fatto un rollback
+        transaction.rollback()  # in questo modo ogni test non influenzerà il database, perché dopo ogni test viene fatto un rollback
+        connection.close()
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -39,14 +49,6 @@ def override_get_session(session: Session):
 def client():
     with TestClient(app) as c:
         yield c
-
-
-@pytest.fixture(scope="function", autouse=True)
-def clean_db():
-    yield
-    with engine.begin() as conn:
-        for table in reversed(SQLModel.metadata.sorted_tables):
-            conn.execute(table.delete())
 
 
 # Fixture to provide an authenticated client for testing

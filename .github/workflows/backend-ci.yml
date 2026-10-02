@@ -12,6 +12,9 @@ on:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Run Pytest Suite
@@ -63,9 +66,45 @@ jobs:
           ACCESS_TOKEN_EXPIRE_MINUTES: 120
         run: uv run pytest -v --disable-warnings
 
+  migrate:
+    name: Apply Production Migrations
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          SECRET_KEY: migration-job-placeholder-not-used-32-chars
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 120
+        run: uv run alembic upgrade head
+
   deploy:
     name: Trigger Production Deploy
-    needs: test
+    needs: migrate
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -79,4 +118,3 @@ jobs:
             echo "Deploy triggered successfully."
           else
             echo "Nessun DEPLOY_HOOK_URL impostato nei secrets di GitHub. Skip del trigger."
-          fi
