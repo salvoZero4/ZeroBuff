@@ -107,15 +107,16 @@ jobs:
     needs: migrate
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Call Deploy Webhook
         env:
           DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
         run: |
-          if [ -n "$DEPLOY_HOOK_URL" ]; then
-            echo "Triggering cloud deploy..."
-            curl -f -s -X POST "$DEPLOY_HOOK_URL"
-            echo "Deploy triggered successfully."
-          else
-            echo "Nessun DEPLOY_HOOK_URL impostato nei secrets di GitHub. Skip del trigger."
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "DEPLOY_HOOK_URL is not set: failing instead of skipping silently."
+            exit 1
           fi
+          echo "Triggering cloud deploy..."
+          curl -f -s -X POST "$DEPLOY_HOOK_URL"
+          echo "Deploy triggered successfully."
