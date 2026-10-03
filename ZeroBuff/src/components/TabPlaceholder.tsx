@@ -1,5 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
-import { colors, spacing, typography } from "@/theme/tokens";
+import { Text, View } from "react-native";
 
 type TabPlaceholderProps = {
   eyebrow: string;
@@ -13,40 +12,16 @@ export function TabPlaceholder({
   description,
 }: TabPlaceholderProps) {
   return (
-    <View style={styles.container}>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.description}>{description}</Text>
+    <View className="flex-1 justify-center bg-bg p-xl">
+      <Text className="mb-sm font-body-bold text-caption uppercase tracking-[1.2px] text-accent">
+        {eyebrow}
+      </Text>
+      <Text className="mb-md font-body-bold text-title text-text-primary">
+        {title}
+      </Text>
+      <Text className="max-w-80 font-body text-body leading-6 text-text-secondary">
+        {description}
+      </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.xl,
-    backgroundColor: colors.bg,
-  },
-  eyebrow: {
-    marginBottom: spacing.sm,
-    color: colors.accent,
-    fontFamily: typography.fontFamily.bodyBold,
-    fontSize: typography.size.caption,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  title: {
-    marginBottom: spacing.md,
-    color: colors.textPrimary,
-    fontFamily: typography.fontFamily.bodyBold,
-    fontSize: typography.size.title,
-  },
-  description: {
-    maxWidth: 320,
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.body,
-    fontSize: typography.size.body,
-    lineHeight: 24,
-  },
-});

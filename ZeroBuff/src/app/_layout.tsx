@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import "../../global.css";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -10,7 +11,6 @@ import {
   WorkSans_600SemiBold,
   WorkSans_700Bold,
 } from "@expo-google-fonts/work-sans";
-import { colors } from "@/theme/tokens";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,7 +37,7 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
+      <Stack screenOptions={{ contentStyle: { backgroundColor: "#17120F" } }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>

@@ -1,11 +1,5 @@
-import { TabPlaceholder } from "@/components/TabPlaceholder";
+import { TodayScreen as TodayView } from "@/components/today/TodayScreen";
 
-export default function TodayScreen() {
-  return (
-    <TabPlaceholder
-      eyebrow="Today"
-      title="Train with intention."
-      description="Your daily training workspace will start here."
-    />
-  );
+export default function TodayRoute() {
+  return <TodayView />;
 }

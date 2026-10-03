@@ -1,0 +1,113 @@
+import { router } from "expo-router";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ConsistencyGrid } from "./ConsistencyGrid";
+import { getWeekDays } from "@/utils/dates";
+
+export function TodayScreen() {
+  const weekDays = getWeekDays();
+
+  return (
+    <SafeAreaView className="flex-1 bg-bg" edges={["top"]}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <View className="gap-lg bg-bg p-md pb-[148px]">
+          <View className="flex-row items-center gap-xs">
+            {weekDays.map((day) => (
+              <View
+                key={day.date}
+                className={`flex-1 aspect-square items-center justify-center rounded-sm border p-sm ${
+                  day.isToday
+                    ? "border-accent bg-accent"
+                    : "border-border bg-surface"
+                }`}
+              >
+                <Text
+                  className={`font-body-bold text-body ${
+                    day.isToday ? "text-on-accent" : "text-text-secondary"
+                  }`}
+                >
+                  {day.label}
+                </Text>
+                <Text
+                  className={`font-numeric-bold text-sm ${
+                    day.isToday ? "text-on-accent" : "text-text-primary"
+                  }`}
+                >
+                  {day.number}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View className="gap-sm">
+            <Text className="font-body-semibold text-body text-text-primary">
+              Today&apos;s routine
+            </Text>
+            <View className="gap-sm rounded-md border border-border bg-surface p-lg">
+              <Text className="font-body-bold text-xl text-text-primary">
+                Rest day
+              </Text>
+              <Text className="font-body text-body leading-6 text-text-secondary">
+                No routine is scheduled for today.
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row items-center justify-between gap-md rounded-md bg-surface-raised p-lg">
+            <View className="flex-1 gap-xs">
+              <Text className="font-body-semibold text-body text-text-primary">
+                Track your body weight
+              </Text>
+              <Text className="font-body text-caption leading-5 text-text-secondary">
+                Keep your progress context up to date.
+              </Text>
+            </View>
+            <Text className="font-body-bold text-body text-accent">Log</Text>
+          </View>
+
+          <ConsistencyGrid sessionDates={[]} mode="recent" />
+
+          <View className="gap-sm">
+            <Text className="font-body-semibold text-body text-text-primary">
+              Last session
+            </Text>
+            <View className="gap-sm rounded-md border border-border bg-surface p-lg">
+              <Text className="font-body-bold text-xl text-text-primary">
+                No sessions yet
+              </Text>
+              <Text className="font-body text-body leading-6 text-text-secondary">
+                Your completed workouts will appear here.
+              </Text>
+            </View>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            className="min-h-12 items-center justify-center rounded-sm border border-border"
+            onPress={() => router.push("/(tabs)/routines")}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? "#272019" : "transparent",
+            })}
+          >
+            <Text className="font-body-semibold text-body text-text-primary">
+              Edit your schedule
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+
+      <View className="absolute bottom-md left-lg right-lg rounded-sm bg-accent">
+        <Pressable
+          accessibilityRole="button"
+          className="min-h-12 items-center justify-center rounded-sm"
+          onPress={() => router.push("/(tabs)/routines")}
+          style={({ pressed }) => [pressed && { backgroundColor: "#9C5C3E" }]}
+        >
+          <Text className="font-body-bold text-body text-on-accent">
+            Start workout
+          </Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}

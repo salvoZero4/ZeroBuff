@@ -78,7 +78,7 @@ npx expo install --fix      # fix incompatible package versions
 - `src/app/` — routes only.
 - `src/services/api/` — one module per resource (`client.ts`, `auth.ts`, `weight.ts`, `session.ts`, ...). No raw `fetch` in UI components.
 - `src/hooks/<resource>/` — TanStack Query hooks and the query-key factory for that resource.
-- `src/components/` — shared UI. `src/theme/` — tokens. `src/utils/` — pure helpers. `src/types/api.ts` — DTOs (§7).
+- `src/components/` — shared UI. `src/utils/` — pure helpers. `src/types/api.ts` — DTOs (§7).
 
 ### 3.2 Network & auth
 
