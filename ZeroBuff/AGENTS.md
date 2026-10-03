@@ -1,6 +1,18 @@
 # ZeroBuff Mobile — AI Agent Directives & Architecture Rules
 
-This is an Expo/React Native mobile application for **ZeroBuff**, a science-based progressive overload strength training tracker. Prioritize mobile-first patterns, performance, offline-first reliability, and gym-ready usability.
+Expo / React Native app for **ZeroBuff**, a science-based progressive overload strength training tracker. Backend: FastAPI (separate project). Priorities: mobile-first patterns, performance, gym-ready usability, and online reliability. The app is **online-only** (no offline sync, see §2).
+
+---
+
+## 0. How to work
+
+- **Language:** code, identifiers, comments and commit messages in English. All UI strings in English.
+- **Think first:** for any non-trivial feature, give a short plan with alternatives and trade-offs, then code.
+- **Conflicts:** if a request conflicts with this file or with the project decision log (`decisioni`), say so BEFORE implementing.
+- **Missing info:** if a contract detail, design detail or copy is missing, ask. Do not invent it.
+- **No unrequested additions:** no new dependencies, colors, fonts or tokens without asking. Install packages only with `npx expo install`.
+- **Screens not yet in Figma:** you may propose a layout using ONLY the tokens in §4, keeping it minimal. Mark it `// PROVISIONAL` and list it in your summary. Screens still to design: routine detail, routine create/edit, exercise detail, exercise catalog/search, session history + detail (inside Analytics), Profile, end-of-session summary, login/register.
+- **Patterns:** prefer established patterns: API client layer separated from UI, query-key factories, small pure helpers covered by unit tests, no business logic inside components.
 
 ---
 
@@ -27,11 +39,9 @@ npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
 
-Run `npx expo lint` and `npx tsc --noEmit` before declaring any task done.
-
 ### Navigation & Routing
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (`components/`, `hooks/`, `services/`, `utils/`, `types/`) outside `src/app/`.
+- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (`components/`, `hooks/`, `services/`, `utils/`, `types/`, `theme/`) outside `src/app/`.
 - Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
 - Docs: https://docs.expo.dev/router/introduction.md
 
@@ -43,171 +53,259 @@ Run `npx expo lint` and `npx tsc --noEmit` before declaring any task done.
 
 ---
 
-## 2. ZeroBuff Architecture & Data Flow
+## 2. Product decisions (do not contradict)
 
-- **Backend Base URL:** The API base URL must NEVER be hardcoded. Read it dynamically from `process.env.EXPO_PUBLIC_API_URL` (defaults to `http://localhost:8000` in local dev).
-- **Authentication & Storage:**
-  - Store JWT Bearer Tokens (`access_token` and `refresh_token`) securely via `expo-secure-store`[cite: 1].
-  - Inject the access token into requests: `Authorization: Bearer <access_token>`[cite: 1].
-  - Handle automatic token refresh calling `POST /v1/auth/refresh` on 401 Unauthorized[cite: 1].
-- **State Management & Network Layer:**
-  - Use TanStack Query (`@tanstack/react-query`) for queries, mutations, cache invalidation, and optimistic UI updates.
-  - Encapsulate all HTTP calls in isolated client modules inside `src/services/api/`. Do not write raw `fetch` calls directly in UI components.
-- **Gym Usability & Offline State:**
-  - Gyms have poor connectivity. In-workout set logging (`POST /v1/session/{session_id}/log/{exercise_id}`) must update UI immediately with optimistic cache updates[cite: 1].
-
----
-
-## 3. UI Design System (Iron & Copper)
-
-- **Color Palette:**
-  - **Background / Iron:** Deep dark mode (`#121212`, card surfaces `#1E1E22`, borders/dividers `#2A2A30`).
-  - **Accent / Copper:** Rich metallic copper (`#C86D3B`, deep copper `#A0522D`, interactive/hover `#D97736`).
-  - **Text & Status:** High-contrast text (`#F5F5F7`), muted secondary labels (`#8E8E93`), success `#4CAF50`, error/warning `#E53935`.
-- **Gym Usability Guidelines:**
-  - **Touch targets:** Minimum touch area of 48x48 pt for all interactive controls (buttons, checkboxes, incrementers).
-  - **Inputs:** Numeric inputs (`weight`, `reps`, `rir`, `rest_time`) must specify `keyboardType="decimal-pad"` or `keyboardType="numeric"`.
-  - **Quick Plate Increments:** Quick-stepper pills (`+1.25`, `+2.5`, `+5 kg`) for rapid weight adjustment.
-  - **Haptics:** Trigger `expo-haptics` on completing a set or saving a workout.
+- **Online-only.** No offline sync, no persisted mutation queue. Optimistic updates are allowed (see §3.4).
+- **UI entirely in English.**
+- **Bottom nav:** Today / Routines / Analytics / Profile.
+- **Analytics** holds both routine statistics and session history (with a selector to filter quickly). No separate "History" tab.
+- **Home (final order):** day squares → today's routine card → body-weight banner (only if no weight logged today) → consistency grid → last-session card → "Edit your schedule" button → "Start workout" CTA fixed near the navbar. The "weekly summary" block was removed; do not re-add it.
+- **Day squares:** horizontal, tappable, above today's card. Days with a routine use the active color; rest days stay neutral.
+- **Consistency grid:** binary (trained / not trained, no intensity). Days are rows, weeks are columns, horizontally scrollable.
+- **Weekly schedule screen:** one row per day with a routine picker / "Rest". Backend allows one routine per day: assign = `POST`, change = `PATCH`, "Rest" = `DELETE`.
+- **Active session:** the user can move freely between exercises, not bound to the routine order (e.g. machine busy). UI: strip of exercise chips, weight × reps, stepper, "Mark set complete".
+- **Routine save:** one single call (`POST`/`PATCH` with the full state: name + exercise list). Keep a local draft in the editor, send it once, and reassign `order_index` (0..n-1) on every reorder. No incremental calls.
+- **Empty routines are allowed.**
+- **Unit of measure:** kg is a working assumption, not a confirmed product choice. Keep it in one constant (`WEIGHT_UNIT = "kg"`), never hardcode "kg" in components.
+- **Usage:** personal first, but may be used by others: never assume a single user.
 
 ---
 
-## 4. Scientific Formulas & Overload Domain Rules
+## 3. Architecture & data flow
 
-- **Total Set Volume:**
-  `Volume = weight * reps`
-- **Estimated 1RM (Epley Formula):**
-  `1RM = weight * (1 + (reps / 30))`
-- **Estimated 1RM (Brzycki Formula, reps <= 10):**
-  `1RM = weight * (36 / (37 - reps))`
-- **RIR (Reps In Reserve):** Stored as integer between `0` and `10`[cite: 1]. RIR 0 = Muscle Failure.
-- **Progressive Overload Alert:** When current set weight, volume, or estimated 1RM beats the previous workout's performance for the same exercise, highlight the metric in Copper (`#C86D3B`).
+### 3.1 Layout
 
----
+- `src/app/` — routes only.
+- `src/services/api/` — one module per resource (`client.ts`, `auth.ts`, `weight.ts`, `session.ts`, ...). No raw `fetch` in UI components.
+- `src/hooks/<resource>/` — TanStack Query hooks and the query-key factory for that resource.
+- `src/components/` — shared UI. `src/theme/` — tokens. `src/utils/` — pure helpers. `src/types/api.ts` — DTOs (§7).
 
-## 5. Exact Backend REST API Specification
+### 3.2 Network & auth
 
-Base prefix: `${process.env.EXPO_PUBLIC_API_URL}`
+- **Base URL:** never hardcoded; read `process.env.EXPO_PUBLIC_API_URL` (default `http://localhost:8000`). `localhost` does not work on the Android emulator (use `http://10.0.2.2:8000`) nor on a physical device (use the machine's LAN IP). `EXPO_PUBLIC_*` values are bundled into the app: never put secrets in them.
+- **Tokens:** persist `access_token` and `refresh_token` with `expo-secure-store`; keep an in-memory copy to avoid an async read on every request. Header: `Authorization: Bearer <access_token>`.
+- **Refresh on 401** via `POST /v1/auth/refresh`, with these rules:
+  - Refresh is rate-limited to **1/min**. Use a **single-flight refresh**: concurrent 401s share one Promise, then each request is retried once.
+  - Never trigger the refresh logic for `/v1/auth/*` requests (a wrong password at login is a 401 and must not cause a refresh).
+  - The refresh response does not include a new refresh token. If the refresh fails, clear SecureStore and navigate to login.
 
-### 5.1. Authentication (`/v1/auth`)
+```ts
+let refreshPromise: Promise<string> | null = null;
 
-- `POST /v1/auth/register` (Rate limit: 5/min)[cite: 1]
-  - **Body:** `{ "username": "string", "email": "user@example.com", "password": "Password123" }`[cite: 1]
-  - _(Password must be >= 8 chars, contain at least 1 digit, 1 uppercase, 1 lowercase letter)_[cite: 1]
-  - **Response (201):** `AuthOutput` (`{ id, username, email, access_token, refresh_token, token_type }`)[cite: 1]
-- `POST /v1/auth/login` (Rate limit: 3/min)[cite: 1]
-  - **Body:** `{ "email": "user@example.com", "password": "Password123" }`[cite: 1]
-  - **Response (200):** `AuthOutput` (`{ id, username, email, access_token, refresh_token, token_type }`)[cite: 1]
-- `POST /v1/auth/refresh` (Rate limit: 1/min)[cite: 1]
-  - **Body:** `{ "refresh_token": "string" }`[cite: 1]
-  - **Response (200):** `TokenRefreshOutput` (`{ access_token, token_type }`)[cite: 1]
-- `POST /v1/auth/change-password` (Rate limit: 2/min, Auth required)[cite: 1]
-  - **Body:** `{ "new_password": "NewPassword123" }`[cite: 1]
-  - **Response (200):** `{ "message": "Password changed successfully" }`[cite: 1]
+export function refreshAccessToken(): Promise<string> {
+  refreshPromise ??= doRefresh().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+```
 
-### 5.2. Users (`/v1/users`)
+- **Render cold start:** the backend runs on a free tier and the first request after inactivity can take tens of seconds. Use generous timeouts and show a "waking up the server" state instead of an error.
 
-- `GET /v1/users/me` (Auth required)[cite: 1]
-  - **Response (200):** `UserResponse` (`{ id, username, email, sex, date_of_birth, height_cm }`)[cite: 1]
-- `PATCH /v1/users/me` (Auth required)[cite: 1]
-  - **Body:** `UserNewInfo` (`{ username?, email?, sex?, date_of_birth?, height_cm? }`)[cite: 1]
-  - **Response (200):** `UserResponse`[cite: 1]
+### 3.3 Server state (TanStack Query)
 
-### 5.3. Body Weight (`/v1/weight`)
+- All server data goes through `@tanstack/react-query`. Use a **query-key factory** per resource, so invalidation is predictable.
 
-- `GET /v1/weight/today?day=YYYY-MM-DD` (Auth required, `day` optional, defaults to today)[cite: 1]
-  - **Response (200):** `WeightLogRead | null`[cite: 1]
-- `GET /v1/weight?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` (Auth required)[cite: 1]
-  - **Response (200):** `WeightLogRead[]` (ordered by date desc)[cite: 1]
-- `POST /v1/weight` (Auth required)[cite: 1]
-  - **Body:** `{ "weight": 78.5, "date": "2026-10-02" }` (`date` optional, defaults to server today; max +1 day future tolerance; `0 < weight <= 500`)[cite: 1]
-  - **Response (201):** `WeightLogRead` (`{ id, date, weight }`)[cite: 1]
-  - _(Fails with 409 Conflict if weight is already logged for that date)_[cite: 1]
-- `PATCH /v1/weight/{log_id}` (Auth required)[cite: 1]
-  - **Body:** `{ "weight": 79.0 }` (`0 < weight <= 500`)[cite: 1]
-  - **Response (200):** `WeightLogRead`[cite: 1]
-- `DELETE /v1/weight/{log_id}` (Auth required)[cite: 1]
-  - **Response (204):** Empty[cite: 1]
+```ts
+export const weightKeys = {
+  all: ["weight"] as const,
+  today: (day?: string) =>
+    [...weightKeys.all, "today", day ?? "default"] as const,
+  list: (range?: { from?: string; to?: string }) =>
+    [...weightKeys.all, "list", range ?? {}] as const,
+};
+```
 
-### 5.4. Exercises (`/v1/exercises`)
+- After `POST`/`PATCH`/`DELETE` on weight, invalidate `weightKeys.all` (otherwise the Home banner will not reappear after a delete).
+- `GET /v1/weight/today` returns `200` with `null` when nothing is logged: that is the normal state that shows the banner, not an error.
+- Keep ephemeral UI state (selected exercise, rest timer) out of the query cache. If a store is needed, propose one (e.g. Zustand) and ask before adding it.
+- Do not assume the sort order of list responses unless the contract says so: sort client-side.
 
-- `GET /v1/exercises/?name=&limit=10&offset=0&muscle_group=` (Auth required, limit max 100)[cite: 1]
-  - **Response (200):** `{ exercises: ExerciseRead[] }`[cite: 1]
-- `GET /v1/exercises/search?query=bench` (Auth required, min 3 chars)[cite: 1]
-  - **Response (200):** `{ results: { exercise: ExerciseRead, score: number }[] }`[cite: 1]
-- `POST /v1/exercises/` (Auth required)[cite: 1]
-  - **Body:** `ExerciseCreated` (`{ name, muscle_group, secondary_muscle_groups?, equipment }`)[cite: 1]
-  - **Response (201):** `ExerciseRead`[cite: 1]
-- `GET /v1/exercises/{exercise_id}` (Auth required)[cite: 1]
-  - **Response (200):** `ExerciseRead`[cite: 1]
-- `PATCH /v1/exercises/{exercise_id}` (Auth required, custom exercises created by user only)[cite: 1]
-  - **Body:** `ExerciseModified` (`{ name?, muscle_group?, secondary_muscle_groups?, equipment? }`)[cite: 1]
-  - **Response (200):** `ExerciseRead`[cite: 1]
-- `DELETE /v1/exercises/{exercise_id}` (Auth required, custom unreferenced exercises only)[cite: 1]
-  - **Response (204):** Empty[cite: 1]
-- `GET /v1/exercises/{exercise_id}/stats?limit=10&offset=0` (Auth required)[cite: 1]
-  - **Response (200):** `ExerciseStatsResponse` (`{ exercise_id, sessions: [{ session_id, date, sets: [{ set_number, reps, weight, rir }] }] }`)[cite: 1]
+### 3.4 Optimistic updates (set logging)
 
-### 5.5. Routines (`/v1/routines`)
+Set logging (`POST /v1/session/{session_id}/log/{exercise_id}`) must update the UI immediately.
 
-- `GET /v1/routines/?limit=10&offset=0` (Auth required)[cite: 1]
-  - **Response (200):** `RoutineListRead[]` (`[{ id, name, exercises_count, muscle_groups }]`)[cite: 1]
-- `GET /v1/routines/{routine_id}` (Auth required)[cite: 1]
-  - **Response (200):** `RoutineRead` (`{ id, name, exercises: ExerciseInRoutineRead[] }`)[cite: 1]
-- `POST /v1/routines/` (Auth required)[cite: 1]
-  - **Body:** `RoutineCreate` (`{ name: string, exercises: [{ exercise_id, sets, reps, rest_time, order_index }] }`)[cite: 1]
-  - **Response (201):** `RoutineRead`[cite: 1]
-- `PATCH /v1/routines/{routine_id}` (Auth required)[cite: 1]
-  - **Body:** `RoutineUpdate` (`{ name?: string, exercises?: [{ exercise_id, sets, reps, rest_time, order_index }] }`)[cite: 1]
-  - **Response (200):** `RoutineRead`[cite: 1]
-- `DELETE /v1/routines/{routine_id}` (Auth required)[cite: 1]
-  - **Response (204):** Empty[cite: 1]
-- `GET /v1/routines/{routine_id}/stats` (Auth required)[cite: 1]
-  - **Response (200):** `RoutineStats` (`{ routine_id, exercises_stats: [{ exercise_id, name, latest_weight, latest_date, previous_weight, previous_date, percentage_improvement }] }`)[cite: 1]
+- Insert the set with a temporary id (`tmp-<uuid>`); on success replace it with the server id; on error roll back and show a retry.
+- **Race:** a row with a temporary id must not be editable or deletable until its `POST` resolves (a `PATCH`/`DELETE` would target an id the server does not know).
+- Always invalidate the session detail on `onSettled`.
+- No persisted mutation queue. Never claim a set is saved until the server confirmed it: show a subtle "pending" state while it is in flight. When offline, show a connection banner.
 
-### 5.6. Schedule (`/v1/schedule`)
+### 3.5 Error handling
 
-- `GET /v1/schedule/` (Auth required)[cite: 1]
-  - **Response (200):** `ScheduleRead[]` (`[{ id, user_id, routine_id, day_of_week, routine_name }]`)[cite: 1]
-- `GET /v1/schedule/today` (Auth required)[cite: 1]
-  - **Response (200):** `ScheduleRead | null` (returns null if rest day)[cite: 1]
-- `POST /v1/schedule/` (Auth required)[cite: 1]
-  - **Body:** `ScheduleCreate` (`{ routine_id: UUID, day_of_week: DayOfWeek }`)[cite: 1]
-  - **Response (201):** `ScheduleRead`[cite: 1]
-- `PATCH /v1/schedule/{schedule_id}` (Auth required)[cite: 1]
-  - **Body:** `ScheduleUpdate` (`{ routine_id?: UUID, day_of_week?: DayOfWeek }`)[cite: 1]
-  - **Response (200):** `ScheduleRead`[cite: 1]
-- `DELETE /v1/schedule/{schedule_id}` (Auth required)[cite: 1]
-  - **Response (204):** Empty[cite: 1]
+| Status                  | Behavior                                                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 401                     | Refresh once (single-flight, see §3.2); on failure, logout                                                                                   |
+| 403                     | "Not allowed". Should not happen in normal UI flows                                                                                          |
+| 404                     | Resource gone: invalidate the relevant queries and navigate back. Exception: `GET /weight/today` and `GET /schedule/today` return `200 null` |
+| 409 on `POST /session`  | Another session is already ongoing: fetch it and offer to resume it                                                                          |
+| 409 on `POST /weight`   | Already logged for that date: offer to edit (`PATCH`)                                                                                        |
+| 409 on `POST /schedule` | Day already has a routine: offer to change it (`PATCH`)                                                                                      |
+| 422                     | Show field-level messages. It is also used for some session business rules                                                                   |
+| 429                     | Show a "try again in a minute" message. Do not auto-retry (login is 3/min)                                                                   |
+| 503                     | Temporary: retry GETs with backoff, show a friendly message                                                                                  |
+| Network error / timeout | Connection banner or cold-start state (§3.2)                                                                                                 |
 
-### 5.7. Workout Sessions & Live Sets (`/v1/session`)
+### 3.6 Dates and numbers
 
-- `GET /v1/session/?offset=0&limit=100` (Auth required)[cite: 1]
-  - **Response (200):** `SessionRead[]` (`[{ id, routine_id, status, date, started_at, ended_at }]`)[cite: 1]
-- `POST /v1/session/` (Auth required)[cite: 1]
-  - **Body:** `SessionCreate` (`{ routine_id?: UUID, started_at: "YYYY-MM-DDTHH:mm:ssZ" }`)[cite: 1]
-  - _(started_at cannot be in the future > 5 min, nor older than 24 hours. Status starts as "ongoing")_[cite: 1]
-  - _(Fails with 409 Conflict if another session is already ongoing)_[cite: 1]
-  - **Response (201):** `SessionRead`[cite: 1]
-- `GET /v1/session/{session_id}` (Auth required)[cite: 1]
-  - **Response (200):** `SessionDetailRead` (`{ id, routine_id, status, date, started_at, ended_at, sets: SetLogRead[] }`)[cite: 1]
-- `PATCH /v1/session/{session_id}` (Auth required)[cite: 1]
-  - **Body:** `SessionUpdate` (`{ status: "ongoing" | "paused" | "completed", ended_at?: datetime }`)[cite: 1]
-  - **Response (200):** `SessionRead`[cite: 1]
-- `POST /v1/session/{session_id}/log/{exercise_id}` (Auth required)[cite: 1]
-  - **Body:** `SetLogCreate` (`{ set_number: int > 0, reps: int > 0, weight: float > 0, rir?: int (0-10) }`)[cite: 1]
-  - **Response (201):** `SetLogRead` (`{ id, session_id, exercise_id, exercise_name, set_number, reps, weight, rir }`)[cite: 1]
-- `PATCH /v1/session/{session_id}/log/{set_id}` (Auth required)[cite: 1]
-  - **Body:** `SetLogUpdate` (`{ set_number?: int, reps?: int, weight?: float, rir?: int }`)[cite: 1]
-  - **Response (200):** `SetLogRead`[cite: 1]
-- `DELETE /v1/session/{session_id}/log/{set_id}` (Auth required)[cite: 1]
-  - **Response (204):** Empty[cite: 1]
+- **Local dates:** `new Date().toISOString().slice(0, 10)` returns the UTC date and gives "yesterday" late at night. For `date` fields (weight) always use the local date helper below. The server runs in UTC and accepts the client's local date (max +1 day in the future).
+- **`started_at`** is an ISO UTC datetime. Backend rules: not more than 5 min in the future, not older than 24 h. It depends on the device clock.
+- **Decimals:** with a European locale the iOS decimal keyboard types `82,5`, and `parseFloat("82,5")` returns `82`. Always parse user input with `parseDecimal`.
+
+```ts
+// src/utils/dates.ts
+export function toLocalDateString(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// src/utils/numbers.ts
+export function parseDecimal(input: string): number | null {
+  const trimmed = input.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+```
 
 ---
 
-## 6. TypeScript DTO Interfaces & Enums
+## 4. UI Design System (warm minimal)
 
-Create and maintain these exact types under `src/types/api.ts`:
+> Palette decision (2026-10-03): this palette **replaces** the previous Figma palette. If a Figma frame shows the old colors, these tokens win; mention the discrepancy in your summary.
+
+### 4.1 Tokens
+
+All colors live in `src/theme/tokens.ts`. **No hex literal anywhere else.**
+
+```ts
+export const colors = {
+  bg: "#17120F",
+  surface: "#1F1914",
+  surfaceRaised: "#272019",
+  border: "#342B23",
+  textPrimary: "#F2EAE0",
+  textSecondary: "#A89B8C",
+  textDisabled: "#6E6459",
+  accent: "#B9714F",
+  accentPressed: "#9C5C3E",
+  onAccent: "#17120F",
+  success: "#8AA07A",
+  danger: "#C96A5E",
+} as const;
+
+export const radius = { sm: 8, md: 12, lg: 16 } as const;
+export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
+```
+
+### 4.2 Style rules (minimal)
+
+- Dark theme only.
+- Neutrals do ~90% of the work. Depth comes from surface steps (`bg` → `surface` → `surfaceRaised`) and 1px `border`, **not** from shadows or gradients.
+- `accent` is used only for: primary CTA, active state (nav item, selected day), and progression highlights. At most one primary accent element per screen.
+- Text on accent fills uses `onAccent`.
+- `success` and `danger` are for states only and are never the sole signal: always pair them with an icon or text.
+- Consistent radii and spacing from the scales above. Do not add values ad hoc.
+
+### 4.3 Typography
+
+- **Numbers** (weight, reps, timers, stats): Oswald (condensed).
+- **Body and labels:** Work Sans.
+- Load fonts via the Expo font tooling; check the docs for the current SDK first (§1). The type scale is not defined in Figma yet: propose one as tokens and mark it `// PROVISIONAL`.
+
+### 4.4 Gym usability
+
+- **Touch targets:** minimum 48x48 pt for all interactive controls (buttons, checkboxes, incrementers).
+- **Inputs:** numeric inputs (`weight`, `reps`, `rir`, `rest_time`) use `keyboardType="decimal-pad"` (weight) or `"numeric"` (integers), and parse through `parseDecimal`.
+- **Quick plate increments:** stepper pills (`+1.25`, `+2.5`, `+5` in `WEIGHT_UNIT`) for rapid weight adjustment.
+- **Haptics:** trigger `expo-haptics` on completing a set and on saving a workout.
+
+---
+
+## 5. Domain rules
+
+- **Set volume:** `volume = weight * reps`
+- **Estimated 1RM (Epley):** `1RM = weight * (1 + reps / 30)`
+- **Estimated 1RM (Brzycki, reps <= 10):** `1RM = weight * (36 / (37 - reps))`
+- **RIR:** integer 0–10; RIR 0 = muscle failure.
+- **Bodyweight exercises:** `weight` is the added load and `0` is valid (the backend does not enforce `> 0`). With `weight === 0`, volume and 1RM are 0, so the progression metric is **reps**. Validate on the client that weight is `>= 0` (the backend does not enforce a lower bound).
+- **Progressive overload highlight:** when the current set beats the previous performance for the same exercise (weight, volume, estimated 1RM, or reps for bodyweight), highlight the metric with `colors.accent`. "Previous" = the most recent earlier session for that exercise, from `GET /v1/exercises/{id}/stats` (sort by date client-side).
+- `GET /v1/routines/{id}/stats` compares the top set of the last two sessions: display what the backend returns, do not recompute it.
+
+---
+
+## 6. Backend REST API contract
+
+Base: `${process.env.EXPO_PUBLIC_API_URL}`. Auth required on everything except register/login/refresh. **If this section and the backend OpenAPI (`/openapi.json`) disagree, OpenAPI wins: flag the mismatch.**
+
+### 6.1 Auth (`/v1/auth`)
+
+- `POST /v1/auth/register` (5/min) — body `{ username, email, password }`; password >= 8 chars with at least 1 digit, 1 uppercase, 1 lowercase. → 201 `AuthOutput`
+- `POST /v1/auth/login` (3/min) — body `{ email, password }` → 200 `AuthOutput`
+- `POST /v1/auth/refresh` (1/min) — body `{ refresh_token }` → 200 `TokenRefreshOutput`
+- `POST /v1/auth/change-password` (2/min) — body `{ new_password }` → 200 `{ message }`
+- `POST /v1/auth/reset-password` — exists in the backend; its contract is not documented here, read `/openapi.json` before using it.
+
+### 6.2 Users (`/v1/users`)
+
+- `GET /v1/users/me` → `UserResponse`
+- `PATCH /v1/users/me` — body `UserNewInfo` → `UserResponse`
+
+### 6.3 Body weight (`/v1/weight`)
+
+One weight per day per user.
+
+- `GET /v1/weight/today?day=YYYY-MM-DD` (`day` optional, defaults to today) → 200 `WeightLogRead | null`
+- `GET /v1/weight?date_from=&date_to=` → `WeightLogRead[]` (date desc)
+- `POST /v1/weight` — body `{ weight, date? }`; `date` defaults to server today, max +1 day in the future; `0 < weight <= 500` → 201 `WeightLogRead`. 409 if already logged for that date.
+- `PATCH /v1/weight/{log_id}` — body `{ weight }` (only the weight; the date cannot change) → 200 `WeightLogRead`
+- `DELETE /v1/weight/{log_id}` → 204. To fix a wrong day: delete and recreate.
+
+### 6.4 Exercises (`/v1/exercises`)
+
+- `GET /v1/exercises/?name=&limit=10&offset=0&muscle_group=` (limit max 100) → `{ exercises: ExerciseRead[] }`
+- `GET /v1/exercises/search?query=` (min 3 chars) → `{ results: { exercise, score }[] }`
+- `POST /v1/exercises/` — body `ExerciseCreated` → 201 `ExerciseRead`
+- `GET /v1/exercises/{exercise_id}` → `ExerciseRead`
+- `PATCH /v1/exercises/{exercise_id}` (only custom exercises created by the user) — body `ExerciseModified` → `ExerciseRead`
+- `DELETE /v1/exercises/{exercise_id}` (only custom, unreferenced exercises) → 204
+- `GET /v1/exercises/{exercise_id}/stats?limit=10&offset=0` → `ExerciseStatsResponse`
+
+### 6.5 Routines (`/v1/routines`)
+
+- `GET /v1/routines/?limit=10&offset=0` → `RoutineListRead[]`
+- `GET /v1/routines/{routine_id}` → `RoutineRead`
+- `POST /v1/routines/` — body `RoutineCreate` → 201 `RoutineRead`
+- `PATCH /v1/routines/{routine_id}` — body `RoutineUpdate` (full state) → `RoutineRead`
+- `DELETE /v1/routines/{routine_id}` → 204
+- `GET /v1/routines/{routine_id}/stats` → `RoutineStats`
+
+### 6.6 Schedule (`/v1/schedule`)
+
+- `GET /v1/schedule/` → `ScheduleRead[]`
+- `GET /v1/schedule/today` → 200 `ScheduleRead | null` (null = rest day)
+- `POST /v1/schedule/` — body `ScheduleCreate` → 201 `ScheduleRead`
+- `PATCH /v1/schedule/{schedule_id}` — body `ScheduleUpdate` → `ScheduleRead`
+- `DELETE /v1/schedule/{schedule_id}` → 204
+
+### 6.7 Sessions & sets (`/v1/session`)
+
+- `GET /v1/session/?offset=0&limit=100` → `SessionRead[]`
+- `POST /v1/session/` — body `SessionCreate`; `started_at` not > 5 min in the future nor older than 24 h; status starts as `ongoing`; 409 if another session is already ongoing → 201 `SessionRead`
+- `GET /v1/session/{session_id}` → `SessionDetailRead`
+- `PATCH /v1/session/{session_id}` — body `SessionUpdate` → `SessionRead`
+- `POST /v1/session/{session_id}/log/{exercise_id}` — body `SetLogCreate` → 201 `SetLogRead`
+- `PATCH /v1/session/{session_id}/log/{set_id}` — body `SetLogUpdate` → `SetLogRead`
+- `DELETE /v1/session/{session_id}/log/{set_id}` → 204
+
+Note: the `log` path takes an `exercise_id` on `POST` but a `set_id` on `PATCH`/`DELETE`.
+
+---
+
+## 7. TypeScript DTOs
+
+Maintain these under `src/types/api.ts`, aligned with the backend (see §6 for the source-of-truth rule).
 
 ```typescript
 // Enums
@@ -305,7 +403,7 @@ export interface WeightLogRead {
 
 export interface WeightLogCreate {
   weight: number;
-  date?: string; // YYYY-MM-DD
+  date?: string; // YYYY-MM-DD (local date)
 }
 
 export interface WeightLogUpdate {
@@ -454,7 +552,7 @@ export interface SetLogRead {
   exercise_name: string;
   set_number: number;
   reps: number;
-  weight: number;
+  weight: number; // added load; 0 is valid for bodyweight exercises
   rir: number | null;
 }
 
@@ -464,7 +562,7 @@ export interface SessionDetailRead extends SessionRead {
 
 export interface SessionCreate {
   routine_id?: string;
-  started_at: string; // ISO datetime
+  started_at: string; // ISO datetime (UTC)
 }
 
 export interface SessionUpdate {
@@ -473,10 +571,10 @@ export interface SessionUpdate {
 }
 
 export interface SetLogCreate {
-  set_number: number;
-  reps: number;
-  weight: number;
-  rir?: number | null;
+  set_number: number; // > 0
+  reps: number; // > 0
+  weight: number; // no lower bound enforced by the backend; validate >= 0 on the client
+  rir?: number | null; // 0-10
 }
 
 export interface SetLogUpdate {
@@ -486,3 +584,15 @@ export interface SetLogUpdate {
   rir?: number | null;
 }
 ```
+
+---
+
+## 8. Definition of done
+
+Before declaring any task done:
+
+1. `npx expo lint` and `npx tsc --noEmit` pass.
+2. No hex literal outside `src/theme/tokens.ts`; no hardcoded base URL; no raw `fetch` in components.
+3. Pure helpers (dates, decimals, token refresh, progression logic) have unit tests.
+4. Every mutation handles the error cases of §3.5 and invalidates the right query keys.
+5. Anything provisional or ambiguous is listed in the summary, along with any conflict found with this file or the decision log.
