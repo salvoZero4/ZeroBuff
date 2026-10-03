@@ -23,7 +23,7 @@ export function TodayScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={["top"]}>
+    <SafeAreaView className="flex-1 bg-bg">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="gap-lg bg-bg p-md pb-[148px]">
           <View className="flex-row items-center gap-xs">
