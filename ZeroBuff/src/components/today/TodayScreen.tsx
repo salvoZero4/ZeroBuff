@@ -1,11 +1,26 @@
 import { router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { cssInterop } from "react-native-css-interop";
 import { ConsistencyGrid } from "./ConsistencyGrid";
 import { getWeekDays } from "@/utils/dates";
+import { FontAwesome6 } from "@react-native-vector-icons/fontawesome6";
+
+const StyledFontAwesome6 = cssInterop(FontAwesome6, {
+  className: { target: "style" },
+});
 
 export function TodayScreen() {
   const weekDays = getWeekDays();
+
+  const plusIcon = (
+    <StyledFontAwesome6
+      name="plus"
+      iconStyle="solid"
+      className="text-accent"
+      size={16}
+    />
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-bg" edges={["top"]}>
@@ -62,7 +77,13 @@ export function TodayScreen() {
                 Keep your progress context up to date.
               </Text>
             </View>
-            <Text className="font-body-bold text-body text-accent">Log</Text>
+
+            <Pressable
+              accessibilityRole="button"
+              className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-surface"
+            >
+              {plusIcon}
+            </Pressable>
           </View>
 
           <ConsistencyGrid sessionDates={[]} mode="recent" />
@@ -83,11 +104,8 @@ export function TodayScreen() {
 
           <Pressable
             accessibilityRole="button"
-            className="min-h-12 items-center justify-center rounded-sm border border-border"
+            className="min-h-12 items-center justify-center rounded-sm border border-border active:bg-surface-raised"
             onPress={() => router.push("/(tabs)/routines")}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? "#272019" : "transparent",
-            })}
           >
             <Text className="font-body-semibold text-body text-text-primary">
               Edit your schedule
@@ -99,9 +117,8 @@ export function TodayScreen() {
       <View className="absolute bottom-md left-lg right-lg rounded-sm bg-accent">
         <Pressable
           accessibilityRole="button"
-          className="min-h-12 items-center justify-center rounded-sm"
+          className="min-h-12 items-center justify-center rounded-sm active:bg-accent-pressed"
           onPress={() => router.push("/(tabs)/routines")}
-          style={({ pressed }) => [pressed && { backgroundColor: "#9C5C3E" }]}
         >
           <Text className="font-body-bold text-body text-on-accent">
             Start workout

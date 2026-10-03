@@ -1,5 +1,3 @@
-// src/utils/consistency.ts
-// Pure logic for the consistency grid. No React, no side effects: easy to unit test.
 import { toLocalDateString } from "./dates";
 
 export const WEEKDAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"] as const;

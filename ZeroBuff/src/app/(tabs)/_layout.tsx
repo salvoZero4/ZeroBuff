@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { FontAwesome6 } from "@react-native-vector-icons/fontawesome6";
 import type { ColorValue } from "react-native";
+import { nativeColors } from "@/theme/nativeColors";
 
 type TabIconProps = {
   color: ColorValue;
@@ -12,14 +13,14 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#B9714F",
-        tabBarInactiveTintColor: "#A89B8C",
+        tabBarActiveTintColor: nativeColors.accent,
+        tabBarInactiveTintColor: nativeColors.textSecondary,
         tabBarStyle: {
           height: 76,
           paddingTop: 8,
           paddingBottom: 8,
-          backgroundColor: "#1F1914",
-          borderTopColor: "#342B23",
+          backgroundColor: nativeColors.surface,
+          borderTopColor: nativeColors.border,
         },
         tabBarLabelStyle: {
           fontSize: 12,

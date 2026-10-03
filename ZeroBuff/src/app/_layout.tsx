@@ -11,6 +11,7 @@ import {
   WorkSans_600SemiBold,
   WorkSans_700Bold,
 } from "@expo-google-fonts/work-sans";
+import { nativeColors } from "@/theme/nativeColors";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,7 +38,9 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack screenOptions={{ contentStyle: { backgroundColor: "#17120F" } }}>
+      <Stack
+        screenOptions={{ contentStyle: { backgroundColor: nativeColors.bg } }}
+      >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
