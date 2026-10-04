@@ -12,6 +12,7 @@ import {
   WorkSans_700Bold,
 } from "@expo-google-fonts/work-sans";
 import { nativeColors } from "@/theme/nativeColors";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,7 +37,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaView className="flex-1 bg-bg" edges={["top"]}>
       <StatusBar style="light" />
       <Stack
         screenOptions={{ contentStyle: { backgroundColor: nativeColors.bg } }}
@@ -44,6 +45,6 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </SafeAreaView>
   );
 }

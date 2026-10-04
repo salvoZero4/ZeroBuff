@@ -1,6 +1,5 @@
 import { router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { cssInterop } from "react-native-css-interop";
 import { ConsistencyGrid } from "./ConsistencyGrid";
 import { getWeekDays } from "@/utils/dates";
@@ -23,17 +22,40 @@ export function TodayScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-bg">
+    <View className="flex-1 bg-bg">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="gap-lg bg-bg p-md pb-[148px]">
-          <View className="flex-row items-center gap-xs">
+          <View className="flex-row items-center justify-between gap-md">
+            <View className="flex-1 gap-xs">
+              <Text className="font-body-bold text-xl text-text-primary">
+                Your Week Workouts
+              </Text>
+              <Text className="font-body text-caption text-text-secondary">
+                Here&apos;s what you have planned for this week.
+              </Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Edit your schedule"
+              accessibilityRole="button"
+              className="h-10 w-10 items-center justify-center"
+              onPress={() => router.push("/(tabs)/routines")}
+            >
+              <StyledFontAwesome6
+                name="pen-to-square"
+                iconStyle="solid"
+                className="text-accent"
+                size={20}
+              />
+            </Pressable>
+          </View>
+          <View className="flex-row items-center gap-xs bg-surface p-sm rounded-sm">
             {weekDays.map((day) => (
               <View
                 key={day.date}
-                className={`flex-1 aspect-square items-center justify-center rounded-sm border p-sm ${
+                className={`flex-1 aspect-square items-center justify-center rounded-sm border px-sm pt-sm pb-[14px] ${
                   day.isToday
                     ? "border-accent bg-accent"
-                    : "border-border bg-surface"
+                    : "border-border bg-surface-raised"
                 }`}
               >
                 <Text
@@ -44,7 +66,7 @@ export function TodayScreen() {
                   {day.label}
                 </Text>
                 <Text
-                  className={`font-numeric-bold text-sm ${
+                  className={`font-numeric-bold text-numeric ${
                     day.isToday ? "text-on-accent" : "text-text-primary"
                   }`}
                 >
@@ -101,30 +123,20 @@ export function TodayScreen() {
               </Text>
             </View>
           </View>
-
-          <Pressable
-            accessibilityRole="button"
-            className="min-h-12 items-center justify-center rounded-sm border border-border active:bg-surface-raised"
-            onPress={() => router.push("/(tabs)/routines")}
-          >
-            <Text className="font-body-semibold text-body text-text-primary">
-              Edit your schedule
-            </Text>
-          </Pressable>
         </View>
       </ScrollView>
 
-      <View className="absolute bottom-md left-lg right-lg rounded-sm bg-accent">
+      <View className="absolute bottom-md left-lg right-lg rounded-md bg-accent">
         <Pressable
           accessibilityRole="button"
-          className="min-h-12 items-center justify-center rounded-sm active:bg-accent-pressed"
+          className="min-h-14 items-center justify-center rounded-sm active:bg-accent-pressed"
           onPress={() => router.push("/(tabs)/routines")}
         >
-          <Text className="font-body-bold text-body text-on-accent">
+          <Text className="font-body-bold text-xl text-on-accent">
             Start workout
           </Text>
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
