@@ -26,7 +26,6 @@
     },
     "plugins": [
       "expo-router",
-      "@react-native-vector-icons/fontawesome6",
       [
         "expo-splash-screen",
         {

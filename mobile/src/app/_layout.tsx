@@ -37,7 +37,10 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={["top"]}>
+    <SafeAreaView
+      edges={["top"]}
+      style={{ flex: 1, backgroundColor: nativeColors.bg }}
+    >
       <StatusBar style="light" />
       <Stack
         screenOptions={{ contentStyle: { backgroundColor: nativeColors.bg } }}

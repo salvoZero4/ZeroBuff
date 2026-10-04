@@ -1,12 +1,15 @@
 import { router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { cssInterop } from "react-native-css-interop";
+import { styled } from "nativewind";
 import { ConsistencyGrid } from "./ConsistencyGrid";
 import { getWeekDays } from "@/utils/dates";
 import { FontAwesome6 } from "@react-native-vector-icons/fontawesome6";
 
-const StyledFontAwesome6 = cssInterop(FontAwesome6, {
-  className: { target: "style" },
+const StyledFontAwesome6 = styled(FontAwesome6, {
+  className: {
+    target: "style",
+    nativeStyleMapping: { color: "color" },
+  },
 });
 
 export function TodayScreen() {
@@ -38,7 +41,7 @@ export function TodayScreen() {
               accessibilityLabel="Edit your schedule"
               accessibilityRole="button"
               className="h-10 w-10 items-center justify-center"
-              onPress={() => router.push("/(tabs)/routines")}
+              onPress={() => router.push("/schedule")}
             >
               <StyledFontAwesome6
                 name="pen-to-square"

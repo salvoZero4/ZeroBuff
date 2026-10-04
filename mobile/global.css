@@ -1,3 +1,43 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@import "nativewind/theme";
+
+@theme {
+  --color-bg: #17120f;
+  --color-surface: #1f1914;
+  --color-surface-raised: #272019;
+  --color-border: #342b23;
+  --color-text-primary: #f2eae0;
+  --color-text-secondary: #a89b8c;
+  --color-text-disabled: #6e6459;
+  --color-accent: #b9714f;
+  --color-accent-pressed: #9c5c3e;
+  --color-on-accent: #17120f;
+  --color-success: #8aa07a;
+  --color-danger: #c96a5e;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --font-body: WorkSans_400Regular;
+  --font-body-medium: WorkSans_500Medium;
+  --font-body-semibold: WorkSans_600SemiBold;
+  --font-body-bold: WorkSans_700Bold;
+  --font-numeric: Oswald_500Medium;
+  --font-numeric-bold: Oswald_700Bold;
+
+  --text-caption: 12px;
+  --text-sm: 14px;
+  --text-body: 16px;
+  --text-xl: 20px;
+  --text-title: 32px;
+}
