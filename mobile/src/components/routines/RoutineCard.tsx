@@ -14,7 +14,7 @@ type RoutineCardProps = {
 };
 
 export function RoutineCard({ routine, onPress }: RoutineCardProps) {
-  const muscleGroupsPreview = routine.muscleGroups.slice(0, 4).join(" · ");
+  const muscleGroupsPreview = routine.muscleGroups.join(" · ");
 
   return (
     <Pressable
@@ -23,14 +23,6 @@ export function RoutineCard({ routine, onPress }: RoutineCardProps) {
       className="flex-row items-center gap-md rounded-md border border-border bg-surface p-lg active:bg-surface-raised"
       onPress={onPress}
     >
-      <View className="h-12 w-12 items-center justify-center rounded-sm bg-surface-raised">
-        <StyledFontAwesome6
-          name="dumbbell"
-          iconStyle="solid"
-          className="text-accent"
-          size={18}
-        />
-      </View>
       <View className="flex-1 gap-xs">
         <Text className="font-body-bold text-body text-text-primary">
           {routine.name}
@@ -56,7 +48,7 @@ export function RoutineCard({ routine, onPress }: RoutineCardProps) {
         name="chevron-right"
         iconStyle="solid"
         className="text-text-secondary"
-        size={14}
+        size={20}
       />
     </Pressable>
   );

@@ -27,7 +27,7 @@ export function TodayScreen() {
   return (
     <View className="flex-1 bg-bg">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="gap-lg bg-bg p-md pb-[148px]">
+        <View className="gap-lg bg-bg p-md pb-37">
           <View className="flex-row items-center justify-between gap-md">
             <View className="flex-1 gap-xs">
               <Text className="font-body-bold text-xl text-text-primary">

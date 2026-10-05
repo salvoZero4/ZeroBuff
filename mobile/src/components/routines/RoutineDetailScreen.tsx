@@ -147,8 +147,9 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-bg"
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      className="bg-bg flex-1"
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 40}
     >
       <ScrollView
         className="flex-1"
@@ -167,7 +168,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
               name="arrow-left"
               iconStyle="solid"
               className="text-text-primary"
-              size={18}
+              size={20}
             />
           </Pressable>
           <View className="flex-1 gap-xs">
@@ -241,8 +242,9 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
             </View>
           ) : (
             <View className="rounded-md border border-border bg-surface p-lg">
-              <Text className="font-body text-body leading-6 text-text-secondary">
-                This routine is empty. Add an exercise when you&apos;re ready.
+              <Text className="font-body text-base text-text-secondary">
+                This routine is empty. Add exercises to create a complete
+                workout.
               </Text>
             </View>
           )}
@@ -285,19 +287,17 @@ function ExerciseEditor({
   return (
     <View className="gap-md rounded-md border border-border bg-surface p-lg">
       <View className="flex-row items-center gap-md">
-        <View className="h-8 w-8 items-center justify-center rounded-full bg-surface-raised">
+        <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-raised">
           <Text className="font-numeric-bold text-body text-accent">
             {index + 1}
           </Text>
         </View>
-        <TextInput
+        <Text
           accessibilityLabel={`Exercise ${index + 1} name`}
-          className="min-h-12 flex-1 border-b border-border px-xs font-body-semibold text-body text-text-primary"
-          onChangeText={(name) => onChange({ name })}
-          placeholder="Exercise name"
-          placeholderTextColor={nativeColors.textSecondary}
-          value={exercise.name}
-        />
+          className="flex-1  border-border px-xs font-body-semibold text-xl text-text-primary"
+        >
+          {exercise.name}
+        </Text>
         <Pressable
           accessibilityLabel={`Remove ${exercise.name}`}
           accessibilityRole="button"
@@ -307,8 +307,8 @@ function ExerciseEditor({
           <StyledFontAwesome6
             name="trash"
             iconStyle="solid"
-            className="text-text-secondary"
-            size={16}
+            className="text-danger"
+            size={20}
           />
         </Pressable>
       </View>

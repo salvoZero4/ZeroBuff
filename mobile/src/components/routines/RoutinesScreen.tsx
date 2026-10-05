@@ -46,7 +46,7 @@ export function RoutinesScreen() {
               name="plus"
               iconStyle="solid"
               className="text-on-accent"
-              size={18}
+              size={24}
             />
           </Pressable>
         </View>
@@ -82,35 +82,9 @@ export function RoutinesScreen() {
                 Create a routine to keep your next workout ready.
               </Text>
             </View>
-            <CreateRoutineButton onPress={() => openRoutine("new")} />
           </View>
         )}
-
-        {routines.length > 0 ? (
-          <CreateRoutineButton onPress={() => openRoutine("new")} />
-        ) : null}
       </ScrollView>
     </View>
-  );
-}
-
-function CreateRoutineButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityLabel="Create a new routine"
-      accessibilityRole="button"
-      className="min-h-14 flex-row items-center justify-center gap-sm rounded-sm border border-accent px-lg active:bg-surface-raised"
-      onPress={onPress}
-    >
-      <StyledFontAwesome6
-        name="plus"
-        iconStyle="solid"
-        className="text-accent"
-        size={15}
-      />
-      <Text className="font-body-bold text-body text-accent">
-        Create a routine
-      </Text>
-    </Pressable>
   );
 }
