@@ -29,17 +29,9 @@ export function TodayScreen() {
         contentContainerClassName="gap-lg p-lg pb-31"
         showsVerticalScrollIndicator={false}
       >
-        <View className="gap-xs">
-          <View className="flex-row items-end justify-between gap-md">
-            <ScreenHeader title="Your week" subtitle={today} />
-          </View>
-        </View>
-
+        <ScreenHeader title="This week" subtitle={today} />
         <View className="gap-sm">
-          <Text className="font-body-semibold text-body text-text-primary">
-            This week
-          </Text>
-          <View className="flex-row gap-xs rounded-md border border-border bg-surface p-sm">
+          <View className="flex-row gap-xs rounded-md  ">
             {weekDays.map((day) => (
               <Pressable
                 key={day.date}
