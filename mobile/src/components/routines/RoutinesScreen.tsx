@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { styled } from "nativewind";
 
 import { RoutineCard } from "./RoutineCard";
-import { useRoutines } from "./routineStore";
+import { useRoutines } from "../../utils/routineStore";
 
 const StyledFontAwesome6 = styled(FontAwesome6, {
   className: { target: "style" },

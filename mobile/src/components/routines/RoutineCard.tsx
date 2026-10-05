@@ -2,7 +2,7 @@ import { FontAwesome6 } from "@react-native-vector-icons/fontawesome6";
 import { Pressable, Text, View } from "react-native";
 import { styled } from "nativewind";
 
-import { Routine } from "./routineStore";
+import { Routine } from "../../utils/routineStore";
 
 const StyledFontAwesome6 = styled(FontAwesome6, {
   className: { target: "style" },

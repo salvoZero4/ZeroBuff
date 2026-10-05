@@ -175,31 +175,7 @@ export function parseDecimal(input: string): number | null {
 
 > Palette decision (2026-10-03): this palette **replaces** the previous Figma palette. If a Figma frame shows the old colors, these tokens win; mention the discrepancy in your summary.
 
-### 4.1 Tokens
-
-All colors live in `src/theme/tokens.ts`. **No hex literal anywhere else.**
-
-```ts
-export const colors = {
-  bg: "#17120F",
-  surface: "#1F1914",
-  surfaceRaised: "#272019",
-  border: "#342B23",
-  textPrimary: "#F2EAE0",
-  textSecondary: "#A89B8C",
-  textDisabled: "#6E6459",
-  accent: "#B9714F",
-  accentPressed: "#9C5C3E",
-  onAccent: "#17120F",
-  success: "#8AA07A",
-  danger: "#C96A5E",
-} as const;
-
-export const radius = { sm: 8, md: 12, lg: 16 } as const;
-export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
-```
-
-### 4.2 Style rules (minimal)
+### 4.1 Style rules (minimal)
 
 - Dark theme only.
 - Neutrals do ~90% of the work. Depth comes from surface steps (`bg` → `surface` → `surfaceRaised`) and 1px `border`, **not** from shadows or gradients.
@@ -208,13 +184,13 @@ export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
 - `success` and `danger` are for states only and are never the sole signal: always pair them with an icon or text.
 - Consistent radii and spacing from the scales above. Do not add values ad hoc.
 
-### 4.3 Typography
+### 4.2 Typography
 
 - **Numbers** (weight, reps, timers, stats): Oswald (condensed).
 - **Body and labels:** Work Sans.
 - Load fonts via the Expo font tooling; check the docs for the current SDK first (§1). The type scale is not defined in Figma yet: propose one as tokens and mark it `// PROVISIONAL`.
 
-### 4.4 Gym usability
+### 4.3 Gym usability
 
 - **Touch targets:** minimum 48x48 pt for all interactive controls (buttons, checkboxes, incrementers).
 - **Inputs:** numeric inputs (`weight`, `reps`, `rir`, `rest_time`) use `keyboardType="decimal-pad"` (weight) or `"numeric"` (integers), and parse through `parseDecimal`.

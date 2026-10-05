@@ -19,7 +19,7 @@ import {
   Routine,
   RoutineExercise,
   saveRoutine,
-} from "./routineStore";
+} from "../../utils/routineStore";
 
 const StyledFontAwesome6 = styled(FontAwesome6, {
   className: { target: "style" },
