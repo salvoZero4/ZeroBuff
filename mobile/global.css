@@ -5,18 +5,18 @@
 @import "nativewind/theme";
 
 @theme {
-  --color-bg: #17120f;
-  --color-surface: #1f1914;
-  --color-surface-raised: #272019;
-  --color-border: #342b23;
-  --color-text-primary: #f2eae0;
-  --color-text-secondary: #a89b8c;
-  --color-text-disabled: #6e6459;
-  --color-accent: #b9714f;
-  --color-accent-pressed: #9c5c3e;
-  --color-on-accent: #17120f;
-  --color-success: #8aa07a;
-  --color-danger: #c96a5e;
+  --color-bg: #0b0b0b;
+  --color-surface: #151515;
+  --color-surface-raised: #202020;
+  --color-border: #303030;
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #a3a3a3;
+  --color-text-disabled: #6f6f6f;
+  --color-accent: #f5f5f5;
+  --color-accent-pressed: #d4d4d4;
+  --color-on-accent: #0b0b0b;
+  --color-success: #9cc9a3;
+  --color-danger: #e58c8c;
 
   --spacing-xs: 4px;
   --spacing-sm: 8px;

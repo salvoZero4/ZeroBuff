@@ -12,8 +12,6 @@ import {
 } from "react-native";
 import { styled } from "nativewind";
 
-import { nativeColors } from "@/theme/nativeColors";
-
 import {
   getRoutine,
   Routine,
@@ -134,6 +132,28 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
     }));
   }
 
+  function moveExercise(exerciseId: string, direction: -1 | 1) {
+    setDraft((currentDraft) => {
+      const currentIndex = currentDraft.exercises.findIndex(
+        (exercise) => exercise.id === exerciseId,
+      );
+      const nextIndex = currentIndex + direction;
+
+      if (
+        currentIndex < 0 ||
+        nextIndex < 0 ||
+        nextIndex >= currentDraft.exercises.length
+      ) {
+        return currentDraft;
+      }
+
+      const exercises = [...currentDraft.exercises];
+      const [movedExercise] = exercises.splice(currentIndex, 1);
+      exercises.splice(nextIndex, 0, movedExercise);
+      return { ...currentDraft, exercises };
+    });
+  }
+
   function save() {
     const name = draft.name.trim();
     if (!name) {
@@ -153,7 +173,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
     >
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-lg p-md pb-xl"
+        contentContainerClassName="gap-lg p-lg pb-xl"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -195,7 +215,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
           </Text>
           <TextInput
             accessibilityLabel="Routine name"
-            className="min-h-14 rounded-sm border border-border bg-surface px-lg font-body text-body text-text-primary"
+            className="min-h-14 rounded-sm border border-border bg-surface px-lg font-body-medium text-body text-text-primary placeholder:text-text-secondary"
             onChangeText={(name) => {
               setDraft((currentDraft) => ({ ...currentDraft, name }));
               if (name.trim()) {
@@ -203,7 +223,6 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
               }
             }}
             placeholder="e.g. Push day"
-            placeholderTextColor={nativeColors.textSecondary}
             value={draft.name}
           />
           {nameError ? (
@@ -236,13 +255,14 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
                   exercise={exercise}
                   index={index}
                   onChange={(changes) => updateExercise(exercise.id, changes)}
+                  onMove={moveExercise}
                   onRemove={() => removeExercise(exercise.id)}
                 />
               ))}
             </View>
           ) : (
             <View className="rounded-md border border-border bg-surface p-lg">
-              <Text className="font-body text-base text-text-secondary">
+              <Text className="font-body text-body leading-6 text-text-secondary">
                 This routine is empty. Add exercises to create a complete
                 workout.
               </Text>
@@ -275,6 +295,7 @@ type ExerciseEditorProps = {
   exercise: RoutineExerciseDraft;
   index: number;
   onChange: (changes: Partial<RoutineExerciseDraft>) => void;
+  onMove: (exerciseId: string, direction: -1 | 1) => void;
   onRemove: () => void;
 };
 
@@ -282,6 +303,7 @@ function ExerciseEditor({
   exercise,
   index,
   onChange,
+  onMove,
   onRemove,
 }: ExerciseEditorProps) {
   return (
@@ -292,12 +314,41 @@ function ExerciseEditor({
             {index + 1}
           </Text>
         </View>
-        <Text
+        <TextInput
           accessibilityLabel={`Exercise ${index + 1} name`}
-          className="flex-1  border-border px-xs font-body-semibold text-xl text-text-primary"
-        >
-          {exercise.name}
-        </Text>
+          className="min-h-12 flex-1 border-border px-xs font-body-semibold text-xl text-text-primary"
+          onChangeText={(name) => onChange({ name })}
+          placeholder="Exercise name"
+          value={exercise.name}
+        />
+        <View className="flex-row items-center">
+          <Pressable
+            accessibilityLabel={`Move ${exercise.name} up`}
+            accessibilityRole="button"
+            className="h-12 w-12 items-center justify-center"
+            onPress={() => onMove(exercise.id, -1)}
+          >
+            <StyledFontAwesome6
+              name="chevron-up"
+              iconStyle="solid"
+              className="text-text-secondary"
+              size={15}
+            />
+          </Pressable>
+          <Pressable
+            accessibilityLabel={`Move ${exercise.name} down`}
+            accessibilityRole="button"
+            className="h-12 w-12 items-center justify-center"
+            onPress={() => onMove(exercise.id, 1)}
+          >
+            <StyledFontAwesome6
+              name="chevron-down"
+              iconStyle="solid"
+              className="text-text-secondary"
+              size={15}
+            />
+          </Pressable>
+        </View>
         <Pressable
           accessibilityLabel={`Remove ${exercise.name}`}
           accessibilityRole="button"
@@ -348,7 +399,7 @@ function TargetInput({ label, value, onChangeText }: TargetInputProps) {
       </Text>
       <TextInput
         accessibilityLabel={label}
-        className="min-h-12 rounded-sm border border-border bg-surface-raised px-sm text-center font-numeric text-body text-text-primary"
+        className="min-h-12 rounded-sm border border-border bg-surface-raised px-sm text-center font-numeric text-body text-text-primary placeholder:text-text-secondary"
         keyboardType="number-pad"
         onChangeText={onChangeText}
         value={value}

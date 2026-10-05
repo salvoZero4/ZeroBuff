@@ -18,18 +18,14 @@ export function RoutineCard({ routine, onPress }: RoutineCardProps) {
 
   return (
     <Pressable
-      accessibilityLabel={`Edit ${routine.name} routine`}
+      accessibilityLabel={`Open ${routine.name} routine`}
       accessibilityRole="button"
       className="flex-row items-center gap-md rounded-md border border-border bg-surface p-lg active:bg-surface-raised"
       onPress={onPress}
     >
       <View className="flex-1 gap-xs">
-        <Text className="font-body-bold text-body text-text-primary">
+        <Text className="font-body-bold text-xl text-text-primary">
           {routine.name}
-        </Text>
-        <Text className="font-body text-caption text-text-secondary">
-          {routine.exercises.length}{" "}
-          {routine.exercises.length === 1 ? "exercise" : "exercises"}
         </Text>
         {muscleGroupsPreview ? (
           <Text
@@ -43,6 +39,14 @@ export function RoutineCard({ routine, onPress }: RoutineCardProps) {
             No muscle groups
           </Text>
         )}
+      </View>
+      <View className="items-end gap-xs">
+        <Text className="font-numeric-bold text-xl text-accent">
+          {routine.exercises.length}
+        </Text>
+        <Text className="font-body text-caption text-text-secondary">
+          {routine.exercises.length === 1 ? "exercise" : "exercises"}
+        </Text>
       </View>
       <StyledFontAwesome6
         name="chevron-right"
