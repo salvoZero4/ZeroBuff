@@ -12,3 +12,5 @@ backend/.pytest_cache/
 node_modules/
 .expo/
 dist/
+
+.DS_Store
