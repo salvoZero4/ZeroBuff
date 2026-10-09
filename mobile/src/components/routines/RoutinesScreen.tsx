@@ -5,6 +5,7 @@ import { Icon } from "../ui/Icon";
 import { RoutineCard } from "./RoutineCard";
 import { useRoutines } from "../../utils/routineStore";
 import { ScreenHeader } from "../ui/ScreenHeader";
+import { Section } from "../ui/Section";
 
 function openRoutine(routineId: string) {
   router.push({
@@ -58,15 +59,7 @@ export function RoutinesScreen() {
         </View>
 
         {routines.length > 0 ? (
-          <View className="gap-sm">
-            <View className="flex-row items-center justify-between">
-              <Text className="font-body-semibold text-body text-text-primary">
-                All routines
-              </Text>
-              <Text className="font-body text-caption text-text-secondary">
-                {routines.length} saved
-              </Text>
-            </View>
+          <Section title="All routines">
             {routines.map((routine) => (
               <RoutineCard
                 key={routine.id}
@@ -74,7 +67,7 @@ export function RoutinesScreen() {
                 onPress={() => openRoutine(routine.id)}
               />
             ))}
-          </View>
+          </Section>
         ) : (
           <View className="gap-md rounded-md border border-border bg-surface p-xl">
             <View className="items-center gap-xs">

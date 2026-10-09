@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { ConsistencyGrid } from "../shared/ConsistencyGrid";
 import { getWeekDays } from "@/utils/dates";
 import { ScreenHeader } from "../ui/ScreenHeader";
-
+import { Section } from "../ui/Section";
 import { InfoCard } from "./InfoCard";
 export function TodayScreen() {
   const weekDays = getWeekDays();
@@ -55,18 +55,12 @@ export function TodayScreen() {
             ))}
           </View>
         </View>
-
-        <View className="gap-sm">
-          <View className="flex-row items-center justify-between">
-            <Text className="font-body-semibold text-body text-text-primary">
-              Today&apos;s routine
-            </Text>
-          </View>
+        <Section title="Today's routine">
           <InfoCard
             title="Rest day"
             description="No routine is scheduled for today."
           />
-        </View>
+        </Section>
 
         <View className="flex-row items-center gap-md rounded-md border border-accent/30 bg-surface-raised p-lg">
           <View className="flex-1 gap-xs">
@@ -87,17 +81,12 @@ export function TodayScreen() {
         </View>
 
         <ConsistencyGrid sessionDates={[]} mode="recent" />
-
-        <View className="gap-sm">
-          <Text className="font-body-semibold text-body text-text-primary">
-            Last session
-          </Text>
+        <Section title="Last session">
           <InfoCard
             title="No sessions yet"
             description="Your completed workouts will appear here."
           />
-        </View>
-
+        </Section>
         <Pressable
           accessibilityLabel="Edit your schedule"
           accessibilityRole="button"
