@@ -1,15 +1,10 @@
-import { FontAwesome6 } from "@react-native-vector-icons/fontawesome6";
 import { router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { styled } from "nativewind";
 
+import { Icon } from "../ui/Icon";
 import { RoutineCard } from "./RoutineCard";
 import { useRoutines } from "../../utils/routineStore";
 import { ScreenHeader } from "../ui/ScreenHeader";
-
-const StyledFontAwesome6 = styled(FontAwesome6, {
-  className: { target: "style" },
-});
 
 function openRoutine(routineId: string) {
   router.push({
@@ -36,12 +31,7 @@ export function RoutinesScreen() {
             className="h-12 w-12 items-center justify-center rounded-full bg-accent active:bg-accent-pressed"
             onPress={() => openRoutine("new")}
           >
-            <StyledFontAwesome6
-              name="plus"
-              iconStyle="solid"
-              className="text-on-accent"
-              size={24}
-            />
+            <Icon name="plus" size={24} className="text-on-accent" />
           </Pressable>
         </View>
 

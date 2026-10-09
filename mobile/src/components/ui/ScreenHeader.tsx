@@ -7,7 +7,7 @@ type ScreenHeaderProps = {
 
 export function ScreenHeader({ title, subtitle }: ScreenHeaderProps) {
   return (
-    <View className="flex-1 gap-xs">
+    <View className="gap-xs">
       <Text className="font-body-bold text-title leading-10 text-text-primary">
         {title}
       </Text>

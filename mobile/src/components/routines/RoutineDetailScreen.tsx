@@ -1,4 +1,3 @@
-import { FontAwesome6 } from "@react-native-vector-icons/fontawesome6";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -10,18 +9,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { styled } from "nativewind";
 
+import { Icon } from "../ui/Icon";
 import {
   getRoutine,
   Routine,
   RoutineExercise,
   saveRoutine,
 } from "../../utils/routineStore";
-
-const StyledFontAwesome6 = styled(FontAwesome6, {
-  className: { target: "style" },
-});
 
 type RoutineExerciseDraft = {
   id: string;
@@ -184,12 +179,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
             className="h-12 w-12 items-center justify-center rounded-full bg-surface"
             onPress={() => router.back()}
           >
-            <StyledFontAwesome6
-              name="arrow-left"
-              iconStyle="solid"
-              className="text-text-primary"
-              size={20}
-            />
+            <Icon name="arrow-left" size={20} />
           </Pressable>
           <View className="flex-1 gap-xs">
             <Text className="font-body-bold text-xl text-text-primary">
@@ -275,12 +265,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
             className="min-h-14 flex-row items-center justify-center gap-sm rounded-sm border border-accent px-lg active:bg-surface-raised"
             onPress={addExercise}
           >
-            <StyledFontAwesome6
-              name="plus"
-              iconStyle="solid"
-              className="text-accent"
-              size={15}
-            />
+            <Icon name="plus" size={15} />
             <Text className="font-body-bold text-body text-accent">
               Add exercise
             </Text>
@@ -328,12 +313,7 @@ function ExerciseEditor({
             className="h-12 w-12 items-center justify-center"
             onPress={() => onMove(exercise.id, -1)}
           >
-            <StyledFontAwesome6
-              name="chevron-up"
-              iconStyle="solid"
-              className="text-text-secondary"
-              size={15}
-            />
+            <Icon name="chevron-up" size={15} />
           </Pressable>
           <Pressable
             accessibilityLabel={`Move ${exercise.name} down`}
@@ -341,12 +321,7 @@ function ExerciseEditor({
             className="h-12 w-12 items-center justify-center"
             onPress={() => onMove(exercise.id, 1)}
           >
-            <StyledFontAwesome6
-              name="chevron-down"
-              iconStyle="solid"
-              className="text-text-secondary"
-              size={15}
-            />
+            <Icon name="chevron-down" size={15} />
           </Pressable>
         </View>
         <Pressable
@@ -355,12 +330,7 @@ function ExerciseEditor({
           className="h-12 w-12 items-center justify-center rounded-sm"
           onPress={onRemove}
         >
-          <StyledFontAwesome6
-            name="trash"
-            iconStyle="solid"
-            className="text-danger"
-            size={20}
-          />
+          <Icon name="trash" size={20} className="text-danger" />
         </Pressable>
       </View>
 

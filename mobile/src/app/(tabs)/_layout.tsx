@@ -1,27 +1,23 @@
+// app/(tabs)/_layout.tsx
 import { Tabs } from "expo-router";
-import { FontAwesome6 } from "@react-native-vector-icons/fontawesome6";
-import { styled } from "nativewind";
 import { Text, View } from "react-native";
 
-const StyledFontAwesome6 = styled(FontAwesome6, {
-  className: { target: "style", nativeStyleMapping: { color: "color" } },
-});
+import { Icon, type IconName } from "@/components/ui/Icon";
 
 function TabIcon({
   name,
   focused,
   size,
 }: {
-  name: "house" | "calendar-day" | "chart-simple" | "user";
+  name: IconName;
   focused: boolean;
   size: number;
 }) {
   return (
-    <StyledFontAwesome6
+    <Icon
       name={name}
-      iconStyle="solid"
-      className={focused ? "text-accent" : "text-text-secondary"}
       size={size}
+      className={focused ? "text-accent" : "text-text-secondary"}
     />
   );
 }
