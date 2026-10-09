@@ -1,4 +1,3 @@
-// components/ui/IconButton.tsx
 import { Pressable } from "react-native";
 
 import { Icon, type IconName } from "./Icon";

@@ -12,6 +12,7 @@ import {
   WorkSans_700Bold,
 } from "@expo-google-fonts/work-sans";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,19 +37,19 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={{ flex: 1, backgroundColor: "#0B0B0B" }}
-    >
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{ contentStyle: { backgroundColor: "#0B0B0B" } }}
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0B0B0B" }}>
+      <SafeAreaView
+        edges={["top"]}
+        style={{ flex: 1, backgroundColor: "#0B0B0B" }}
       >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="schedule" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      </Stack>
-    </SafeAreaView>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ contentStyle: { backgroundColor: "#0B0B0B" } }}>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="schedule" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        </Stack>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }

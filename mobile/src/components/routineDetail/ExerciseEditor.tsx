@@ -1,31 +1,50 @@
-import { RoutineExerciseDraft } from "@/utils/routineDraft";
-import { View, Text, Pressable, TextInput } from "react-native";
+import { type RoutineExerciseDraft } from "@/utils/routineDraft";
+import { View, TextInput, Pressable } from "react-native";
 import { TargetInput } from "./TargetInput";
+import { IconButton } from "../ui/IconButton";
+import { Card } from "../ui/Card";
 import { Icon } from "../ui/Icon";
 
 type ExerciseEditorProps = {
   exercise: RoutineExerciseDraft;
   index: number;
   onChange: (changes: Partial<RoutineExerciseDraft>) => void;
-  onMove: (exerciseId: string, direction: -1 | 1) => void;
   onRemove: () => void;
+  drag: () => void;
+  isActive: boolean;
 };
 
 export function ExerciseEditor({
   exercise,
   index,
   onChange,
-  onMove,
   onRemove,
+  drag,
+  isActive,
 }: ExerciseEditorProps) {
   return (
-    <View className="gap-md rounded-md border border-border bg-surface p-lg">
+    <Card
+      className={`gap-md ${
+        isActive ? "border-surface bg-surface-raised shadow-md" : ""
+      }`}
+    >
       <View className="flex-row items-center gap-md">
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-raised">
-          <Text className="font-numeric-bold text-body text-accent">
-            {index + 1}
-          </Text>
-        </View>
+        <Pressable
+          accessibilityLabel={`Drag to reorder ${exercise.name}`}
+          accessibilityRole="button"
+          hitSlop={8}
+          onLongPress={drag}
+          className={`h-10 w-10 items-center justify-center rounded-full ${
+            isActive ? "bg-accent" : "bg-surface-raised"
+          }`}
+        >
+          <Icon
+            name="grip-vertical"
+            size={16}
+            className={isActive ? "text-on-accent" : "text-text-secondary"}
+          />
+        </Pressable>
+
         <TextInput
           accessibilityLabel={`Exercise ${index + 1} name`}
           className="min-h-12 flex-1 border-border px-xs font-body-semibold text-xl text-text-primary"
@@ -33,32 +52,14 @@ export function ExerciseEditor({
           placeholder="Exercise name"
           value={exercise.name}
         />
-        <View className="flex-row items-center">
-          <Pressable
-            accessibilityLabel={`Move ${exercise.name} up`}
-            accessibilityRole="button"
-            className="h-12 w-12 items-center justify-center"
-            onPress={() => onMove(exercise.id, -1)}
-          >
-            <Icon name="chevron-up" size={15} />
-          </Pressable>
-          <Pressable
-            accessibilityLabel={`Move ${exercise.name} down`}
-            accessibilityRole="button"
-            className="h-12 w-12 items-center justify-center"
-            onPress={() => onMove(exercise.id, 1)}
-          >
-            <Icon name="chevron-down" size={15} />
-          </Pressable>
-        </View>
-        <Pressable
-          accessibilityLabel={`Remove ${exercise.name}`}
-          accessibilityRole="button"
-          className="h-12 w-12 items-center justify-center rounded-sm"
+
+        <IconButton
+          variant="bare"
+          icon="trash"
+          iconClassName="text-danger"
+          label={`Remove ${exercise.name}`}
           onPress={onRemove}
-        >
-          <Icon name="trash" size={20} className="text-danger" />
-        </Pressable>
+        />
       </View>
 
       <View className="flex-row gap-sm">
@@ -78,6 +79,6 @@ export function ExerciseEditor({
           onChangeText={(restSeconds) => onChange({ restSeconds })}
         />
       </View>
-    </View>
+    </Card>
   );
 }

@@ -71,6 +71,12 @@ export function useRoutineDraft(routine: Routine | undefined) {
       return { ...current, exercises };
     });
   }
+  function reorderExercises(newExercises: RoutineExerciseDraft[]) {
+    setDraft((current) => ({
+      ...current,
+      exercises: newExercises,
+    }));
+  }
 
   return {
     draft,
@@ -79,5 +85,6 @@ export function useRoutineDraft(routine: Routine | undefined) {
     addExercise,
     removeExercise,
     moveExercise,
+    reorderExercises,
   };
 }

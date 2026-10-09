@@ -4,17 +4,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { type RoutineExerciseDraft, toRoutine } from "@/utils/routineDraft";
-import { Icon } from "../ui/Icon";
-import { getRoutine, saveRoutine } from "@/utils/routineStore";
-import { Button } from "../ui/Button";
+import DraggableFlatList, {
+  RenderItemParams,
+} from "react-native-draggable-flatlist";
 import { useRoutineDraft } from "@/hooks/useRoutineDraft";
+import { getRoutine, saveRoutine } from "@/utils/routineStore";
+import { toRoutine, type RoutineExerciseDraft } from "@/utils/routineDraft";
 import { ExerciseEditor } from "./ExerciseEditor";
+import { IconButton } from "../ui/IconButton";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { Section } from "../ui/Section";
+import { ScreenHeader } from "../ui/ScreenHeader";
 
 export function RoutineDetailScreen({ routineId }: { routineId: string }) {
   const isNewRoutine = routineId === "new";
@@ -25,8 +30,9 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
     updateExercise,
     addExercise,
     removeExercise,
-    moveExercise,
+    reorderExercises,
   } = useRoutineDraft(routine);
+
   const [nameError, setNameError] = useState<string | null>(null);
 
   if (!isNewRoutine && !routine) {
@@ -52,39 +58,49 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
       setNameError("Add a name before saving this routine.");
       return;
     }
-
     saveRoutine(toRoutine(routineId, draft));
     router.back();
   }
 
+  function renderExerciseItem({
+    item,
+    getIndex,
+    drag,
+    isActive,
+  }: RenderItemParams<RoutineExerciseDraft>) {
+    const index = getIndex() ?? 0;
+    return (
+      <View className="pb-sm">
+        <ExerciseEditor
+          exercise={item}
+          index={index}
+          onChange={(changes) => updateExercise(item.id, changes)}
+          onRemove={() => removeExercise(item.id)}
+          drag={drag}
+          isActive={isActive}
+        />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
-      className="bg-bg flex-1"
+      className="flex-1 bg-bg"
       behavior="padding"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 40}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 20}
     >
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="gap-lg p-lg pb-xl"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <View className="gap-md px-lg pb-md pt-lg">
         <View className="flex-row items-center gap-md">
-          <Pressable
-            accessibilityLabel="Go back to routines"
-            accessibilityRole="button"
-            className="h-12 w-12 items-center justify-center rounded-full bg-surface"
+          <IconButton
+            icon="arrow-left"
+            label="Go back to routines"
             onPress={() => router.back()}
-          >
-            <Icon name="arrow-left" size={20} />
-          </Pressable>
-          <View className="flex-1 gap-xs">
-            <Text className="font-body-bold text-xl text-text-primary">
-              {isNewRoutine ? "New routine" : "Edit routine"}
-            </Text>
-            <Text className="font-body text-caption text-text-secondary">
-              Shape this workout around how you train.
-            </Text>
+          />
+          <View className="flex-1">
+            <ScreenHeader
+              title={isNewRoutine ? "New routine" : "Edit routine"}
+              subtitle="Shape this workout around how you train."
+            />
           </View>
           <Pressable
             accessibilityLabel="Save routine"
@@ -96,10 +112,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
           </Pressable>
         </View>
 
-        <View className="gap-sm">
-          <Text className="font-body-semibold text-body text-text-primary">
-            Routine name
-          </Text>
+        <Section title="Routine name">
           <TextInput
             accessibilityLabel="Routine name"
             className="min-h-14 rounded-sm border border-border bg-surface px-lg font-body-medium text-body text-text-primary placeholder:text-text-secondary"
@@ -109,7 +122,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
                 setNameError(null);
               }
             }}
-            placeholder="e.g. Push day"
+            placeholder="e.g. Push Day"
             value={draft.name}
           />
           {nameError ? (
@@ -117,53 +130,40 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
               {nameError}
             </Text>
           ) : null}
-        </View>
+        </Section>
+      </View>
 
-        <View className="gap-sm">
-          <View className="flex-row items-end justify-between gap-md">
-            <View className="flex-1 gap-xs">
-              <Text className="font-body-semibold text-body text-text-primary">
-                Exercises
-              </Text>
-              <Text className="font-body text-caption text-text-secondary">
-                Add the movements and targets for this routine.
-              </Text>
-            </View>
-            <Text className="font-numeric-bold text-title text-accent">
-              {draft.exercises.length}
-            </Text>
-          </View>
-
+      <View className="flex-1 px-lg pt-sm">
+        <Section title="Exercises" className="flex-1">
           {draft.exercises.length > 0 ? (
-            <View className="gap-sm">
-              {draft.exercises.map((exercise, index) => (
-                <ExerciseEditor
-                  key={exercise.id}
-                  exercise={exercise}
-                  index={index}
-                  onChange={(changes) => updateExercise(exercise.id, changes)}
-                  onMove={moveExercise}
-                  onRemove={() => removeExercise(exercise.id)}
-                />
-              ))}
-            </View>
+            <DraggableFlatList
+              data={draft.exercises}
+              onDragEnd={({ data }) => reorderExercises(data)}
+              keyExtractor={(item) => item.id}
+              renderItem={renderExerciseItem}
+              showsVerticalScrollIndicator={false}
+              containerStyle={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
+            />
           ) : (
-            <View className="rounded-md border border-border bg-surface p-lg">
+            <Card>
               <Text className="font-body text-body leading-6 text-text-secondary">
                 This routine is empty. Add exercises to create a complete
                 workout.
               </Text>
-            </View>
+            </Card>
           )}
+        </Section>
+      </View>
 
-          <Button
-            variant="outline"
-            icon="plus"
-            label="Add exercise"
-            onPress={addExercise}
-          />
-        </View>
-      </ScrollView>
+      <View className="p-lg">
+        <Button
+          variant="outline"
+          icon="plus"
+          label="Add exercise"
+          onPress={addExercise}
+        />
+      </View>
     </KeyboardAvoidingView>
   );
 }
