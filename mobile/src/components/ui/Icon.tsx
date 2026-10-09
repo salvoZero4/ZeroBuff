@@ -19,7 +19,8 @@ export type IconName =
   | "chevron-down"
   | "chevron-right"
   | "trash"
-  | "grip-vertical";
+  | "grip-vertical"
+  | "check";
 
 type IconProps = {
   name: IconName;
