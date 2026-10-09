@@ -20,7 +20,10 @@ export type IconName =
   | "chevron-right"
   | "trash"
   | "grip-vertical"
-  | "check";
+  | "check"
+  | "play"
+  | "pause"
+  | "stopwatch";
 
 type IconProps = {
   name: IconName;

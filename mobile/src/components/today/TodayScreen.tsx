@@ -7,14 +7,15 @@ import { InfoCard } from "./InfoCard";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { WeekStrip } from "./WeekStrip";
-
+import { useActiveWorkout } from "@/utils/activeWorkoutStore";
 export function TodayScreen() {
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   }).format(new Date());
-
+  const routine_id = "upper-body";
+  const activeSession = useActiveWorkout();
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -74,8 +75,18 @@ export function TodayScreen() {
 
       <View className="absolute bottom-md left-lg right-lg">
         <Button
-          label="Start workout"
-          onPress={() => router.push("/(tabs)/routines")}
+          variant={activeSession ? "primary" : "primary"}
+          label={
+            activeSession
+              ? `Resume ${activeSession.routineName}${activeSession.isPaused ? " (Paused)" : ""}`
+              : "Start workout"
+          }
+          onPress={() => {
+            const targetRoutineId = activeSession
+              ? activeSession.routineId
+              : routine_id;
+            router.push(`/workout/${targetRoutineId}`);
+          }}
         />
       </View>
     </View>

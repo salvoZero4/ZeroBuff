@@ -48,6 +48,13 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="schedule" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="workout"
+            options={{
+              headerShown: false,
+              animation: "slide_from_bottom",
+            }}
+          />
         </Stack>
       </SafeAreaView>
     </GestureHandlerRootView>

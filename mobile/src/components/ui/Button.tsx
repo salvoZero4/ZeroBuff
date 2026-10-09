@@ -1,5 +1,4 @@
 import { Pressable, Text, type PressableProps } from "react-native";
-
 import { Icon, type IconName } from "./Icon";
 
 const VARIANTS = {
@@ -13,11 +12,18 @@ const VARIANTS = {
     label: "font-body-semibold text-body text-text-primary",
     icon: "text-accent",
   },
+  danger: {
+    box: "rounded-md bg-danger active:bg-danger/80",
+    label: "font-body-bold text-xl text-white",
+    icon: "text-white",
+  },
 } as const;
+
+export type ButtonVariant = keyof typeof VARIANTS;
 
 type ButtonProps = Omit<PressableProps, "children" | "className"> & {
   label: string;
-  variant?: keyof typeof VARIANTS;
+  variant?: ButtonVariant;
   icon?: IconName;
 };
 
