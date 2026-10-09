@@ -7,6 +7,7 @@ import { getWeekDays } from "@/utils/dates";
 import { ScreenHeader } from "../ui/ScreenHeader";
 import { Section } from "../ui/Section";
 import { InfoCard } from "./InfoCard";
+import { Button } from "../ui/Button";
 export function TodayScreen() {
   const weekDays = getWeekDays();
   const today = new Intl.DateTimeFormat("en-US", {
@@ -87,30 +88,19 @@ export function TodayScreen() {
             description="Your completed workouts will appear here."
           />
         </Section>
-        <Pressable
-          accessibilityLabel="Edit your schedule"
-          accessibilityRole="button"
-          className="min-h-14 flex-row items-center justify-center gap-sm rounded-sm border border-accent bg-surface active:bg-surface-raised"
+        <Button
+          variant="outline"
+          icon="pen-to-square"
+          label="Edit your schedule"
           onPress={() => router.push("/schedule")}
-        >
-          <Icon name="pen-to-square" />
-          <Text className="font-body-semibold text-body text-text-primary">
-            Edit your schedule
-          </Text>
-        </Pressable>
+        />
       </ScrollView>
 
-      <View className="absolute bottom-md left-lg right-lg rounded-md bg-accent">
-        <Pressable
-          accessibilityLabel="Start workout"
-          accessibilityRole="button"
-          className="min-h-14 items-center justify-center rounded-md active:bg-accent-pressed"
+      <View className="absolute bottom-md left-lg right-lg">
+        <Button
+          label="Start workout"
           onPress={() => router.push("/(tabs)/routines")}
-        >
-          <Text className="font-body-bold text-xl text-on-accent">
-            Start workout
-          </Text>
-        </Pressable>
+        />
       </View>
     </View>
   );

@@ -17,6 +17,7 @@ import {
   RoutineExercise,
   saveRoutine,
 } from "../../utils/routineStore";
+import { Button } from "../ui/Button";
 
 type RoutineExerciseDraft = {
   id: string;
@@ -259,17 +260,12 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
             </View>
           )}
 
-          <Pressable
-            accessibilityLabel="Add exercise"
-            accessibilityRole="button"
-            className="min-h-14 flex-row items-center justify-center gap-sm rounded-sm border border-accent px-lg active:bg-surface-raised"
-            onPress={addExercise}
-          >
-            <Icon name="plus" size={15} />
-            <Text className="font-body-bold text-body text-accent">
-              Add exercise
-            </Text>
-          </Pressable>
+          <Button
+            variant="outline"
+            icon="plus"
+            label="Add Exercise"
+            onPress={() => addExercise}
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
