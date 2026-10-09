@@ -1,16 +1,14 @@
 import { router } from "expo-router";
-import { Icon } from "../ui/Icon";
-import { Pressable, ScrollView, Text, View } from "react-native";
-
+import { ScrollView, Text, View } from "react-native";
 import { ConsistencyGrid } from "../shared/ConsistencyGrid";
-import { getWeekDays } from "@/utils/dates";
 import { ScreenHeader } from "../ui/ScreenHeader";
 import { Section } from "../ui/Section";
 import { InfoCard } from "./InfoCard";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
+import { WeekStrip } from "./WeekStrip";
+
 export function TodayScreen() {
-  const weekDays = getWeekDays();
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
@@ -25,38 +23,14 @@ export function TodayScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ScreenHeader title="This week" subtitle={today} />
-        <View className="gap-sm">
-          <View className="flex-row gap-xs rounded-md  ">
-            {weekDays.map((day) => (
-              <Pressable
-                key={day.date}
-                accessibilityLabel={`${day.label}, ${day.number}${day.isToday ? ", today" : ""}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: day.isToday }}
-                className={`min-h-16 flex-1 items-center justify-center rounded-sm border ${
-                  day.isToday
-                    ? "border-accent bg-accent"
-                    : "border-border bg-surface-raised"
-                }`}
-              >
-                <Text
-                  className={`font-body-bold text-caption ${
-                    day.isToday ? "text-on-accent" : "text-text-secondary"
-                  }`}
-                >
-                  {day.label}
-                </Text>
-                <Text
-                  className={`font-numeric-bold text-xl ${
-                    day.isToday ? "text-on-accent" : "text-text-primary"
-                  }`}
-                >
-                  {day.number}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+
+        <WeekStrip
+          hasRoutine={(_date, dayIndex) => {
+            // Esempio: Lunedì (0), Mercoledì (2) e Venerdì (4) attivi
+            return [0, 2, 4].includes(dayIndex);
+          }}
+        />
+
         <Section title="Today's routine">
           <InfoCard
             title="Rest day"
@@ -77,17 +51,19 @@ export function TodayScreen() {
             icon="plus"
             iconSize={16}
             label="Log body weight"
-            onPress={() => {}} // TODO: open weight entry
+            onPress={() => {}}
           />
         </View>
 
         <ConsistencyGrid sessionDates={[]} mode="recent" />
+
         <Section title="Last session">
           <InfoCard
             title="No sessions yet"
             description="Your completed workouts will appear here."
           />
         </Section>
+
         <Button
           variant="outline"
           icon="pen-to-square"

@@ -11,7 +11,7 @@ export function ScreenHeader({ title, subtitle }: ScreenHeaderProps) {
       <Text className="font-body-bold text-title leading-10 text-text-primary">
         {title}
       </Text>
-      <Text className="font-body text-body text-text-secondary">
+      <Text className="font-body text-caption text-text-secondary">
         {subtitle}
       </Text>
     </View>
