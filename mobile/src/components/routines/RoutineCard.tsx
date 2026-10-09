@@ -28,7 +28,7 @@ export function RoutineCard({
       <View className="flex-1 gap-xs">
         <Text className="font-body-bold text-xl text-text-primary">{name}</Text>
         <Text
-          className="font-body text-caption text-text-disabled"
+          className="font-body text-caption text-text-secondary"
           numberOfLines={1}
         >
           {muscleGroupsPreview || "No muscle groups"}

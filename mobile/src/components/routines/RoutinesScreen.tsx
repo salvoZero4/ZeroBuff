@@ -1,7 +1,6 @@
 import { router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { Icon } from "../ui/Icon";
 import { RoutineCard } from "./RoutineCard";
 import { useRoutines } from "../../utils/routineStore";
 import { ScreenHeader } from "../ui/ScreenHeader";

@@ -1,6 +1,5 @@
+import { RoutineDetailScreen } from "@/components/routineDetail/RoutineDetailScreen";
 import { useLocalSearchParams } from "expo-router";
-
-import { RoutineDetailScreen } from "@/components/routines/RoutineDetailScreen";
 
 export default function RoutineDetailRoute() {
   const { routineId } = useLocalSearchParams<{ routineId: string }>();
@@ -8,4 +7,3 @@ export default function RoutineDetailRoute() {
 
   return <RoutineDetailScreen routineId={resolvedRoutineId ?? "new"} />;
 }
-
