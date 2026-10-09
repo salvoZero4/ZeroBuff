@@ -6,6 +6,7 @@ import { RoutineCard } from "./RoutineCard";
 import { useRoutines } from "../../utils/routineStore";
 import { ScreenHeader } from "../ui/ScreenHeader";
 import { Section } from "../ui/Section";
+import { IconButton } from "../ui/IconButton";
 
 function openRoutine(routineId: string) {
   router.push({
@@ -26,14 +27,13 @@ export function RoutinesScreen() {
       >
         <View className="flex-row items-end justify-between gap-md">
           <ScreenHeader title="Your routines" subtitle="Plan your workouts" />
-          <Pressable
-            accessibilityLabel="Create a new routine"
-            accessibilityRole="button"
-            className="h-12 w-12 items-center justify-center rounded-full bg-accent active:bg-accent-pressed"
+          <IconButton
+            variant="accent"
+            icon="plus"
+            iconSize={24}
+            label="Create a new routine"
             onPress={() => openRoutine("new")}
-          >
-            <Icon name="plus" size={24} className="text-on-accent" />
-          </Pressable>
+          />
         </View>
 
         <View className="flex-row gap-sm">
@@ -63,7 +63,9 @@ export function RoutinesScreen() {
             {routines.map((routine) => (
               <RoutineCard
                 key={routine.id}
-                routine={routine}
+                name={routine.name}
+                muscleGroups={routine.muscleGroups}
+                exerciseCount={routine.exercises.length}
                 onPress={() => openRoutine(routine.id)}
               />
             ))}

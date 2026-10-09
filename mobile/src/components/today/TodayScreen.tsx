@@ -8,6 +8,7 @@ import { ScreenHeader } from "../ui/ScreenHeader";
 import { Section } from "../ui/Section";
 import { InfoCard } from "./InfoCard";
 import { Button } from "../ui/Button";
+import { IconButton } from "../ui/IconButton";
 export function TodayScreen() {
   const weekDays = getWeekDays();
   const today = new Intl.DateTimeFormat("en-US", {
@@ -72,13 +73,12 @@ export function TodayScreen() {
               Keep your progress context up to date.
             </Text>
           </View>
-          <Pressable
-            accessibilityLabel="Log body weight"
-            accessibilityRole="button"
-            className="h-12 w-12 items-center justify-center rounded-full border border-border bg-surface"
-          >
-            <Icon name="plus" />
-          </Pressable>
+          <IconButton
+            icon="plus"
+            iconSize={16}
+            label="Log body weight"
+            onPress={() => {}} // TODO: open weight entry
+          />
         </View>
 
         <ConsistencyGrid sessionDates={[]} mode="recent" />

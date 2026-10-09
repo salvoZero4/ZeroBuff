@@ -17,6 +17,7 @@ export type IconName =
   | "arrow-left"
   | "chevron-up"
   | "chevron-down"
+  | "chevron-right"
   | "trash";
 
 type IconProps = {
