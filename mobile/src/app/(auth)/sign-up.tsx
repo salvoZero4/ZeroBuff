@@ -6,30 +6,58 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
-// PROVISIONAL: registration is presentation-only until the auth service is
-// connected. The form does not create an account locally.
+import { Button } from "@/components/ui/Button";
+import { TextField } from "@/components/ui/TextField";
+
+type Field = "username" | "email" | "password";
+type FormErrors = Partial<Record<Field, string>>;
+
+const MIN_PASSWORD_LENGTH = 8; // adjust to the backend's rule
+
+function validate(values: Record<Field, string>): FormErrors {
+  const username = (values.username ?? "").trim();
+  const email = (values.email ?? "").trim();
+  const password = values.password ?? "";
+
+  const errors: FormErrors = {};
+  if (!username) {
+    errors.username = "Add a username.";
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    errors.email = "Enter a valid email address.";
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    errors.password = `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  return errors;
+}
+
 export default function SignUp() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  function clearError(field: Field) {
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  }
 
   function handleSubmit() {
-    setMessage(
-      username.trim() && email.trim()
-        ? "Account connection is not available in this local build."
-        : "Add a username and email to continue.",
-    );
+    const found = validate({ username, email, password });
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+
+    // TODO: call the register endpoint
   }
 
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-bg"
       behavior="padding"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 40}
     >
       <ScrollView
         contentContainerClassName="flex-grow justify-between gap-xl p-lg"
@@ -49,36 +77,51 @@ export default function SignUp() {
             </Text>
           </View>
 
-          <View className="gap-md">
-            <Field
+          <View className="gap-lg">
+            <TextField
               label="Username"
               value={username}
+              onChangeText={(value) => {
+                setUsername(value);
+                clearError("username");
+              }}
+              error={errors.username}
               placeholder="How should we call you?"
-              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="username"
+              textContentType="username"
             />
-            <Field
+            <TextField
               label="Email"
               value={email}
+              onChangeText={(value) => {
+                setEmail(value);
+                clearError("email");
+              }}
+              error={errors.email}
               placeholder="you@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
-              onChangeText={setEmail}
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
             />
-            {message ? (
-              <Text className="font-body text-caption leading-5 text-text-secondary">
-                {message}
-              </Text>
-            ) : null}
-            <Pressable
-              accessibilityLabel="Create account"
-              accessibilityRole="button"
-              className="min-h-14 items-center justify-center rounded-sm bg-accent active:bg-accent-pressed"
-              onPress={handleSubmit}
-            >
-              <Text className="font-body-bold text-body text-on-accent">
-                Create account
-              </Text>
-            </Pressable>
+            <TextField
+              label="Password"
+              value={password}
+              onChangeText={(value) => {
+                setPassword(value);
+                clearError("password");
+              }}
+              error={errors.password}
+              placeholder="Your password"
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+            />
+
+            <Button label="Create account" onPress={handleSubmit} />
           </View>
         </View>
 
@@ -86,48 +129,18 @@ export default function SignUp() {
           <Text className="font-body text-caption text-text-secondary">
             Already training with us?
           </Text>
-          <Link
-            accessibilityRole="link"
-            className="min-h-12 justify-center px-sm font-body-semibold text-caption text-accent"
-            href="/(auth)/sign-in"
-          >
-            Sign in
+          <Link href="/(auth)/sign-in" asChild>
+            <Pressable
+              accessibilityRole="link"
+              className="min-h-12 justify-center px-sm"
+            >
+              <Text className="font-body-semibold text-caption text-accent">
+                Sign in
+              </Text>
+            </Pressable>
           </Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-function Field({
-  label,
-  value,
-  placeholder,
-  onChangeText,
-  keyboardType,
-  autoCapitalize,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  onChangeText: (value: string) => void;
-  keyboardType?: "default" | "email-address";
-  autoCapitalize?: "none" | "sentences";
-}) {
-  return (
-    <View className="gap-xs">
-      <Text className="font-body-semibold text-caption text-text-primary">
-        {label}
-      </Text>
-      <TextInput
-        accessibilityLabel={label}
-        autoCapitalize={autoCapitalize}
-        className="min-h-14 rounded-sm border border-border bg-surface px-lg font-body text-body text-text-primary placeholder:text-text-secondary"
-        keyboardType={keyboardType}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        value={value}
-      />
-    </View>
   );
 }

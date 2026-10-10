@@ -6,23 +6,41 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
-// PROVISIONAL: authentication is presentation-only until the auth service is
-// connected. Validation remains local and never claims a successful sign-in.
+import { Button } from "@/components/ui/Button";
+import { TextField } from "@/components/ui/TextField";
+
+type Field = "email" | "password";
+type FormErrors = Partial<Record<Field, string>>;
+
+function validate(values: Record<Field, string>): FormErrors {
+  const errors: FormErrors = {};
+  if (!(values.email ?? "").trim()) {
+    errors.email = "Enter your email.";
+  }
+  if (!(values.password ?? "")) {
+    errors.password = "Enter your password.";
+  }
+  return errors;
+}
+
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  function clearError(field: Field) {
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  }
 
   function handleSubmit() {
-    setMessage(
-      email.trim() && password
-        ? "Account connection is not available in this local build."
-        : "Enter your email and password to continue.",
-    );
+    const found = validate({ email, password });
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+
+    // TODO: call the login endpoint
   }
 
   return (
@@ -49,89 +67,56 @@ export default function SignIn() {
             </Text>
           </View>
 
-          <View className="gap-md">
-            <Field
+          <View className="gap-lg">
+            <TextField
               label="Email"
               value={email}
+              onChangeText={(value) => {
+                setEmail(value ?? "");
+                clearError("email");
+              }}
+              error={errors.email}
               placeholder="you@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
-              onChangeText={setEmail}
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
             />
-            <Field
+            <TextField
               label="Password"
               value={password}
+              onChangeText={(value) => {
+                setPassword(value ?? "");
+                clearError("password");
+              }}
+              error={errors.password}
               placeholder="Your password"
               secureTextEntry
-              onChangeText={setPassword}
+              autoComplete="current-password"
+              textContentType="password"
             />
-            {message ? (
-              <Text className="font-body text-caption leading-5 text-text-secondary">
-                {message}
-              </Text>
-            ) : null}
-            <Pressable
-              accessibilityLabel="Sign in"
-              accessibilityRole="button"
-              className="min-h-14 items-center justify-center rounded-sm bg-accent active:bg-accent-pressed"
-              onPress={handleSubmit}
-            >
-              <Text className="font-body-bold text-body text-on-accent">
-                Sign in
-              </Text>
-            </Pressable>
+
+            <Button label="Sign in" onPress={handleSubmit} />
           </View>
         </View>
 
         <View className="flex-row items-center justify-center gap-xs pb-md">
           <Text className="font-body text-caption text-text-secondary">
-            New to ZeroBuff?
+            New to Zerobuff?
           </Text>
-          <Link
-            accessibilityRole="link"
-            className="min-h-12 justify-center px-sm font-body-semibold text-caption text-accent"
-            href="/(auth)/sign-up"
-          >
-            Create an account
+          <Link href="/(auth)/sign-up" replace asChild>
+            <Pressable
+              accessibilityRole="link"
+              className="min-h-12 justify-center px-sm"
+            >
+              <Text className="font-body-semibold text-caption text-accent">
+                Create an account
+              </Text>
+            </Pressable>
           </Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-function Field({
-  label,
-  value,
-  placeholder,
-  onChangeText,
-  secureTextEntry,
-  keyboardType,
-  autoCapitalize,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  onChangeText: (value: string) => void;
-  secureTextEntry?: boolean;
-  keyboardType?: "default" | "email-address";
-  autoCapitalize?: "none" | "sentences";
-}) {
-  return (
-    <View className="gap-xs">
-      <Text className="font-body-semibold text-caption text-text-primary">
-        {label}
-      </Text>
-      <TextInput
-        accessibilityLabel={label}
-        autoCapitalize={autoCapitalize}
-        className="min-h-14 rounded-sm border border-border bg-surface px-lg font-body text-body text-text-primary placeholder:text-text-secondary"
-        keyboardType={keyboardType}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        secureTextEntry={secureTextEntry}
-        value={value}
-      />
-    </View>
   );
 }

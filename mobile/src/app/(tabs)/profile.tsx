@@ -69,7 +69,7 @@ export default function ProfileScreen() {
           accessibilityLabel="Sign out"
           accessibilityRole="button"
           className="min-h-14 items-center justify-center rounded-sm border border-border active:bg-surface-raised"
-          onPress={() => router.navigate("/(auth)/sign-in")}
+          onPress={() => router.replace("/(auth)/sign-in")}
         >
           <Text className="font-body-semibold text-body text-danger">
             Sign out
