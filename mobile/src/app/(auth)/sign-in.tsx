@@ -8,7 +8,9 @@ import {
   Text,
   View,
 } from "react-native";
-
+import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/providers/AuthProvider";
+import { ApiError } from "@/utils/api/errors";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 
@@ -16,23 +18,52 @@ type Field = "email" | "password";
 type FormErrors = Partial<Record<Field, string>>;
 
 function validate(values: Record<Field, string>): FormErrors {
+  const email = values.email;
+  const password = values.password;
   const errors: FormErrors = {};
-  if (!(values.email ?? "").trim()) {
+
+  if (!email) {
     errors.email = "Enter your email.";
   }
-  if (!(values.password ?? "")) {
+  if (!password) {
     errors.password = "Enter your password.";
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    errors.email = "Enter a valid email address.";
   }
   return errors;
 }
 
 export default function SignIn() {
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+
+  const { mutate: handleSignIn, isPending } = useMutation({
+    mutationFn: async () => {
+      setGeneralError(null);
+      await signIn(email.trim().toLowerCase(), password);
+    },
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        if (err.fieldErrors) {
+          setErrors(err.fieldErrors);
+        } else {
+          setGeneralError(err.message || "Invalid credentials.");
+        }
+      } else {
+        setGeneralError(
+          "Unable to connect to the server. Check your connection.",
+        );
+      }
+    },
+  });
 
   function clearError(field: Field) {
     setErrors((current) => ({ ...current, [field]: undefined }));
+    setGeneralError(null);
   }
 
   function handleSubmit() {
@@ -40,7 +71,7 @@ export default function SignIn() {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    // TODO: call the login endpoint
+    handleSignIn();
   }
 
   return (
@@ -82,7 +113,9 @@ export default function SignIn() {
               autoCorrect={false}
               autoComplete="email"
               textContentType="emailAddress"
+              editable={!isPending}
             />
+
             <TextField
               label="Password"
               value={password}
@@ -95,9 +128,22 @@ export default function SignIn() {
               secureTextEntry
               autoComplete="current-password"
               textContentType="password"
+              editable={!isPending}
             />
 
-            <Button label="Sign in" onPress={handleSubmit} />
+            {generalError ? (
+              <View className="rounded-sm border border-danger/40 bg-danger/10 p-md">
+                <Text className="font-body text-caption text-danger">
+                  {generalError}
+                </Text>
+              </View>
+            ) : null}
+
+            <Button
+              label={isPending ? "Signing in..." : "Sign in"}
+              onPress={handleSubmit}
+              disabled={isPending}
+            />
           </View>
         </View>
 
@@ -109,6 +155,7 @@ export default function SignIn() {
             <Pressable
               accessibilityRole="link"
               className="min-h-12 justify-center px-sm"
+              disabled={isPending}
             >
               <Text className="font-body-semibold text-caption text-accent">
                 Create an account

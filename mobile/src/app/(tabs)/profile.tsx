@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { router } from "expo-router";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { useAuth } from "@/providers/AuthProvider";
 const StyledFontAwesome6 = styled(FontAwesome6, {
   className: {
     target: "style",
@@ -13,6 +14,7 @@ const StyledFontAwesome6 = styled(FontAwesome6, {
 
 // PROVISIONAL: profile controls are visual until the user endpoint is wired.
 export default function ProfileScreen() {
+  const { signOut } = useAuth();
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -69,7 +71,7 @@ export default function ProfileScreen() {
           accessibilityLabel="Sign out"
           accessibilityRole="button"
           className="min-h-14 items-center justify-center rounded-sm border border-border active:bg-surface-raised"
-          onPress={() => router.replace("/(auth)/sign-in")}
+          onPress={signOut}
         >
           <Text className="font-body-semibold text-body text-danger">
             Sign out

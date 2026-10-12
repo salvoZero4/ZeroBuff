@@ -8,21 +8,23 @@ import {
   Text,
   View,
 } from "react-native";
-
+import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/providers/AuthProvider";
+import { ApiError } from "@/utils/api/errors";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 
 type Field = "username" | "email" | "password";
 type FormErrors = Partial<Record<Field, string>>;
 
-const MIN_PASSWORD_LENGTH = 8; // adjust to the backend's rule
+const MIN_PASSWORD_LENGTH = 8;
 
 function validate(values: Record<Field, string>): FormErrors {
   const username = (values.username ?? "").trim();
   const email = (values.email ?? "").trim();
   const password = values.password ?? "";
-
   const errors: FormErrors = {};
+
   if (!username) {
     errors.username = "Add a username.";
   }
@@ -36,13 +38,36 @@ function validate(values: Record<Field, string>): FormErrors {
 }
 
 export default function SignUp() {
+  const { signUp } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+
+  const { mutate: handleSignUp, isPending } = useMutation({
+    mutationFn: async () => {
+      setGeneralError(null);
+      await signUp(username.trim(), email.trim().toLowerCase(), password);
+    },
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        if (err.fieldErrors) {
+          setErrors(err.fieldErrors);
+        } else {
+          setGeneralError(err.message || "Failed to create account.");
+        }
+      } else {
+        setGeneralError(
+          "Unable to connect to the server. Check your connection.",
+        );
+      }
+    },
+  });
 
   function clearError(field: Field) {
     setErrors((current) => ({ ...current, [field]: undefined }));
+    setGeneralError(null);
   }
 
   function handleSubmit() {
@@ -50,7 +75,7 @@ export default function SignUp() {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    // TODO: call the register endpoint
+    handleSignUp();
   }
 
   return (
@@ -91,7 +116,9 @@ export default function SignUp() {
               autoCorrect={false}
               autoComplete="username"
               textContentType="username"
+              editable={!isPending}
             />
+
             <TextField
               label="Email"
               value={email}
@@ -106,7 +133,9 @@ export default function SignUp() {
               autoCorrect={false}
               autoComplete="email"
               textContentType="emailAddress"
+              editable={!isPending}
             />
+
             <TextField
               label="Password"
               value={password}
@@ -119,9 +148,22 @@ export default function SignUp() {
               secureTextEntry
               autoComplete="new-password"
               textContentType="newPassword"
+              editable={!isPending}
             />
 
-            <Button label="Create account" onPress={handleSubmit} />
+            {generalError ? (
+              <View className="rounded-sm border border-danger/40 bg-danger/10 p-md">
+                <Text className="font-body text-caption text-danger">
+                  {generalError}
+                </Text>
+              </View>
+            ) : null}
+
+            <Button
+              label={isPending ? "Creating account..." : "Create account"}
+              onPress={handleSubmit}
+              disabled={isPending}
+            />
           </View>
         </View>
 
@@ -129,10 +171,11 @@ export default function SignUp() {
           <Text className="font-body text-caption text-text-secondary">
             Already training with us?
           </Text>
-          <Link href="/(auth)/sign-in" asChild>
+          <Link href="/(auth)/sign-in" replace asChild>
             <Pressable
               accessibilityRole="link"
               className="min-h-12 justify-center px-sm"
+              disabled={isPending}
             >
               <Text className="font-body-semibold text-caption text-accent">
                 Sign in
