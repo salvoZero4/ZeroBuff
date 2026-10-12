@@ -157,7 +157,7 @@ export function ExercisesScreen() {
       ) : isError ? (
         <View className="flex-1 items-center justify-center p-lg">
           <Text className="font-body text-body text-danger">
-            Unable to load exercises from backend.
+            Unable to load exercises.
           </Text>
         </View>
       ) : (
