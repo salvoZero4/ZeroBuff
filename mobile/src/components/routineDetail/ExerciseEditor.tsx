@@ -1,4 +1,4 @@
-import { type RoutineExerciseDraft } from "@/utils/routineDraft";
+import { type RoutineExerciseDraft } from "@/utils/domain/routineDraft";
 import { View, TextInput, Pressable } from "react-native";
 import { TargetInput } from "./TargetInput";
 import { IconButton } from "../ui/IconButton";

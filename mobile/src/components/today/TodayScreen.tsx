@@ -7,7 +7,7 @@ import { InfoCard } from "./InfoCard";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { WeekStrip } from "./WeekStrip";
-import { useActiveWorkout } from "@/utils/activeWorkoutStore";
+import { useActiveWorkout } from "@/utils/stores/activeWorkoutStore";
 export function TodayScreen() {
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",

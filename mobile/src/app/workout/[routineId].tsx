@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { getRoutine } from "@/utils/routineStore";
+import { getRoutine } from "@/utils/stores/routineStore";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -20,7 +20,7 @@ import {
   updateSetLog,
   addSetToExercise,
   finishWorkoutSession,
-} from "@/utils/activeWorkoutStore";
+} from "@/utils/stores/activeWorkoutStore";
 
 export default function ActiveWorkoutScreen() {
   const { routineId } = useLocalSearchParams<{ routineId: string }>();

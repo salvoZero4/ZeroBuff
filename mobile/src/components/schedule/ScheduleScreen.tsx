@@ -4,7 +4,7 @@ import { ScrollView, View } from "react-native";
 import { IconButton } from "@/components/ui/IconButton";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Button } from "@/components/ui/Button";
-import { useRoutines } from "@/utils/routineStore";
+import { useRoutines } from "@/utils/stores/routineStore";
 import { ScheduleDayRow } from "./ScheduleDayRow";
 import { RoutineSelectorModal } from "./RoutineSelectorModal";
 

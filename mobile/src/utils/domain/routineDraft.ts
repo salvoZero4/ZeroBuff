@@ -1,4 +1,4 @@
-import type { Routine, RoutineExercise } from "@/utils/routineStore";
+import type { Routine, RoutineExercise } from "@/utils/stores/routineStore";
 
 export type RoutineExerciseDraft = {
   id: string;

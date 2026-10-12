@@ -12,7 +12,7 @@ import {
   getYearWeeks,
   type CalendarDay,
   type CalendarWeek,
-} from "../../utils/consistency";
+} from "../../utils/domain/consistency";
 
 export type ConsistencyMode = "recent" | "year";
 

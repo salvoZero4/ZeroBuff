@@ -1,5 +1,5 @@
 import { Modal, Pressable, Text, View } from "react-native";
-import type { Routine } from "@/utils/routineStore";
+import type { Routine } from "@/utils/stores/routineStore";
 import { RoutineOptionItem } from "./RoutineOptionItem";
 
 type RoutineSelectorModalProps = {

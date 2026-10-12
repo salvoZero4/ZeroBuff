@@ -12,8 +12,11 @@ import DraggableFlatList, {
   RenderItemParams,
 } from "react-native-draggable-flatlist";
 import { useRoutineDraft } from "@/hooks/useRoutineDraft";
-import { getRoutine, saveRoutine } from "@/utils/routineStore";
-import { toRoutine, type RoutineExerciseDraft } from "@/utils/routineDraft";
+import { getRoutine, saveRoutine } from "@/utils/stores/routineStore";
+import {
+  toRoutine,
+  type RoutineExerciseDraft,
+} from "@/utils/domain/routineDraft";
 import { ExerciseEditor } from "./ExerciseEditor";
 import { IconButton } from "../ui/IconButton";
 import { Button } from "../ui/Button";

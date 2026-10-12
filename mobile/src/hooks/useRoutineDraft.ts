@@ -1,11 +1,11 @@
 import { useState } from "react";
 
-import type { Routine } from "@/utils/routineStore";
+import type { Routine } from "@/utils/stores/routineStore";
 import {
   toDraft,
   type RoutineDraft,
   type RoutineExerciseDraft,
-} from "../utils/routineDraft";
+} from "../utils/domain/routineDraft";
 
 export function useRoutineDraft(routine: Routine | undefined) {
   const [draft, setDraft] = useState<RoutineDraft>(() => toDraft(routine));

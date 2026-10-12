@@ -1,4 +1,4 @@
-import { toLocalDateString } from "./dates";
+import { toLocalDateString } from "../dates";
 
 export const WEEKDAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"] as const;
 export const RECENT_WEEKS = 8;
