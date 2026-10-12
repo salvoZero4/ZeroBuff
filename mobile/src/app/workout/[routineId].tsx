@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { getRoutine } from "@/utils/stores/routineStore";
+import { useQuery } from "@tanstack/react-query";
+import { getRoutine } from "@/utils/api/routines";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -25,7 +32,17 @@ import {
 export default function ActiveWorkoutScreen() {
   const { routineId } = useLocalSearchParams<{ routineId: string }>();
   const resolvedId = Array.isArray(routineId) ? routineId[0] : routineId;
-  const routine = getRoutine(resolvedId ?? "");
+
+  // 1. Fetch reale della routine dal server tramite React Query
+  const {
+    data: routine,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["routines", resolvedId],
+    queryFn: () => getRoutine(resolvedId ?? ""),
+    enabled: !!resolvedId,
+  });
 
   const session = useActiveWorkout();
   const [showFinishModal, setShowFinishModal] = useState(false);
@@ -43,9 +60,17 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!routine || !session) {
+  if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-bg p-lg">
+      <View className="flex-1 items-center justify-center bg-bg">
+        <ActivityIndicator color="#E2F163" />
+      </View>
+    );
+  }
+
+  if (isError || !routine || !session) {
+    return (
+      <View className="flex-1 items-center justify-center gap-md bg-bg p-lg">
         <Text className="font-body-bold text-xl text-text-primary">
           Routine not found
         </Text>
@@ -59,22 +84,23 @@ export default function ActiveWorkoutScreen() {
   }
 
   const activeExercise = routine.exercises[session.currentExerciseIndex];
-  const activeExerciseLogs = session.workoutLogs[activeExercise.id] ?? [];
+  const activeExerciseLogs =
+    session.workoutLogs[activeExercise.exercise_id] ?? [];
   const isLastExercise =
     session.currentExerciseIndex === routine.exercises.length - 1;
 
   function handleToggleComplete(setIndex: number) {
     const current = activeExerciseLogs[setIndex];
     if (!current.completed) {
-      createSetLog(activeExercise.id, setIndex);
+      createSetLog(activeExercise.exercise_id, setIndex);
     } else {
-      updateSetLog(activeExercise.id, setIndex, { completed: false });
+      updateSetLog(activeExercise.exercise_id, setIndex, { completed: false });
     }
   }
 
-  function confirmFinish() {
+  async function confirmFinish() {
     setShowFinishModal(false);
-    finishWorkoutSession();
+    await finishWorkoutSession();
     router.replace("/(tabs)");
   }
 
@@ -93,18 +119,19 @@ export default function ActiveWorkoutScreen() {
         contentContainerClassName="gap-lg p-lg pb-32"
         showsVerticalScrollIndicator={false}
       >
+        {/* Step Pills degli Esercizi */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerClassName="gap-xs"
         >
           {routine.exercises.map((ex, idx) => {
-            const logs = session.workoutLogs[ex.id] ?? [];
+            const logs = session.workoutLogs[ex.exercise_id] ?? [];
             const isCompleted =
               logs.length > 0 && logs.every((s) => s.completed);
             return (
               <ExerciseStepPill
-                key={ex.id}
+                key={ex.exercise_id}
                 index={idx}
                 name={ex.name}
                 isActive={idx === session.currentExerciseIndex}
@@ -125,7 +152,7 @@ export default function ActiveWorkoutScreen() {
           </Text>
         </View>
 
-        <RestTimerControl defaultSeconds={activeExercise.restSeconds} />
+        <RestTimerControl defaultSeconds={activeExercise.rest_time} />
 
         <Card className="gap-md">
           <View className="flex-row px-xs">
@@ -154,7 +181,7 @@ export default function ActiveWorkoutScreen() {
                 key={setLog.setNumber}
                 set={setLog}
                 onUpdate={(changes) =>
-                  updateSetLog(activeExercise.id, setIdx, changes)
+                  updateSetLog(activeExercise.exercise_id, setIdx, changes)
                 }
                 onToggleComplete={() => handleToggleComplete(setIdx)}
               />
@@ -164,7 +191,7 @@ export default function ActiveWorkoutScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() =>
-              addSetToExercise(activeExercise.id, activeExercise.reps)
+              addSetToExercise(activeExercise.exercise_id, activeExercise.reps)
             }
             className="min-h-12 flex-row items-center justify-center gap-xs rounded-sm border border-border bg-surface-raised active:bg-surface"
           >
@@ -176,6 +203,7 @@ export default function ActiveWorkoutScreen() {
         </Card>
       </ScrollView>
 
+      {/* Barra comandi inferiore */}
       <View className="absolute bottom-6 left-lg right-lg flex-row gap-md">
         {session.currentExerciseIndex > 0 ? (
           <Pressable
@@ -208,7 +236,6 @@ export default function ActiveWorkoutScreen() {
         </Pressable>
       </View>
 
-      {/* Modale personalizzata di conferma fine sessione */}
       <ConfirmModal
         visible={showFinishModal}
         title="Finish workout"
