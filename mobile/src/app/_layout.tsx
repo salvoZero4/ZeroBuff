@@ -74,6 +74,13 @@ function RootNavigator() {
             />
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="schedule" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="exercises"
+              options={{
+                headerShown: false,
+                animation: "slide_from_right",
+              }}
+            />
             {/* other protected routes (routine detail, workout...) */}
           </Stack.Protected>
           <Stack.Protected guard={status === "signedOut"}>

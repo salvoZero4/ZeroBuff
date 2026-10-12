@@ -23,6 +23,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Section } from "../ui/Section";
 import { ScreenHeader } from "../ui/ScreenHeader";
+import { openExercisePicker } from "@/utils/stores/exercisePickerStore";
 
 export function RoutineDetailScreen({ routineId }: { routineId: string }) {
   const isNewRoutine = routineId === "new";
@@ -84,6 +85,12 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
         />
       </View>
     );
+  }
+  function handleOpenExercisePicker() {
+    openExercisePicker((selectedExercise) => {
+      addExercise(selectedExercise);
+    });
+    router.push("/exercises");
   }
 
   return (
@@ -164,7 +171,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
           variant="outline"
           icon="plus"
           label="Add exercise"
-          onPress={addExercise}
+          onPress={handleOpenExercisePicker}
         />
       </View>
     </KeyboardAvoidingView>

@@ -1,6 +1,6 @@
 import { useState } from "react";
-
 import type { Routine } from "@/utils/stores/routineStore";
+import type { ExerciseRead } from "@/utils/api/exercise";
 import {
   toDraft,
   type RoutineDraft,
@@ -26,15 +26,16 @@ export function useRoutineDraft(routine: Routine | undefined) {
     }));
   }
 
-  function addExercise() {
-    const exerciseId = `exercise-${Date.now()}`;
+  function addExercise(exercise: ExerciseRead) {
+    const draftId = `draft-${Date.now()}`;
     setDraft((current) => ({
       ...current,
       exercises: [
         ...current.exercises,
         {
-          id: exerciseId,
-          name: `Exercise ${current.exercises.length + 1}`,
+          id: draftId,
+          exercise_id: exercise.id,
+          name: exercise.name,
           sets: "3",
           reps: "10",
           restSeconds: "90",
@@ -71,6 +72,7 @@ export function useRoutineDraft(routine: Routine | undefined) {
       return { ...current, exercises };
     });
   }
+
   function reorderExercises(newExercises: RoutineExerciseDraft[]) {
     setDraft((current) => ({
       ...current,
