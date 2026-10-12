@@ -1,13 +1,13 @@
 import { Modal, Pressable, Text, View } from "react-native";
-import type { Routine } from "@/utils/stores/routineStore";
+import type { RoutineListRead } from "@/utils/api/routines";
 import { RoutineOptionItem } from "./RoutineOptionItem";
 
 type RoutineSelectorModalProps = {
   visible: boolean;
   dayLabel?: string;
-  routines: readonly Routine[];
-  selectedRoutineName: string | null;
-  onSelect: (routineName: string | null) => void;
+  routines: readonly RoutineListRead[];
+  selectedRoutineId: string | null;
+  onSelect: (routineId: string | null) => void;
   onClose: () => void;
 };
 
@@ -15,7 +15,7 @@ export function RoutineSelectorModal({
   visible,
   dayLabel,
   routines,
-  selectedRoutineName,
+  selectedRoutineId,
   onSelect,
   onClose,
 }: RoutineSelectorModalProps) {
@@ -33,7 +33,10 @@ export function RoutineSelectorModal({
           className="absolute inset-0"
           onPress={onClose}
         />
-        <View className="gap-lg rounded-t-lg border border-border bg-surface p-lg">
+        <View
+          onStartShouldSetResponder={() => true}
+          className="gap-lg rounded-t-lg border border-border bg-surface p-lg"
+        >
           <View className="gap-xs">
             <Text className="font-body-bold text-xl text-text-primary">
               {dayLabel}
@@ -42,20 +45,18 @@ export function RoutineSelectorModal({
               Choose a routine or make this a rest day.
             </Text>
           </View>
-
           <View className="gap-sm">
             {routines.map((routine) => (
               <RoutineOptionItem
                 key={routine.id}
                 label={routine.name}
-                selected={selectedRoutineName === routine.name}
-                onPress={() => onSelect(routine.name)}
+                selected={selectedRoutineId === routine.id}
+                onPress={() => onSelect(routine.id)}
               />
             ))}
-
             <RoutineOptionItem
               label="Rest"
-              selected={selectedRoutineName === null}
+              selected={selectedRoutineId === null}
               onPress={() => onSelect(null)}
             />
           </View>

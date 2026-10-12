@@ -1,5 +1,5 @@
 import { type RoutineExerciseDraft } from "@/utils/domain/routineDraft";
-import { View, TextInput, Pressable } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { TargetInput } from "./TargetInput";
 import { IconButton } from "../ui/IconButton";
 import { Card } from "../ui/Card";
@@ -45,13 +45,9 @@ export function ExerciseEditor({
           />
         </Pressable>
 
-        <TextInput
-          accessibilityLabel={`Exercise ${index + 1} name`}
-          className="min-h-12 flex-1 border-border px-xs font-body-semibold text-xl text-text-primary"
-          onChangeText={(name) => onChange({ name })}
-          placeholder="Exercise name"
-          value={exercise.name}
-        />
+        <Text className="flex-1 border-border px-xs font-body-semibold text-lg text-text-primary">
+          {exercise.name}
+        </Text>
 
         <IconButton
           variant="bare"

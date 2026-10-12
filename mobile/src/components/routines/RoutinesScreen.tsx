@@ -1,11 +1,24 @@
 import { router } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
-
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  deleteRoutine,
+  getRoutines,
+  type RoutineListRead,
+} from "@/utils/api/routines";
 import { RoutineCard } from "./RoutineCard";
-import { useRoutines } from "../../utils/stores/routineStore";
 import { ScreenHeader } from "../ui/ScreenHeader";
 import { Section } from "../ui/Section";
 import { IconButton } from "../ui/IconButton";
+import { Button } from "../ui/Button";
+import { ConfirmModal } from "../ui/ConfirmModal";
 
 function openRoutine(routineId: string) {
   router.push({
@@ -15,7 +28,60 @@ function openRoutine(routineId: string) {
 }
 
 export function RoutinesScreen() {
-  const routines = useRoutines();
+  const queryClient = useQueryClient();
+  const [routineToDelete, setRoutineToDelete] =
+    useState<RoutineListRead | null>(null);
+
+  // 1. Fetch delle routine dal backend
+  const {
+    data: routines = [],
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+  } = useQuery({
+    queryKey: ["routines"],
+    queryFn: () => getRoutines(),
+  });
+
+  // 2. Mutation per eliminare la routine dal database
+  const { mutate: handleDeleteRoutine, isPending: isDeleting } = useMutation({
+    mutationFn: (id: string) => deleteRoutine(id),
+    onSuccess: () => {
+      // Invalida le routine e la pianificazione settimanale (se associata)
+      queryClient.invalidateQueries({ queryKey: ["routines"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule", "today"] });
+      setRoutineToDelete(null);
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-bg">
+        <ActivityIndicator color="#E2F163" />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View className="flex-1 items-center justify-center gap-md bg-bg p-xl">
+        <Text className="font-body-bold text-xl text-text-primary">
+          Unable to load routines
+        </Text>
+        <Text className="text-center font-body text-caption text-text-secondary">
+          Could not retrieve your routines from the server.
+        </Text>
+        <Button label="Try again" variant="outline" onPress={() => refetch()} />
+      </View>
+    );
+  }
+
+  const totalMovements = routines.reduce(
+    (total, routine) => total + routine.exercises_count,
+    0,
+  );
 
   return (
     <View className="flex-1 bg-bg">
@@ -23,6 +89,13 @@ export function RoutinesScreen() {
         className="flex-1"
         contentContainerClassName="gap-lg p-lg pb-xl"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            tintColor="#E2F163"
+          />
+        }
       >
         <View className="flex-row items-end justify-between gap-md">
           <ScreenHeader title="Your routines" subtitle="Plan your workouts" />
@@ -35,6 +108,7 @@ export function RoutinesScreen() {
           />
         </View>
 
+        {/* Metriche rapide */}
         <View className="flex-row gap-sm">
           <View className="flex-1 gap-xs rounded-sm border border-border bg-surface p-md">
             <Text className="font-numeric-bold text-title text-accent">
@@ -46,10 +120,7 @@ export function RoutinesScreen() {
           </View>
           <View className="flex-1 gap-xs rounded-sm border border-border bg-surface p-md">
             <Text className="font-numeric-bold text-title text-text-primary">
-              {routines.reduce(
-                (total, routine) => total + routine.exercises.length,
-                0,
-              )}
+              {totalMovements}
             </Text>
             <Text className="font-body text-caption text-text-secondary">
               movements
@@ -57,15 +128,19 @@ export function RoutinesScreen() {
           </View>
         </View>
 
+        {/* Lista Routine */}
         {routines.length > 0 ? (
           <Section title="All routines">
             {routines.map((routine) => (
               <RoutineCard
                 key={routine.id}
                 name={routine.name}
-                muscleGroups={routine.muscleGroups}
-                exerciseCount={routine.exercises.length}
+                muscleGroups={routine.muscle_groups.map((m) =>
+                  m.replace(/_/g, " "),
+                )}
+                exerciseCount={routine.exercises_count}
                 onPress={() => openRoutine(routine.id)}
+                onDelete={() => setRoutineToDelete(routine)}
               />
             ))}
           </Section>
@@ -82,6 +157,21 @@ export function RoutinesScreen() {
           </View>
         )}
       </ScrollView>
+
+      <ConfirmModal
+        visible={routineToDelete !== null}
+        title="Delete routine"
+        description={`Are you sure you want to delete "${routineToDelete?.name}"? This action cannot be undone.`}
+        confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+        cancelLabel="Cancel"
+        isDestructive
+        onConfirm={() => {
+          if (routineToDelete) {
+            handleDeleteRoutine(routineToDelete.id);
+          }
+        }}
+        onCancel={() => setRoutineToDelete(null)}
+      />
     </View>
   );
 }

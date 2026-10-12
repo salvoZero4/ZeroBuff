@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
 import { ConsistencyGrid } from "../shared/ConsistencyGrid";
 import { ScreenHeader } from "../ui/ScreenHeader";
 import { Section } from "../ui/Section";
@@ -8,14 +9,59 @@ import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { WeekStrip } from "./WeekStrip";
 import { useActiveWorkout } from "@/utils/stores/activeWorkoutStore";
+import {
+  getSchedule,
+  getTodaySchedule,
+  type DayOfWeek,
+} from "@/utils/api/schedule";
+
+const DAY_KEYS: readonly DayOfWeek[] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
 export function TodayScreen() {
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   }).format(new Date());
-  const routine_id = "upper-body";
+
   const activeSession = useActiveWorkout();
+
+  // 1. Routine schedulata per oggi
+  const { data: todaySchedule } = useQuery({
+    queryKey: ["schedule", "today"],
+    queryFn: getTodaySchedule,
+  });
+
+  // 2. Programmazione completa della settimana (per i pallini in WeekStrip)
+  const { data: weekSchedule = [] } = useQuery({
+    queryKey: ["schedule"],
+    queryFn: getSchedule,
+  });
+
+  const scheduledDayKeys = new Set(weekSchedule.map((s) => s.day_of_week));
+
+  function handleStartWorkout() {
+    if (activeSession) {
+      router.push(`/workout/${activeSession.routineId}` as any);
+      return;
+    }
+
+    if (todaySchedule) {
+      router.push(`/workout/${todaySchedule.routine_id}` as any);
+    } else {
+      // Se oggi è giorno di riposo, porta alla lista per scegliere una scheda
+      router.push("/(tabs)/routines");
+    }
+  }
+
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -27,16 +73,23 @@ export function TodayScreen() {
 
         <WeekStrip
           hasRoutine={(_date, dayIndex) => {
-            // Esempio: Lunedì (0), Mercoledì (2) e Venerdì (4) attivi
-            return [0, 2, 4].includes(dayIndex);
+            const dayKey = DAY_KEYS[dayIndex];
+            return scheduledDayKeys.has(dayKey);
           }}
         />
 
         <Section title="Today's routine">
-          <InfoCard
-            title="Rest day"
-            description="No routine is scheduled for today."
-          />
+          {todaySchedule ? (
+            <InfoCard
+              title={todaySchedule.routine_name}
+              description="Your scheduled training session for today."
+            />
+          ) : (
+            <InfoCard
+              title="Rest day"
+              description="No routine is scheduled for today. Rest and recover or pick a routine manually."
+            />
+          )}
         </Section>
 
         <View className="flex-row items-center gap-md rounded-md border border-accent/30 bg-surface-raised p-lg">
@@ -75,18 +128,17 @@ export function TodayScreen() {
 
       <View className="absolute bottom-md left-lg right-lg">
         <Button
-          variant={activeSession ? "primary" : "primary"}
+          variant="primary"
           label={
             activeSession
-              ? `Resume ${activeSession.routineName}${activeSession.isPaused ? " (Paused)" : ""}`
-              : "Start workout"
+              ? `Resume ${activeSession.routineName}${
+                  activeSession.isPaused ? " (Paused)" : ""
+                }`
+              : todaySchedule
+                ? `Start`
+                : "Choose a workout"
           }
-          onPress={() => {
-            const targetRoutineId = activeSession
-              ? activeSession.routineId
-              : routine_id;
-            router.push(`/workout/${targetRoutineId}`);
-          }}
+          onPress={handleStartWorkout}
         />
       </View>
     </View>

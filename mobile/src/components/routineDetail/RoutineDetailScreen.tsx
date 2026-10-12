@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,23 +12,81 @@ import {
 import DraggableFlatList, {
   RenderItemParams,
 } from "react-native-draggable-flatlist";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRoutineDraft } from "@/hooks/useRoutineDraft";
-import { getRoutine, saveRoutine } from "@/utils/stores/routineStore";
 import {
-  toRoutine,
+  createRoutine,
+  getRoutine,
+  updateRoutine,
+  type RoutineRead,
+} from "@/utils/api/routines";
+import {
+  toRoutinePayload,
   type RoutineExerciseDraft,
 } from "@/utils/domain/routineDraft";
+import { openExercisePicker } from "@/utils/stores/exercisePickerStore";
+import { ApiError } from "@/utils/api/errors";
 import { ExerciseEditor } from "./ExerciseEditor";
 import { IconButton } from "../ui/IconButton";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Section } from "../ui/Section";
 import { ScreenHeader } from "../ui/ScreenHeader";
-import { openExercisePicker } from "@/utils/stores/exercisePickerStore";
 
 export function RoutineDetailScreen({ routineId }: { routineId: string }) {
   const isNewRoutine = routineId === "new";
-  const routine = isNewRoutine ? undefined : getRoutine(routineId);
+
+  const {
+    data: routine,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["routines", routineId],
+    queryFn: () => getRoutine(routineId),
+    enabled: !isNewRoutine,
+  });
+
+  if (!isNewRoutine && isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-bg">
+        <ActivityIndicator color="#E2F163" />
+      </View>
+    );
+  }
+
+  if (!isNewRoutine && (isError || !routine)) {
+    return (
+      <View className="flex-1 items-center justify-center gap-lg bg-bg p-xl">
+        <Text className="font-body-bold text-xl text-text-primary">
+          Routine not found
+        </Text>
+        <Button
+          variant="outline"
+          label="Go back"
+          onPress={() => router.back()}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <RoutineEditorForm
+      routineId={routineId}
+      isNewRoutine={isNewRoutine}
+      initialRoutine={routine}
+    />
+  );
+}
+
+function RoutineEditorForm({
+  routineId,
+  isNewRoutine,
+  initialRoutine,
+}: {
+  routineId: string;
+  isNewRoutine: boolean;
+  initialRoutine?: RoutineRead;
+}) {
   const {
     draft,
     setName,
@@ -35,26 +94,37 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
     addExercise,
     removeExercise,
     reorderExercises,
-  } = useRoutineDraft(routine);
+  } = useRoutineDraft(initialRoutine);
 
   const [nameError, setNameError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
-  if (!isNewRoutine && !routine) {
-    return (
-      <View className="flex-1 items-center justify-center gap-lg bg-bg p-xl">
-        <Text className="font-body-bold text-xl text-text-primary">
-          Routine not found
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          className="min-h-12 justify-center rounded-sm border border-accent px-lg"
-          onPress={() => router.back()}
-        >
-          <Text className="font-body-bold text-body text-accent">Go back</Text>
-        </Pressable>
-      </View>
-    );
-  }
+  const queryClient = useQueryClient();
+
+  const { mutate: handleSave, isPending: isSaving } = useMutation({
+    mutationFn: async () => {
+      const payload = toRoutinePayload(draft);
+      if (isNewRoutine) {
+        return await createRoutine(payload);
+      } else {
+        return await updateRoutine(routineId, payload);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["routines"] });
+      if (!isNewRoutine) {
+        queryClient.invalidateQueries({ queryKey: ["routines", routineId] });
+      }
+      router.back();
+    },
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        setGeneralError(err.message || "Failed to save routine.");
+      } else {
+        setGeneralError("Network error. Please try again.");
+      }
+    },
+  });
 
   function save() {
     const name = draft.name.trim();
@@ -62,8 +132,19 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
       setNameError("Add a name before saving this routine.");
       return;
     }
-    saveRoutine(toRoutine(routineId, draft));
-    router.back();
+    if (draft.exercises.length === 0) {
+      setGeneralError("Add at least one exercise to your routine.");
+      return;
+    }
+    setGeneralError(null);
+    handleSave();
+  }
+
+  function handleOpenExercisePicker() {
+    openExercisePicker((selectedExercise) => {
+      addExercise(selectedExercise);
+    });
+    router.push("/exercises" as any);
   }
 
   function renderExerciseItem({
@@ -85,12 +166,6 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
         />
       </View>
     );
-  }
-  function handleOpenExercisePicker() {
-    openExercisePicker((selectedExercise) => {
-      addExercise(selectedExercise);
-    });
-    router.push("/exercises");
   }
 
   return (
@@ -117,10 +192,25 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
             accessibilityRole="button"
             className="min-h-12 min-w-12 items-center justify-center rounded-sm px-sm active:bg-surface-raised"
             onPress={save}
+            disabled={isSaving}
           >
-            <Text className="font-body-bold text-body text-accent">Save</Text>
+            <Text
+              className={`font-body-bold text-body ${
+                isSaving ? "text-text-secondary" : "text-accent"
+              }`}
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </Text>
           </Pressable>
         </View>
+
+        {generalError ? (
+          <View className="rounded-sm border border-danger/40 bg-danger/10 p-md">
+            <Text className="font-body text-caption text-danger">
+              {generalError}
+            </Text>
+          </View>
+        ) : null}
 
         <Section title="Routine name">
           <TextInput
@@ -128,9 +218,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
             className="min-h-14 rounded-sm border border-border bg-surface px-lg font-body-medium text-body text-text-primary placeholder:text-text-secondary"
             onChangeText={(name) => {
               setName(name);
-              if (name.trim()) {
-                setNameError(null);
-              }
+              if (name.trim()) setNameError(null);
             }}
             placeholder="e.g. Push Day"
             value={draft.name}

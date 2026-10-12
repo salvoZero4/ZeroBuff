@@ -114,7 +114,7 @@ export async function getExercises(
   const qs = query.toString();
 
   const response = await apiRequest<ExerciseListResponse>(
-    `/v1/exercises/${qs ? `?${qs}` : ""}`,
+    `/exercises/${qs ? `?${qs}` : ""}`,
   );
   return response.exercises;
 }
@@ -122,7 +122,7 @@ export async function getExercises(
 export function createExercise(
   payload: ExerciseCreated,
 ): Promise<ExerciseRead> {
-  return apiRequest<ExerciseRead>("/v1/exercises/", {
+  return apiRequest<ExerciseRead>("/exercises/", {
     method: "POST",
     body: JSON.stringify(payload),
   });
