@@ -152,7 +152,7 @@ export function ExercisesScreen() {
       {/* Lista esercizi */}
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#E2F163" />
+          <ActivityIndicator color="#f5f5f5" />
         </View>
       ) : isError ? (
         <View className="flex-1 items-center justify-center p-lg">

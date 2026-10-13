@@ -31,19 +31,16 @@ export function ScheduleScreen() {
   const queryClient = useQueryClient();
   const [selectedDayKey, setSelectedDayKey] = useState<DayOfWeek | null>(null);
 
-  // 1. Fetch delle routine create dall'utente
   const { data: routines = [], isLoading: isRoutinesLoading } = useQuery({
     queryKey: ["routines"],
     queryFn: () => getRoutines(),
   });
 
-  // 2. Fetch della pianificazione settimanale corrente
   const { data: schedule = [], isLoading: isScheduleLoading } = useQuery({
     queryKey: ["schedule"],
     queryFn: getSchedule,
   });
 
-  // Mappa veloce per cercare la riga di pianificazione per giorno
   const scheduleByDay = schedule.reduce<
     Record<DayOfWeek, ScheduleRead | undefined>
   >(
@@ -54,7 +51,6 @@ export function ScheduleScreen() {
     {} as Record<DayOfWeek, ScheduleRead | undefined>,
   );
 
-  // 3. Mutation per cambiare l'assegnazione di un giorno
   const { mutate: handleAssignRoutine, isPending: isAssigning } = useMutation({
     mutationFn: async ({
       dayKey,
@@ -66,17 +62,14 @@ export function ScheduleScreen() {
       const existing = scheduleByDay[dayKey];
 
       if (newRoutineId === null) {
-        // Assegnato "Rest": se esisteva una riga la eliminiamo
         if (existing) {
           await deleteSchedule(existing.id);
         }
       } else if (existing) {
-        // Cambio routine su un giorno già pianificato
         if (existing.routine_id !== newRoutineId) {
           await updateSchedule(existing.id, { routine_id: newRoutineId });
         }
       } else {
-        // Nuova pianificazione su giorno vuoto
         await createSchedule({ day_of_week: dayKey, routine_id: newRoutineId });
       }
     },
@@ -119,7 +112,7 @@ export function ScheduleScreen() {
 
         {isLoading ? (
           <View className="py-20 items-center justify-center">
-            <ActivityIndicator color="#E2F163" />
+            <ActivityIndicator color="#f5f5f5" />
           </View>
         ) : (
           <View className="overflow-hidden rounded-md border border-border bg-surface">

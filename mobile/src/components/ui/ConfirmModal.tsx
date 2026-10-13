@@ -33,9 +33,7 @@ export function ConfirmModal({
       transparent
       visible={visible}
     >
-      {/* Contenitore a schermo intero centrato verticalmente con margine laterale */}
       <View className="flex-1 justify-center bg-black/75 px-lg">
-        {/* Backdrop: intercetta i tocchi all'esterno per chiudere */}
         <Pressable
           accessibilityLabel="Dismiss confirmation"
           accessibilityRole="button"
@@ -43,7 +41,6 @@ export function ConfirmModal({
           onPress={onCancel}
         />
 
-        {/* Card modale: si estende a tutta larghezza tra i padding px-lg */}
         <View
           onStartShouldSetResponder={() => true}
           className="gap-lg rounded-md border border-border bg-surface p-xl"

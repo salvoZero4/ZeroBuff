@@ -14,6 +14,8 @@ import {
   getTodaySchedule,
   type DayOfWeek,
 } from "@/utils/api/schedule";
+import { useState } from "react";
+import { RefreshControl } from "react-native-gesture-handler";
 
 const DAY_KEYS: readonly DayOfWeek[] = [
   "monday",
@@ -26,6 +28,8 @@ const DAY_KEYS: readonly DayOfWeek[] = [
 ];
 
 export function TodayScreen() {
+  const [isRefetching, setIsRefetching] = useState(false);
+
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
@@ -34,17 +38,24 @@ export function TodayScreen() {
 
   const activeSession = useActiveWorkout();
 
-  // 1. Routine schedulata per oggi
-  const { data: todaySchedule } = useQuery({
+  const { data: todaySchedule, refetch: refetchTodaySchedule } = useQuery({
     queryKey: ["schedule", "today"],
     queryFn: getTodaySchedule,
   });
 
-  // 2. Programmazione completa della settimana (per i pallini in WeekStrip)
-  const { data: weekSchedule = [] } = useQuery({
+  const { data: weekSchedule = [], refetch: refetchWeekSchedule } = useQuery({
     queryKey: ["schedule"],
     queryFn: getSchedule,
   });
+
+  async function handleRefetch() {
+    setIsRefetching(true);
+    try {
+      await Promise.all([refetchTodaySchedule(), refetchWeekSchedule()]);
+    } finally {
+      setIsRefetching(false);
+    }
+  }
 
   const scheduledDayKeys = new Set(weekSchedule.map((s) => s.day_of_week));
 
@@ -57,7 +68,6 @@ export function TodayScreen() {
     if (todaySchedule) {
       router.push(`/workout/${todaySchedule.routine_id}` as any);
     } else {
-      // Se oggi è giorno di riposo, porta alla lista per scegliere una scheda
       router.push("/(tabs)/routines");
     }
   }
@@ -68,6 +78,13 @@ export function TodayScreen() {
         className="flex-1"
         contentContainerClassName="gap-lg p-lg pb-31"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={handleRefetch}
+            tintColor="#f5f5f5"
+          />
+        }
       >
         <ScreenHeader title="This week" subtitle={today} />
 

@@ -32,7 +32,6 @@ export function RoutinesScreen() {
   const [routineToDelete, setRoutineToDelete] =
     useState<RoutineListRead | null>(null);
 
-  // 1. Fetch delle routine dal backend
   const {
     data: routines = [],
     isLoading,
@@ -44,11 +43,9 @@ export function RoutinesScreen() {
     queryFn: () => getRoutines(),
   });
 
-  // 2. Mutation per eliminare la routine dal database
   const { mutate: handleDeleteRoutine, isPending: isDeleting } = useMutation({
     mutationFn: (id: string) => deleteRoutine(id),
     onSuccess: () => {
-      // Invalida le routine e la pianificazione settimanale (se associata)
       queryClient.invalidateQueries({ queryKey: ["routines"] });
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
       queryClient.invalidateQueries({ queryKey: ["schedule", "today"] });
@@ -59,7 +56,7 @@ export function RoutinesScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-bg">
-        <ActivityIndicator color="#E2F163" />
+        <ActivityIndicator color="#f5f5f5" />
       </View>
     );
   }
@@ -73,7 +70,7 @@ export function RoutinesScreen() {
         <Text className="text-center font-body text-caption text-text-secondary">
           Could not retrieve your routines from the server.
         </Text>
-        <Button label="Try again" variant="outline" onPress={() => refetch()} />
+        <Button label="Try again" variant="primary" onPress={() => refetch()} />
       </View>
     );
   }
@@ -93,7 +90,7 @@ export function RoutinesScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={refetch}
-            tintColor="#E2F163"
+            tintColor="#f5f5f5"
           />
         }
       >
@@ -108,7 +105,6 @@ export function RoutinesScreen() {
           />
         </View>
 
-        {/* Metriche rapide */}
         <View className="flex-row gap-sm">
           <View className="flex-1 gap-xs rounded-sm border border-border bg-surface p-md">
             <Text className="font-numeric-bold text-title text-accent">
