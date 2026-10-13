@@ -22,9 +22,6 @@ function validate(values: Record<Field, string>): FormErrors {
   const password = values.password;
   const errors: FormErrors = {};
 
-  if (!email) {
-    errors.email = "Enter your email.";
-  }
   if (!password) {
     errors.password = "Enter your password.";
   }
