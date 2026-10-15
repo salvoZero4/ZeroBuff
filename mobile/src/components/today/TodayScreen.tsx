@@ -1,24 +1,26 @@
 import { router } from "expo-router";
+import { useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { RefreshControl } from "react-native-gesture-handler";
 import { useQuery } from "@tanstack/react-query";
 import { ConsistencyGrid } from "../shared/ConsistencyGrid";
 import { ScreenHeader } from "../ui/ScreenHeader";
 import { Section } from "../ui/Section";
 import { InfoCard } from "./InfoCard";
+import { LastSessionCard } from "./LastSessionCard";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { WeekStrip } from "./WeekStrip";
+import { WeightLogModal } from "../shared/WeightLogModal";
 import { useActiveWorkout } from "@/utils/stores/activeWorkoutStore";
 import {
   getSchedule,
   getTodaySchedule,
   type DayOfWeek,
 } from "@/utils/api/schedule";
-import { getTodayWeight, WeightLogRead } from "@/utils/api/weight";
-import { WeightLogModal } from "../shared/WeightLogModal";
-import { useState } from "react";
-import { RefreshControl } from "react-native-gesture-handler";
+import { getTodayWeight, type WeightLogRead } from "@/utils/api/weight";
 import { getSessions } from "@/utils/api/session";
+import { getRoutines } from "@/utils/api/routines";
 
 const DAY_KEYS: readonly DayOfWeek[] = [
   "monday",
@@ -52,6 +54,11 @@ export function TodayScreen() {
     queryFn: () => getSessions({ limit: 64 }),
   });
 
+  const { data: routines = [], refetch: refetchRoutines } = useQuery({
+    queryKey: ["routines"],
+    queryFn: () => getRoutines(),
+  });
+
   const { data: todayWeight, refetch: refetchWeight } =
     useQuery<WeightLogRead | null>({
       queryKey: ["bodyWeight", "today"],
@@ -70,6 +77,7 @@ export function TodayScreen() {
         refetchTodaySchedule(),
         refetchWeekSchedule(),
         refetchSessions(),
+        refetchRoutines(),
         refetchWeight(),
       ]);
     } finally {
@@ -78,6 +86,25 @@ export function TodayScreen() {
   }
 
   const scheduledDayKeys = new Set(weekSchedule.map((s) => s.day_of_week));
+
+  // Prende la sessione completata più recente (ordinando per started_at decrescente)
+  const lastCompletedSession = useMemo(() => {
+    const completed = sessions.filter((s) => s.status === "completed");
+    if (completed.length === 0) return undefined;
+    return [...completed].sort(
+      (a, b) =>
+        new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
+    )[0];
+  }, [sessions]);
+
+  const lastSessionRoutineName = useMemo(() => {
+    if (!lastCompletedSession) return undefined;
+    if (!lastCompletedSession.routine_id) return "Custom Workout";
+    return (
+      routines.find((r) => r.id === lastCompletedSession.routine_id)?.name ??
+      "Completed Routine"
+    );
+  }, [lastCompletedSession, routines]);
 
   function handleStartWorkout() {
     if (activeSession) {
@@ -128,6 +155,7 @@ export function TodayScreen() {
             />
           )}
         </Section>
+
         {!todayWeight && (
           <View className="flex-row items-center gap-md rounded-md border border-accent/30 bg-surface-raised p-lg">
             <View className="flex-1 gap-xs">
@@ -150,9 +178,9 @@ export function TodayScreen() {
         <ConsistencyGrid sessions={sessions} mode="recent" />
 
         <Section title="Last session">
-          <InfoCard
-            title="No sessions yet"
-            description="Your completed workouts will appear here."
+          <LastSessionCard
+            session={lastCompletedSession}
+            routineName={lastSessionRoutineName}
           />
         </Section>
 
@@ -179,6 +207,7 @@ export function TodayScreen() {
           onPress={handleStartWorkout}
         />
       </View>
+
       <WeightLogModal
         visible={showBodyWeightModal}
         existingLog={todayWeight}
