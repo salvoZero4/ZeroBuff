@@ -18,6 +18,7 @@ import { getTodayWeight, WeightLogRead } from "@/utils/api/weight";
 import { WeightLogModal } from "../shared/WeightLogModal";
 import { useState } from "react";
 import { RefreshControl } from "react-native-gesture-handler";
+import { getSessions } from "@/utils/api/session";
 
 const DAY_KEYS: readonly DayOfWeek[] = [
   "monday",
@@ -46,10 +47,16 @@ export function TodayScreen() {
     queryFn: getTodaySchedule,
   });
 
-  const { data: todayWeight } = useQuery<WeightLogRead | null>({
-    queryKey: ["bodyWeight", "today"],
-    queryFn: () => getTodayWeight(),
+  const { data: sessions = [], refetch: refetchSessions } = useQuery({
+    queryKey: ["sessions"],
+    queryFn: () => getSessions({ limit: 64 }),
   });
+
+  const { data: todayWeight, refetch: refetchWeight } =
+    useQuery<WeightLogRead | null>({
+      queryKey: ["bodyWeight", "today"],
+      queryFn: () => getTodayWeight(),
+    });
 
   const { data: weekSchedule = [], refetch: refetchWeekSchedule } = useQuery({
     queryKey: ["schedule"],
@@ -59,7 +66,12 @@ export function TodayScreen() {
   async function handleRefetch() {
     setIsRefetching(true);
     try {
-      await Promise.all([refetchTodaySchedule(), refetchWeekSchedule()]);
+      await Promise.all([
+        refetchTodaySchedule(),
+        refetchWeekSchedule(),
+        refetchSessions(),
+        refetchWeight(),
+      ]);
     } finally {
       setIsRefetching(false);
     }
@@ -135,7 +147,7 @@ export function TodayScreen() {
           </View>
         )}
 
-        <ConsistencyGrid sessionDates={[]} mode="recent" />
+        <ConsistencyGrid sessions={sessions} mode="recent" />
 
         <Section title="Last session">
           <InfoCard

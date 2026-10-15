@@ -12,12 +12,12 @@ import {
   getYearWeeks,
   type CalendarDay,
   type CalendarWeek,
-} from "../../utils/domain/consistency";
-
+} from "@/utils/domain/consistency";
+import { type SessionRead } from "@/utils/api/session";
 export type ConsistencyMode = "recent" | "year";
 
 type ConsistencyGridProps = {
-  sessionDates: readonly string[];
+  sessions: readonly SessionRead[];
   mode?: ConsistencyMode;
 
   year?: number;
@@ -35,7 +35,7 @@ const RECENT_GAP = YEAR_GAP;
 const MONTH_ROW_HEIGHT = 20;
 
 export function ConsistencyGrid({
-  sessionDates,
+  sessions,
   mode = "recent",
   year,
   title = "Consistency",
@@ -44,11 +44,24 @@ export function ConsistencyGrid({
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(year ?? currentYear);
 
-  const sessionDateSet = useMemo(() => new Set(sessionDates), [sessionDates]);
-  const availableYears = useMemo(
-    () => getAvailableYears(sessionDates, currentYear, year),
-    [sessionDates, currentYear, year],
+  const sessionDatesArray = useMemo(() => {
+    if (sessions.length === 0) return [];
+
+    return (sessions as readonly SessionRead[])
+      .filter((s) => s.status === "completed")
+      .map((s) => s.date);
+  }, [sessions]);
+
+  const sessionDateSet = useMemo(
+    () => new Set(sessionDatesArray),
+    [sessionDatesArray],
   );
+
+  const availableYears = useMemo(
+    () => getAvailableYears(sessionDatesArray, currentYear, year),
+    [sessionDatesArray, currentYear, year],
+  );
+
   const weeks = useMemo(
     () =>
       mode === "recent"
@@ -56,8 +69,8 @@ export function ConsistencyGrid({
         : getYearWeeks(selectedYear, sessionDateSet),
     [mode, selectedYear, sessionDateSet],
   );
-  const sessionCount = useMemo(() => countSessions(weeks), [weeks]);
 
+  const sessionCount = useMemo(() => countSessions(weeks), [weeks]);
   const period =
     mode === "recent" ? `last ${RECENT_WEEKS} weeks` : String(selectedYear);
   const accessibilityLabel = `${sessionCount} ${
@@ -82,7 +95,6 @@ export function ConsistencyGrid({
           </Text>
         )}
       </View>
-
       <View
         accessible
         accessibilityLabel={accessibilityLabel}
