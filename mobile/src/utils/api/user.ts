@@ -1,34 +1,30 @@
 import { apiRequest } from "./client";
 
-type Sex = {
-  male: "Male";
-  female: "Female";
-  other: "Other";
-};
+export type Sex = "male" | "female" | "other";
 
-export type UserRead = {
-  id: string;
+export type UserResponse = {
+  id: string; // uuid
   username: string;
   email: string;
-  sex: Sex | null;
-  date_of_birth: string;
-  height: number;
+  sex?: Sex | null;
+  date_of_birth?: string | null; // YYYY-MM-DD
+  height_cm?: number | null;
 };
 
-export type UserUpdate = {
-  username: string | null;
-  email: string | null;
-  sex: Sex | null;
-  date_of_birth: string | null;
-  height: number | null;
+export type UserNewInfo = {
+  username?: string | null;
+  email?: string | null;
+  sex?: Sex | null;
+  date_of_birth?: string | null;
+  height_cm?: number | null;
 };
 
-export function getUser() {
-  return apiRequest<UserRead>("users/me");
+export function getCurrentUser(): Promise<UserResponse> {
+  return apiRequest<UserResponse>("/users/me");
 }
 
-export function updateUser(payload: UserUpdate) {
-  return apiRequest<UserUpdate>("users/me", {
+export function updateCurrentUser(payload: UserNewInfo): Promise<UserResponse> {
+  return apiRequest<UserResponse>("/users/me", {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

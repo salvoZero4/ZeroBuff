@@ -10,10 +10,14 @@ export type AuthResponse = {
   username: string;
 };
 
+export type ChangePasswordInput = {
+  new_password: string;
+};
+
 async function authenticate(path: string, body: object): Promise<AuthResponse> {
   const data = await apiRequest<AuthResponse>(path, {
     method: "POST",
-    auth: false, // no token yet, and a 401 here means "wrong credentials", not "expired"
+    auth: false,
     body: JSON.stringify(body),
   });
   await tokenStore.setTokens(data.access_token, data.refresh_token);
@@ -26,6 +30,13 @@ export function login(email: string, password: string) {
 
 export function register(username: string, email: string, password: string) {
   return authenticate("/auth/register", { username, email, password });
+}
+
+export function changePassword(payload: ChangePasswordInput): Promise<any> {
+  return apiRequest<any>("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function restoreSession(): Promise<boolean> {

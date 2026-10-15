@@ -23,7 +23,12 @@ export type IconName =
   | "check"
   | "play"
   | "pause"
-  | "stopwatch";
+  | "stopwatch"
+  | "ruler-vertical"
+  | "venus-mars"
+  | "cake-candles"
+  | "lock"
+  | "circle-info";
 
 type IconProps = {
   name: IconName;
