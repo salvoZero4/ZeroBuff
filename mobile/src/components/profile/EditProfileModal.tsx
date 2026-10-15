@@ -21,7 +21,7 @@ import {
 export type EditableProfileField = "username" | "height" | "dob" | null;
 type HeightUnit = "cm" | "ft";
 
-// Conversioni cm <-> feet & inches
+// Conversioni cm feet & inches
 export function cmToFeetInches(cm: number): { feet: number; inches: number } {
   const totalInches = cm / 2.54;
   let feet = Math.floor(totalInches / 12);
@@ -59,8 +59,6 @@ export function EditProfileFieldModal({
 
   const [username, setUsername] = useState("");
   const [dob, setDob] = useState("");
-
-  // Stati per l'altezza (cm o ft/in)
   const [heightUnit, setHeightUnit] = useState<HeightUnit>("cm");
   const [cmInput, setCmInput] = useState("");
   const [feetInput, setFeetInput] = useState("");
@@ -90,7 +88,6 @@ export function EditProfileFieldModal({
     }
   }, [field, user]);
 
-  // Quando l'utente cambia tab tra cm e ft, sincronizziamo i campi al volo
   function switchHeightUnit(nextUnit: HeightUnit) {
     setError(null);
     if (nextUnit === heightUnit) return;
@@ -226,11 +223,7 @@ export function EditProfileFieldModal({
               onPress={onClose}
               className="h-9 w-9 items-center justify-center rounded-full bg-surface-raised active:bg-surface"
             >
-              <Icon
-                name="arrow-left"
-                size={14}
-                className="text-text-secondary"
-              />
+              <Icon name="xmark" size={14} className="text-text-secondary" />
             </Pressable>
           </View>
 

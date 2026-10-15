@@ -21,6 +21,7 @@ import {
 import { getTodayWeight, type WeightLogRead } from "@/utils/api/weight";
 import { getSessions } from "@/utils/api/session";
 import { getRoutines } from "@/utils/api/routines";
+import { StartWorkoutPickerModal } from "./StartWorkoutPickerModal";
 
 const DAY_KEYS: readonly DayOfWeek[] = [
   "monday",
@@ -35,7 +36,16 @@ const DAY_KEYS: readonly DayOfWeek[] = [
 export function TodayScreen() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [showBodyWeightModal, setShowBodyWeightModal] = useState(false);
+  const [showWorkoutPicker, setShowWorkoutPicker] = useState(false);
 
+  const TRAINING_MOTIVATIONS = [
+    "Time to put in the work. Let's get it.",
+    "Lock in. Every single rep counts today.",
+    "No excuses. Push your limits now.",
+    "Bring the focus. Leave nothing in the tank.",
+    "Time to build. Execute with intent.",
+    "Show up, put the work in, and conquer.",
+  ];
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
@@ -70,6 +80,11 @@ export function TodayScreen() {
     queryFn: getSchedule,
   });
 
+  const motivationalDescription = useMemo(() => {
+    const randomIndex = Math.floor(Math.random() * TRAINING_MOTIVATIONS.length);
+    return TRAINING_MOTIVATIONS[randomIndex];
+  }, [todaySchedule]);
+
   async function handleRefetch() {
     setIsRefetching(true);
     try {
@@ -87,7 +102,6 @@ export function TodayScreen() {
 
   const scheduledDayKeys = new Set(weekSchedule.map((s) => s.day_of_week));
 
-  // Prende la sessione completata più recente (ordinando per started_at decrescente)
   const lastCompletedSession = useMemo(() => {
     const completed = sessions.filter((s) => s.status === "completed");
     if (completed.length === 0) return undefined;
@@ -115,7 +129,7 @@ export function TodayScreen() {
     if (todaySchedule) {
       router.push(`/workout/${todaySchedule.routine_id}` as any);
     } else {
-      router.push("/(tabs)/routines");
+      setShowWorkoutPicker(true);
     }
   }
 
@@ -146,7 +160,7 @@ export function TodayScreen() {
           {todaySchedule ? (
             <InfoCard
               title={todaySchedule.routine_name}
-              description="Your scheduled training session for today."
+              description={motivationalDescription}
             />
           ) : (
             <InfoCard
@@ -212,6 +226,14 @@ export function TodayScreen() {
         visible={showBodyWeightModal}
         existingLog={todayWeight}
         onClose={() => setShowBodyWeightModal(false)}
+      />
+
+      <StartWorkoutPickerModal
+        visible={showWorkoutPicker}
+        onClose={() => setShowWorkoutPicker(false)}
+        onSelectRoutine={(routineId) => {
+          router.push(`/workout/${routineId}` as any);
+        }}
       />
     </View>
   );

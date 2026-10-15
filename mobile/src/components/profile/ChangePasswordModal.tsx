@@ -99,11 +99,7 @@ export function ChangePasswordModal({
               onPress={onClose}
               className="h-9 w-9 items-center justify-center rounded-full bg-surface-raised active:bg-surface"
             >
-              <Icon
-                name="arrow-left"
-                size={14}
-                className="text-text-secondary"
-              />
+              <Icon name="xmark" size={14} className="text-text-secondary" />
             </Pressable>
           </View>
 

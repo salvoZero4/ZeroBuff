@@ -28,7 +28,8 @@ export type IconName =
   | "venus-mars"
   | "cake-candles"
   | "lock"
-  | "circle-info";
+  | "circle-info"
+  | "xmark";
 
 type IconProps = {
   name: IconName;
