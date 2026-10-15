@@ -40,7 +40,6 @@ export function SelectPickerModal({
   const [currentSelected, setCurrentSelected] =
     useState<string[]>(selectedValues);
 
-  // Sincronizza lo stato locale ogni volta che il selettore viene riaperto
   useEffect(() => {
     if (visible) {
       setCurrentSelected(selectedValues);
