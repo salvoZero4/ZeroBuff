@@ -13,3 +13,7 @@ node_modules/
 .expo/
 dist/
 .github/skills/*
+
+# macOS
+.DS_Store
+*.pem

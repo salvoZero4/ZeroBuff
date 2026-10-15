@@ -9,7 +9,9 @@ wheels/
 # Virtual environments
 .venv
 .env
+# macOS
 .DS_Store
+*.pem
 
 # Data set files for popolate the database
 scripts/data

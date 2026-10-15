@@ -14,6 +14,8 @@ import {
   getTodaySchedule,
   type DayOfWeek,
 } from "@/utils/api/schedule";
+import { getTodayWeight, WeightLogRead } from "@/utils/api/weight";
+import { WeightLogModal } from "../shared/WeightLogModal";
 import { useState } from "react";
 import { RefreshControl } from "react-native-gesture-handler";
 
@@ -29,6 +31,7 @@ const DAY_KEYS: readonly DayOfWeek[] = [
 
 export function TodayScreen() {
   const [isRefetching, setIsRefetching] = useState(false);
+  const [showBodyWeightModal, setShowBodyWeightModal] = useState(false);
 
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -41,6 +44,11 @@ export function TodayScreen() {
   const { data: todaySchedule, refetch: refetchTodaySchedule } = useQuery({
     queryKey: ["schedule", "today"],
     queryFn: getTodaySchedule,
+  });
+
+  const { data: todayWeight } = useQuery<WeightLogRead | null>({
+    queryKey: ["bodyWeight", "today"],
+    queryFn: () => getTodayWeight(),
   });
 
   const { data: weekSchedule = [], refetch: refetchWeekSchedule } = useQuery({
@@ -108,23 +116,24 @@ export function TodayScreen() {
             />
           )}
         </Section>
-
-        <View className="flex-row items-center gap-md rounded-md border border-accent/30 bg-surface-raised p-lg">
-          <View className="flex-1 gap-xs">
-            <Text className="font-body-semibold text-body text-text-primary">
-              Track body weight
-            </Text>
-            <Text className="font-body text-caption leading-5 text-text-secondary">
-              Keep your progress context up to date.
-            </Text>
+        {!todayWeight && (
+          <View className="flex-row items-center gap-md rounded-md border border-accent/30 bg-surface-raised p-lg">
+            <View className="flex-1 gap-xs">
+              <Text className="font-body-semibold text-body text-text-primary">
+                Track body weight
+              </Text>
+              <Text className="font-body text-caption leading-5 text-text-secondary">
+                Keep your progress context up to date.
+              </Text>
+            </View>
+            <IconButton
+              icon="plus"
+              iconSize={16}
+              label="Log body weight"
+              onPress={() => setShowBodyWeightModal(true)}
+            />
           </View>
-          <IconButton
-            icon="plus"
-            iconSize={16}
-            label="Log body weight"
-            onPress={() => {}}
-          />
-        </View>
+        )}
 
         <ConsistencyGrid sessionDates={[]} mode="recent" />
 
@@ -158,6 +167,11 @@ export function TodayScreen() {
           onPress={handleStartWorkout}
         />
       </View>
+      <WeightLogModal
+        visible={showBodyWeightModal}
+        existingLog={todayWeight}
+        onClose={() => setShowBodyWeightModal(false)}
+      />
     </View>
   );
 }

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { RoutineRead } from "@/utils/api/routines";
+import { queryClient } from "@/utils/api/queryClient";
 import {
   createSession,
   createSetLogApi,
@@ -204,7 +205,7 @@ export async function updateSetLog(
     return;
   }
 
-  // Se il set è già a database e cambiano i numeri, facciamo PATCH
+  // Se il set è a database e cambiano i numeri, facciamo PATCH
   if (
     updatedSet.backendId &&
     activeSession.sessionId &&
@@ -260,6 +261,7 @@ export async function finishWorkoutSession() {
         status: "completed",
         ended_at: new Date().toISOString(),
       });
+      await queryClient.invalidateQueries({ queryKey: ["sessions"] });
     } catch (err) {
       console.error("Failed to complete session on server:", err);
     }
