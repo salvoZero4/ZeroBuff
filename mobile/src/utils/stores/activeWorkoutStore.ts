@@ -29,6 +29,7 @@ export type ActiveWorkoutSession = {
 };
 
 let activeSession: ActiveWorkoutSession | null = null;
+let sessionCreationPromise: Promise<string | null> | null = null;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -48,6 +49,13 @@ export function useActiveWorkout() {
   return useSyncExternalStore(subscribe, getActiveWorkout, getActiveWorkout);
 }
 
+// Helper interno che attende l'ID sessione se la POST iniziale è ancora in volo
+async function ensureSessionId(): Promise<string | null> {
+  if (activeSession?.sessionId) return activeSession.sessionId;
+  if (sessionCreationPromise) return await sessionCreationPromise;
+  return null;
+}
+
 export async function initOrResumeWorkout(
   routine: RoutineRead,
 ): Promise<ActiveWorkoutSession> {
@@ -57,7 +65,6 @@ export async function initOrResumeWorkout(
 
   const nowIso = new Date().toISOString();
 
-  // 1. Inizializzazione immediata in locale per reattività UI istantanea
   activeSession = {
     sessionId: null,
     routineId: routine.id,
@@ -80,21 +87,27 @@ export async function initOrResumeWorkout(
   };
   notify();
 
-  // 2. Creazione della sessione su FastAPI in background
-  try {
-    const sessionRes = await createSession({
-      routine_id: routine.id,
-      started_at: nowIso,
+  sessionCreationPromise = createSession({
+    routine_id: routine.id,
+    started_at: nowIso,
+  })
+    .then((sessionRes) => {
+      if (activeSession && activeSession.routineId === routine.id) {
+        activeSession = { ...activeSession, sessionId: sessionRes.id };
+        notify();
+      }
+      return sessionRes.id;
+    })
+    .catch((err) => {
+      console.error("Failed to create session on backend:", err);
+      return null;
+    })
+    .finally(() => {
+      sessionCreationPromise = null;
     });
-    if (activeSession) {
-      activeSession = { ...activeSession, sessionId: sessionRes.id };
-      notify();
-    }
-  } catch (err) {
-    console.error("Failed to create session on backend:", err);
-  }
 
-  return activeSession;
+  await sessionCreationPromise;
+  return activeSession!;
 }
 
 export function toggleWorkoutPause() {
@@ -129,12 +142,15 @@ export async function createSetLog(exerciseId: string, setIndex: number) {
   const currentSet = activeSession.workoutLogs[exerciseId]?.[setIndex];
   if (!currentSet) return;
 
-  const weightNum = Math.max(0.1, Number.parseFloat(currentSet.weight) || 0);
+  const parsedWeight = Number.parseFloat(currentSet.weight.replace(",", "."));
+  const weightNum = Math.max(
+    0.1,
+    Number.isFinite(parsedWeight) ? parsedWeight : 0.1,
+  );
   const repsNum = Math.max(1, Number.parseInt(currentSet.reps, 10) || 1);
   const rirNum =
     currentSet.rir.trim() !== "" ? Number.parseInt(currentSet.rir, 10) : null;
 
-  // Ottimismo: segna subito completato nella UI
   const updatedSets = [...activeSession.workoutLogs[exerciseId]];
   updatedSets[setIndex] = { ...currentSet, completed: true };
   activeSession = {
@@ -143,10 +159,10 @@ export async function createSetLog(exerciseId: string, setIndex: number) {
   };
   notify();
 
-  // Chiamata backend se abbiamo già un sessionId valido
-  if (activeSession.sessionId) {
+  const sessionId = await ensureSessionId();
+  if (sessionId) {
     try {
-      const res = await createSetLogApi(activeSession.sessionId, exerciseId, {
+      const res = await createSetLogApi(sessionId, exerciseId, {
         set_number: currentSet.setNumber,
         weight: weightNum,
         reps: repsNum,
@@ -189,14 +205,12 @@ export async function updateSetLog(
   };
   notify();
 
-  // Se è stato deselezionato ed esisteva sul backend, eliminiamo il log
-  if (
-    changes.completed === false &&
-    currentSet.backendId &&
-    activeSession.sessionId
-  ) {
+  const sessionId = await ensureSessionId();
+  if (!sessionId) return;
+
+  if (changes.completed === false && currentSet.backendId) {
     try {
-      await deleteSetLogApi(activeSession.sessionId, currentSet.backendId);
+      await deleteSetLogApi(sessionId, currentSet.backendId);
       updatedSet.backendId = undefined;
       notify();
     } catch (err) {
@@ -205,26 +219,27 @@ export async function updateSetLog(
     return;
   }
 
-  // Se il set è a database e cambiano i numeri, facciamo PATCH
   if (
     updatedSet.backendId &&
-    activeSession.sessionId &&
     (changes.weight !== undefined ||
       changes.reps !== undefined ||
       changes.rir !== undefined)
   ) {
     try {
-      await updateSetLogApi(activeSession.sessionId, updatedSet.backendId, {
+      await updateSetLogApi(sessionId, updatedSet.backendId, {
         weight:
           changes.weight !== undefined
-            ? Number.parseFloat(changes.weight) || 0
+            ? Math.max(
+                0,
+                Number.parseFloat(changes.weight.replace(",", ".")) || 0,
+              )
             : undefined,
         reps:
           changes.reps !== undefined
-            ? Number.parseInt(changes.reps, 10) || 1
+            ? Math.max(1, Number.parseInt(changes.reps, 10) || 1)
             : undefined,
         rir:
-          changes.rir !== undefined && changes.rir !== ""
+          changes.rir !== undefined && changes.rir.trim() !== ""
             ? Number.parseInt(changes.rir, 10)
             : null,
       });
@@ -255,9 +270,10 @@ export function addSetToExercise(exerciseId: string, defaultReps: number) {
 }
 
 export async function finishWorkoutSession() {
-  if (activeSession?.sessionId) {
+  const sessionId = await ensureSessionId();
+  if (sessionId) {
     try {
-      await updateSession(activeSession.sessionId, {
+      await updateSession(sessionId, {
         status: "completed",
         ended_at: new Date().toISOString(),
       });
@@ -267,5 +283,6 @@ export async function finishWorkoutSession() {
     }
   }
   activeSession = null;
+  sessionCreationPromise = null;
   notify();
 }
