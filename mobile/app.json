@@ -2,7 +2,7 @@
   "expo": {
     "name": "ZeroBuff",
     "slug": "zerobuff",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "zerobuff",
@@ -11,6 +11,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.zerobuff.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#0B0B0B",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
