@@ -45,7 +45,7 @@ export function WeekDayTile({
       </Text>
 
       {!isToday && hasRoutine && (
-        <View className="botton-0 h-1 w-1 rounded-full bg-accent" />
+        <View className="bottom-0 h-1 w-1 rounded-full bg-accent" />
       )}
     </View>
   );
