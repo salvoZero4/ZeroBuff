@@ -266,7 +266,7 @@ export function ExercisesScreen() {
           ListFooterComponent={
             isFetchingNextPage ? (
               <View className="items-center py-lg">
-                <ActivityIndicator color="#E2F163" />
+                <ActivityIndicator color="#f5f5f5" />
               </View>
             ) : null
           }
