@@ -231,10 +231,10 @@ export function ExercisesScreen() {
             >
               <View className="gap-xs">
                 <Text className="font-body-bold text-body text-accent">
-                  + Create custom exercise
+                  + Create exercise
                 </Text>
                 <Text className="font-body text-caption text-text-secondary">
-                  Add a new movement to the database
+                  If you cannot find an exercise add a new public exercise!
                 </Text>
               </View>
             </Pressable>
