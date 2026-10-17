@@ -1,14 +1,9 @@
 from uuid import UUID
 
-from fastapi import HTTPException, status
-from sqlalchemy import func
-from sqlmodel import Session, select
-
-from app.models.exercise import Exercise
+from app.models.exercise import Equipment, Exercise, MuscleGroup
 from app.models.routine import RoutineExercise
 from app.models.session import Session as SessionModel
 from app.models.session import Set_log
-from app.services.service_helpers import commit_with_http_error_handling
 from app.schemas.exercise import (
     ExerciseCreated,
     ExerciseListResponse,
@@ -20,6 +15,10 @@ from app.schemas.exercise import (
     SearchResponse,
     SetLogRead,
 )
+from app.services.service_helpers import commit_with_http_error_handling
+from fastapi import HTTPException, status
+from sqlalchemy import func
+from sqlmodel import Session, select
 
 
 def find_similar_exercises(name: str, session: Session, threshold: float = 0.3):
@@ -51,7 +50,8 @@ def exercises_list(
     name: str | None = None,
     limit: int = 10,
     offset: int = 0,
-    muscle_group: str | None = None,
+    muscle_group: MuscleGroup | None = None,
+    equipment: Equipment | None = None,
 ):
     statement = select(Exercise)
 
@@ -59,6 +59,8 @@ def exercises_list(
         statement = statement.where(Exercise.name.ilike(f"%{name}%"))
     if muscle_group:
         statement = statement.where(Exercise.muscle_group == muscle_group)
+    if equipment:
+        statement = statement.where(Exercise.equipment == equipment)
 
     statement = statement.order_by(Exercise.name).offset(offset).limit(limit)
 
@@ -102,7 +104,7 @@ def create_custom_exercise(
     return ExerciseRead.model_validate(exercise)
 
 
-def exercise_details(exercise_id: UUID, session: Session, current_user) -> ExerciseRead:
+def exercise_details(exercise_id: UUID, session: Session) -> ExerciseRead:
     exercise = session.get(Exercise, exercise_id)
     if not exercise:
         raise HTTPException(

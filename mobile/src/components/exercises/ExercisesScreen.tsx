@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -13,8 +12,14 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import {
+  SelectPickerModal,
+  type PickerOption,
+} from "@/components/ui/SelectPickerModal";
+import {
   getExercises,
   MUSCLE_GROUPS,
+  EQUIPMENT_LIST,
+  type Equipment,
   type ExerciseRead,
   type MuscleGroup,
 } from "@/utils/api/exercise";
@@ -23,10 +28,37 @@ import { CreateExerciseModal } from "./CreateExerciseModal";
 
 const PAGE_SIZE = 20;
 
+function formatLabel(val: string): string {
+  return val
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+const MUSCLE_OPTIONS: readonly PickerOption[] = [
+  { label: "All muscles", value: "all" },
+  ...MUSCLE_GROUPS.map((mg) => ({
+    value: mg,
+    label: formatLabel(mg),
+  })),
+];
+
+const EQUIPMENT_OPTIONS: readonly PickerOption[] = [
+  { label: "All equipment", value: "all" },
+  ...EQUIPMENT_LIST.map((eq) => ({
+    value: eq,
+    label: formatLabel(eq),
+  })),
+];
+
 export function ExercisesScreen() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedMuscle, setSelectedMuscle] = useState<string>("all");
+  const [selectedEquipment, setSelectedEquipment] = useState<string>("all");
+  const [activePicker, setActivePicker] = useState<
+    "muscle" | "equipment" | null
+  >(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
@@ -49,6 +81,7 @@ export function ExercisesScreen() {
       {
         name: debouncedSearch,
         muscle_group: selectedMuscle === "all" ? undefined : selectedMuscle,
+        equipment: selectedEquipment === "all" ? undefined : selectedEquipment,
       },
     ],
     queryFn: ({ pageParam = 0 }) =>
@@ -60,6 +93,10 @@ export function ExercisesScreen() {
           selectedMuscle === "all"
             ? undefined
             : (selectedMuscle as MuscleGroup),
+        equipment:
+          selectedEquipment === "all"
+            ? undefined
+            : (selectedEquipment as Equipment),
       }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
@@ -84,9 +121,15 @@ export function ExercisesScreen() {
     }
   }
 
+  const selectedMuscleLabel =
+    MUSCLE_OPTIONS.find((o) => o.value === selectedMuscle)?.label ?? "Muscle";
+  const selectedEquipmentLabel =
+    EQUIPMENT_OPTIONS.find((o) => o.value === selectedEquipment)?.label ??
+    "Equipment";
+
   return (
     <View className="flex-1 bg-bg px-lg pt-lg">
-      {/* Header con ritorno */}
+      {/* Header */}
       <View className="flex-row items-center gap-md pb-md">
         <IconButton
           icon="arrow-left"
@@ -116,40 +159,52 @@ export function ExercisesScreen() {
         />
       </View>
 
-      {/* Filtri muscolari orizzontali */}
-      <View className="mb-md max-h-10">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-xs"
+      {/* Selettori Muscolo & Attrezzo */}
+      <View className="mb-md flex-row gap-sm">
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setActivePicker("muscle")}
+          className={`min-h-12 flex-1 flex-row items-center justify-between rounded-sm border px-md active:bg-surface ${
+            selectedMuscle !== "all"
+              ? "border-accent/60 bg-surface-raised"
+              : "border-border bg-surface"
+          }`}
         >
-          {["all", ...MUSCLE_GROUPS].map((group) => {
-            const isSelected = selectedMuscle === group;
-            return (
-              <Pressable
-                key={group}
-                accessibilityRole="button"
-                onPress={() => setSelectedMuscle(group)}
-                className={`rounded-sm border px-md py-xs capitalize ${
-                  isSelected
-                    ? "border-accent bg-accent"
-                    : "border-border bg-surface"
-                }`}
-              >
-                <Text
-                  className={`font-body-semibold text-caption ${
-                    isSelected ? "text-on-accent" : "text-text-secondary"
-                  }`}
-                >
-                  {group.replace("_", " ")}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+          <Text
+            numberOfLines={1}
+            className={`font-body-medium text-caption max-w-[80%] ${
+              selectedMuscle !== "all" ? "text-accent" : "text-text-secondary"
+            }`}
+          >
+            {selectedMuscleLabel}
+          </Text>
+          <Icon name="chevron-down" size={12} className="text-text-secondary" />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setActivePicker("equipment")}
+          className={`min-h-12 flex-1 flex-row items-center justify-between rounded-sm border px-md active:bg-surface ${
+            selectedEquipment !== "all"
+              ? "border-accent/60 bg-surface-raised"
+              : "border-border bg-surface"
+          }`}
+        >
+          <Text
+            numberOfLines={1}
+            className={`font-body-medium text-caption max-w-[80%] ${
+              selectedEquipment !== "all"
+                ? "text-accent"
+                : "text-text-secondary"
+            }`}
+          >
+            {selectedEquipmentLabel}
+          </Text>
+          <Icon name="chevron-down" size={12} className="text-text-secondary" />
+        </Pressable>
       </View>
 
-      {/* Lista esercizi */}
+      {/* Lista Esercizi */}
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#f5f5f5" />
@@ -201,8 +256,8 @@ export function ExercisesScreen() {
                   {item.name}
                 </Text>
                 <Text className="font-body text-caption capitalize text-text-secondary">
-                  {item.muscle_group.replace("_", " ")} •{" "}
-                  {item.equipment.replace("_", " ")}
+                  {item.muscle_group.replace(/_/g, " ")} •{" "}
+                  {item.equipment.replace(/_/g, " ")}
                 </Text>
               </View>
               <Icon name="plus" size={14} className="text-accent" />
@@ -210,7 +265,7 @@ export function ExercisesScreen() {
           )}
           ListFooterComponent={
             isFetchingNextPage ? (
-              <View className="py-lg items-center">
+              <View className="items-center py-lg">
                 <ActivityIndicator color="#E2F163" />
               </View>
             ) : null
@@ -218,13 +273,42 @@ export function ExercisesScreen() {
           ListEmptyComponent={
             <View className="items-center p-xl">
               <Text className="font-body text-caption text-text-secondary">
-                No exercises found matching "{debouncedSearch}"
+                No exercises found matching your filters.
               </Text>
             </View>
           }
         />
       )}
 
+      {/* Modale Selezione Gruppo Muscolare */}
+      <SelectPickerModal
+        visible={activePicker === "muscle"}
+        title="Filter by muscle"
+        options={MUSCLE_OPTIONS}
+        selectedValues={[selectedMuscle]}
+        multiSelect={false}
+        onConfirm={(vals) => {
+          setSelectedMuscle(vals[0] ?? "all");
+          setActivePicker(null);
+        }}
+        onClose={() => setActivePicker(null)}
+      />
+
+      {/* Modale Selezione Attrezzatura */}
+      <SelectPickerModal
+        visible={activePicker === "equipment"}
+        title="Filter by equipment"
+        options={EQUIPMENT_OPTIONS}
+        selectedValues={[selectedEquipment]}
+        multiSelect={false}
+        onConfirm={(vals) => {
+          setSelectedEquipment(vals[0] ?? "all");
+          setActivePicker(null);
+        }}
+        onClose={() => setActivePicker(null)}
+      />
+
+      {/* Modale Creazione Esercizio */}
       <CreateExerciseModal
         visible={isCreateModalOpen}
         initialName={search}

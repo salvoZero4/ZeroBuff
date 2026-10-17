@@ -1,10 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
-
 from app.api.dependencies import currentUserDep, sessionDep
-from app.models.exercise import MuscleGroup
+from app.models.exercise import Equipment, MuscleGroup
 from app.schemas.exercise import (
     ExerciseCreated,
     ExerciseListResponse,
@@ -22,6 +20,7 @@ from app.services.exercise_service import (
     search,
     update_exercise,
 )
+from fastapi import APIRouter, Query, status
 
 router = APIRouter(prefix="/v1/exercises", tags=["Exercises"])
 
@@ -36,10 +35,16 @@ def get_exercises(
     limit: int = Query(default=10, le=100),
     offset: int = Query(default=0, ge=0),
     muscle_group: MuscleGroup | None = None,
+    equipment: Equipment | None = None,
 ):
     """Get a list of exercises with optional filters and pagination."""
     return exercises_list(
-        session, name=name, limit=limit, offset=offset, muscle_group=muscle_group
+        session,
+        name=name,
+        limit=limit,
+        offset=offset,
+        muscle_group=muscle_group,
+        equipment=equipment,
     )
 
 
@@ -72,7 +77,7 @@ def get_exercise_details(
     exercise_id: UUID, session: sessionDep, current_user: currentUserDep
 ):
     """Get the details of a specific exercise."""
-    return exercise_details(exercise_id, session, current_user)
+    return exercise_details(exercise_id, session)
 
 
 @router.patch(

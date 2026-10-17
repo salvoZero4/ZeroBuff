@@ -22,6 +22,7 @@ import { getTodayWeight, type WeightLogRead } from "@/utils/api/weight";
 import { getSessions } from "@/utils/api/session";
 import { getRoutines } from "@/utils/api/routines";
 import { StartWorkoutPickerModal } from "./StartWorkoutPickerModal";
+import { toLocalDateString } from "@/utils/dates";
 
 const DAY_KEYS: readonly DayOfWeek[] = [
   "monday",
@@ -46,11 +47,14 @@ export function TodayScreen() {
     "Time to build. Execute with intent.",
     "Show up, put the work in, and conquer.",
   ];
-  const today = new Intl.DateTimeFormat("en-US", {
+
+  const todayLongStr = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   }).format(new Date());
+
+  const todayDateStr = toLocalDateString();
 
   const activeSession = useActiveWorkout();
 
@@ -79,6 +83,15 @@ export function TodayScreen() {
     queryKey: ["schedule"],
     queryFn: getSchedule,
   });
+
+  const hasCompletedSessionToday = useMemo(() => {
+    return sessions.some(
+      (s) => s.status === "completed" && s.date === todayDateStr,
+    );
+  }, [sessions, todayDateStr]);
+
+  const showStartWorkoutBotton =
+    !hasCompletedSessionToday || Boolean(activeSession);
 
   const motivationalDescription = useMemo(() => {
     const randomIndex = Math.floor(Math.random() * TRAINING_MOTIVATIONS.length);
@@ -137,7 +150,7 @@ export function TodayScreen() {
     <View className="flex-1 bg-bg">
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-lg p-lg pb-31"
+        contentContainerClassName={`gap-lg p-lg ${showStartWorkoutBotton ? "pb-31" : "pb-xl"}`}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -147,7 +160,7 @@ export function TodayScreen() {
           />
         }
       >
-        <ScreenHeader title="This week" subtitle={today} />
+        <ScreenHeader title="This week" subtitle={todayLongStr} />
 
         <WeekStrip
           hasRoutine={(_date, dayIndex) => {
@@ -205,22 +218,23 @@ export function TodayScreen() {
           onPress={() => router.push("/schedule")}
         />
       </ScrollView>
-
-      <View className="absolute bottom-md left-lg right-lg">
-        <Button
-          variant="primary"
-          label={
-            activeSession
-              ? `Resume ${activeSession.routineName}${
-                  activeSession.isPaused ? " (Paused)" : ""
-                }`
-              : todaySchedule
-                ? `Start`
-                : "Choose a workout"
-          }
-          onPress={handleStartWorkout}
-        />
-      </View>
+      {showStartWorkoutBotton && (
+        <View className="absolute bottom-md left-lg right-lg">
+          <Button
+            variant="primary"
+            label={
+              activeSession
+                ? `Resume ${activeSession.routineName}${
+                    activeSession.isPaused ? " (Paused)" : ""
+                  }`
+                : todaySchedule
+                  ? `Start`
+                  : "Choose a workout"
+            }
+            onPress={handleStartWorkout}
+          />
+        </View>
+      )}
 
       <WeightLogModal
         visible={showBodyWeightModal}
