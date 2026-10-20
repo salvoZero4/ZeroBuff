@@ -107,20 +107,19 @@ export default function ActiveWorkoutScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-bg"
-      behavior="padding"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 20}
-    >
-      <View className="flex-1 bg-bg">
-        <SessionHeader
-          durationSeconds={session.durationSeconds}
-          isPaused={session.isPaused}
-          onBack={() => router.back()}
-          onTogglePause={toggleWorkoutPause}
-          onFinish={() => setShowFinishModal(true)}
-        />
-
+    <View className="flex-1 bg-bg">
+      <SessionHeader
+        durationSeconds={session.durationSeconds}
+        isPaused={session.isPaused}
+        onBack={() => router.back()}
+        onTogglePause={toggleWorkoutPause}
+        onFinish={() => setShowFinishModal(true)}
+      />
+      <KeyboardAvoidingView
+        className="flex-1 bg-bg"
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 45}
+      >
         <ScrollView
           className="flex-1"
           contentContainerClassName="gap-lg p-lg pb-32"
@@ -212,50 +211,49 @@ export default function ActiveWorkoutScreen() {
             </Pressable>
           </Card>
         </ScrollView>
-
-        {/* Barra comandi inferiore */}
-        <View className="absolute bottom-6 left-lg right-lg flex-row gap-md">
-          {session.currentExerciseIndex > 0 ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() =>
-                setCurrentExerciseIndex(session.currentExerciseIndex - 1)
-              }
-              className="min-h-14 flex-1 items-center justify-center rounded-sm border border-border bg-surface active:bg-surface-raised"
-            >
-              <Text className="font-body-semibold text-body text-text-primary">
-                Previous
-              </Text>
-            </Pressable>
-          ) : null}
-
+      </KeyboardAvoidingView>
+      {/* Barra comandi inferiore */}
+      <View className="absolute bottom-6 left-lg right-lg flex-row gap-md">
+        {session.currentExerciseIndex > 0 ? (
           <Pressable
             accessibilityRole="button"
-            onPress={() => {
-              if (isLastExercise) {
-                setShowFinishModal(true);
-              } else {
-                setCurrentExerciseIndex(session.currentExerciseIndex + 1);
-              }
-            }}
-            className="min-h-14 flex-1 items-center justify-center rounded-sm bg-accent active:bg-accent-pressed"
+            onPress={() =>
+              setCurrentExerciseIndex(session.currentExerciseIndex - 1)
+            }
+            className="min-h-14 flex-1 items-center justify-center rounded-sm border border-border bg-surface active:bg-surface-raised"
           >
-            <Text className="font-body-bold text-body text-on-accent">
-              {isLastExercise ? "Complete workout" : "Next exercise"}
+            <Text className="font-body-semibold text-body text-text-primary">
+              Previous
             </Text>
           </Pressable>
-        </View>
+        ) : null}
 
-        <ConfirmModal
-          visible={showFinishModal}
-          title="Finish workout"
-          description="Are you sure you want to end and save this training session?"
-          confirmLabel="Finish & Save"
-          cancelLabel="Keep training"
-          onConfirm={confirmFinish}
-          onCancel={() => setShowFinishModal(false)}
-        />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            if (isLastExercise) {
+              setShowFinishModal(true);
+            } else {
+              setCurrentExerciseIndex(session.currentExerciseIndex + 1);
+            }
+          }}
+          className="min-h-14 flex-1 items-center justify-center rounded-sm bg-accent active:bg-accent-pressed"
+        >
+          <Text className="font-body-bold text-body text-on-accent">
+            {isLastExercise ? "Complete workout" : "Next exercise"}
+          </Text>
+        </Pressable>
       </View>
-    </KeyboardAvoidingView>
+
+      <ConfirmModal
+        visible={showFinishModal}
+        title="Finish workout"
+        description="Are you sure you want to end and save this training session?"
+        confirmLabel="Finish & Save"
+        cancelLabel="Keep training"
+        onConfirm={confirmFinish}
+        onCancel={() => setShowFinishModal(false)}
+      />
+    </View>
   );
 }
