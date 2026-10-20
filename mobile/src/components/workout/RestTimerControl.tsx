@@ -85,7 +85,7 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
             className="min-h-12 min-w-20 items-center justify-center rounded-sm bg-danger/20 active:bg-danger/30"
           >
             <Text className="font-body-semibold text-body text-danger">
-              Skip
+              Stop
             </Text>
           </Pressable>
         </View>
