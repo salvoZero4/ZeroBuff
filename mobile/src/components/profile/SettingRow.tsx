@@ -3,7 +3,6 @@ import { Pressable, Text, View } from "react-native";
 import { Icon, type IconName } from "@/components/ui/Icon";
 
 type SettingRowProps = {
-  icon: IconName;
   title: string;
   detail: string;
   trailing?: ReactNode;
@@ -12,7 +11,6 @@ type SettingRowProps = {
 };
 
 export function SettingRow({
-  icon,
   title,
   detail,
   trailing,
@@ -29,10 +27,6 @@ export function SettingRow({
         !isLast ? "border-b border-border" : ""
       }`}
     >
-      <View className="h-10 w-10 items-center justify-center rounded-sm bg-surface-raised">
-        <Icon name={icon} size={17} className="text-accent" />
-      </View>
-
       <View className="flex-1 gap-xs">
         <Text className="font-body-semibold text-body text-text-primary">
           {title}

@@ -94,22 +94,19 @@ export function ProfileScreen() {
           onPress={() => setEditingField("username")}
         />
 
-        <Section title="Personal details">
+        <Section title="Personal info">
           <View className="overflow-hidden rounded-md border border-border bg-surface">
             <SettingRow
-              icon="ruler-vertical"
               title="Height"
               detail={formatHeightDetail(user?.height_cm)}
               onPress={() => setEditingField("height")}
             />
             <SettingRow
-              icon="venus-mars"
               title="Sex"
               detail={formattedSex}
               onPress={() => setShowSexPicker(true)}
             />
             <SettingRow
-              icon="cake-candles"
               title="Date of birth"
               detail={user?.date_of_birth ?? ""}
               isLast
@@ -118,10 +115,9 @@ export function ProfileScreen() {
           </View>
         </Section>
 
-        <Section title="Account & Security">
+        <Section title="Account">
           <View className="overflow-hidden rounded-md border border-border bg-surface">
             <SettingRow
-              icon="lock"
               title="Change password"
               detail="Update your account password"
               onPress={() => setShowPasswordModal(true)}
