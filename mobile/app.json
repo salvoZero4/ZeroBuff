@@ -8,7 +8,7 @@
     "scheme": "zerobuff",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/images/icon.icon"
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "package": "com.zerobuff.mobile",
