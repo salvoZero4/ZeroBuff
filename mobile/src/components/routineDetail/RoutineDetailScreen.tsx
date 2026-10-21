@@ -49,7 +49,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
   if (!isNewRoutine && isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-bg">
-        <ActivityIndicator color="#E2F163" />
+        <ActivityIndicator color="#f5f5f5" />
       </View>
     );
   }
