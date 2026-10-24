@@ -79,7 +79,7 @@ export function SelectPickerModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1 justify-end bg-black/75"
       >
         <Pressable
