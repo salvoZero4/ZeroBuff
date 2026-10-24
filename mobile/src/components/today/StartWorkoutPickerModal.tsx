@@ -1,7 +1,14 @@
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { getRoutines, type RoutineListRead } from "@/utils/api/routines";
+import { getRoutines } from "@/utils/api/routines";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 
@@ -49,7 +56,6 @@ export function StartWorkoutPickerModal({
           onStartShouldSetResponder={() => true}
           className="max-h-[85%] gap-lg rounded-t-lg border border-border bg-surface p-xl"
         >
-          {/* Header */}
           <View className="flex-row items-center justify-between">
             <View className="gap-xs">
               <Text className="font-body-bold text-xl text-text-primary">
@@ -69,68 +75,101 @@ export function StartWorkoutPickerModal({
             </Pressable>
           </View>
 
-          {/* Lista delle routine o Stato vuoto */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerClassName="gap-sm pb-md"
-          >
-            {!isLoading && routines.length > 0 ? (
-              <View className="overflow-hidden rounded-md border border-border bg-surface-raised">
-                {routines.map((routine, index) => {
-                  const isLast = index === routines.length - 1;
-                  return (
-                    <Pressable
-                      key={routine.id}
-                      accessibilityRole="button"
-                      onPress={() => {
-                        onClose();
-                        onSelectRoutine(routine.id);
-                      }}
-                      className={`flex-row items-center justify-between p-lg active:bg-surface ${
-                        !isLast ? "border-b border-border" : ""
-                      }`}
-                    >
-                      <View className="flex-1 gap-xs pr-sm">
-                        <Text className="font-body-bold text-body text-text-primary">
-                          {routine.name}
-                        </Text>
-                        <Text
-                          className="font-body text-caption text-text-secondary"
-                          numberOfLines={1}
-                        >
-                          {routine.muscle_groups
-                            .map((m) => m.replace(/_/g, " "))
-                            .join(" • ")}
-                        </Text>
-                      </View>
-                      <View className="items-end">
-                        <Text className="font-numeric-bold text-body text-accent">
-                          {routine.exercises_count}
-                        </Text>
-                        <Text className="font-body text-[10px] text-text-secondary">
-                          exercises
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : !isLoading && routines.length === 0 ? (
-              <View className="items-center gap-md py-xl px-lg rounded-md border border-border bg-surface-raised">
-                <Text className="text-center font-body-bold text-body text-text-primary">
-                  No routines found
-                </Text>
-                <Text className="text-center font-body text-caption text-text-secondary leading-5">
-                  You haven't created any routines yet. Let's build your first
-                  workout routine to get started.
-                </Text>
-                <Button label="Create routine" onPress={handleCreateNew} />
-              </View>
-            ) : null}
-          </ScrollView>
+          {isLoading ? (
+            <View className="items-center justify-center py-xl">
+              <ActivityIndicator color="#f5f5f5" size="small" />
+            </View>
+          ) : (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerClassName="gap-sm pb-xs"
+            >
+              {routines.length > 0 ? (
+                <View className="gap-xs">
+                  {routines.map((routine) => {
+                    const isEmpty = routine.exercises_count === 0;
+                    return (
+                      <Pressable
+                        key={routine.id}
+                        accessibilityRole="button"
+                        disabled={isEmpty}
+                        onPress={() => {
+                          onClose();
+                          onSelectRoutine(routine.id);
+                        }}
+                        className={`flex-row items-center justify-between rounded-md border p-lg ${
+                          isEmpty
+                            ? "border-border/40 bg-surface/50 opacity-60"
+                            : "border-border bg-surface-raised active:bg-surface"
+                        }`}
+                      >
+                        <View className="flex-1 gap-xs pr-md">
+                          <Text
+                            className={`font-body-bold text-body ${
+                              !isEmpty
+                                ? "text-text-primary"
+                                : "text-text-disabled"
+                            }`}
+                          >
+                            {routine.name}
+                          </Text>
 
-          {/* Se ci sono routine, aggiungiamo anche un tasto in basso per crearne una nuova al volo */}
-          {routines.length > 0 ? (
+                          {!isEmpty ? (
+                            <Text
+                              className="font-body text-caption text-text-secondary"
+                              numberOfLines={1}
+                            >
+                              {routine.muscle_groups
+                                .map((m) => m.replace(/_/g, " "))
+                                .join(" • ")}
+                            </Text>
+                          ) : (
+                            <Text className="font-body text-[11px] italic text-text-disabled">
+                              Add exercises to start this workout
+                            </Text>
+                          )}
+                        </View>
+
+                        <View className="items-end gap-2xs">
+                          <Text
+                            className={`font-numeric-bold text-lg ${
+                              !isEmpty ? "text-accent" : "text-text-disabled"
+                            }`}
+                          >
+                            {routine.exercises_count}
+                          </Text>
+                          <Text
+                            className={`font-body text-[10px] ${
+                              !isEmpty
+                                ? "text-text-secondary"
+                                : "text-text-disabled"
+                            }`}
+                          >
+                            {routine.exercises_count === 1
+                              ? "exercise"
+                              : "exercises"}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View className="items-center gap-md rounded-md border border-border bg-surface-raised px-lg py-xl">
+                  <Text className="text-center font-body-bold text-body text-text-primary">
+                    No routines found
+                  </Text>
+                  <Text className="text-center font-body text-caption leading-5 text-text-secondary">
+                    You haven't created any routines yet. Let's build your first
+                    workout routine to get started.
+                  </Text>
+                  <Button label="Create routine" onPress={handleCreateNew} />
+                </View>
+              )}
+            </ScrollView>
+          )}
+
+          {!isLoading && routines.length > 0 ? (
             <Button
               variant="outline"
               icon="plus"
