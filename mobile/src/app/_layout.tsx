@@ -12,7 +12,10 @@ import {
   WorkSans_700Bold,
 } from "@expo-google-fonts/work-sans";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+  GestureHandlerRootView,
+  InterceptingGestureDetector,
+} from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { queryClient } from "@/utils/api/queryClient";
@@ -42,6 +45,10 @@ function RootNavigator() {
   });
 
   useEffect(() => {
+    if (error) {
+      console.error("Failed to load app fonts.", error);
+    }
+
     if (loaded || error) {
       SplashScreen.hideAsync();
     }
@@ -49,45 +56,49 @@ function RootNavigator() {
     if (status !== "loading") SplashScreen.hideAsync();
   }, [loaded, error, status]);
 
+  if (!loaded && !error) return null;
+
   if (status === "loading") return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0B0B0B" }}>
-      <SafeAreaView
-        edges={["top"]}
-        style={{ flex: 1, backgroundColor: "#0B0B0B" }}
-      >
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: "#0B0B0B" },
-          }}
+      <InterceptingGestureDetector>
+        <SafeAreaView
+          edges={["top"]}
+          style={{ flex: 1, backgroundColor: "#0B0B0B" }}
         >
-          <Stack.Protected guard={status === "signedIn"}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="workout"
-              options={{
-                headerShown: false,
-                animation: "slide_from_bottom",
-              }}
-            />
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="schedule" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="exercises"
-              options={{
-                headerShown: false,
-                animation: "slide_from_right",
-              }}
-            />
-            {/* other protected routes (routine detail, workout...) */}
-          </Stack.Protected>
-          <Stack.Protected guard={status === "signedOut"}>
-            <Stack.Screen name="(auth)" />
-          </Stack.Protected>
-        </Stack>
-      </SafeAreaView>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: "#0B0B0B" },
+            }}
+          >
+            <Stack.Protected guard={status === "signedIn"}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen
+                name="workout"
+                options={{
+                  headerShown: false,
+                  animation: "slide_from_bottom",
+                }}
+              />
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="schedule" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="exercises"
+                options={{
+                  headerShown: false,
+                  animation: "slide_from_right",
+                }}
+              />
+              {/* other protected routes (routine detail, workout...) */}
+            </Stack.Protected>
+            <Stack.Protected guard={status === "signedOut"}>
+              <Stack.Screen name="(auth)" />
+            </Stack.Protected>
+          </Stack>
+        </SafeAreaView>
+      </InterceptingGestureDetector>
     </GestureHandlerRootView>
   );
 }

@@ -28,12 +28,12 @@
   --radius-md: 12px;
   --radius-lg: 16px;
 
-  --font-body: WorkSans_400Regular;
-  --font-body-medium: WorkSans_500Medium;
-  --font-body-semibold: WorkSans_600SemiBold;
-  --font-body-bold: WorkSans_700Bold;
-  --font-numeric: Oswald_500Medium;
-  --font-numeric-bold: Oswald_700Bold;
+  --font-body: "WorkSans_400Regular";
+  --font-body-medium: "WorkSans_500Medium";
+  --font-body-semibold: "WorkSans_600SemiBold";
+  --font-body-bold: "WorkSans_700Bold";
+  --font-numeric: "Oswald_500Medium";
+  --font-numeric-bold: "Oswald_700Bold";
 
   --text-caption: 12px;
   --text-sm: 14px;

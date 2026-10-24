@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -17,11 +17,31 @@ import {
   type UserNewInfo,
   type UserResponse,
 } from "@/utils/api/user";
+import {
+  SelectPickerModal,
+  type PickerOption,
+} from "@/components/ui/SelectPickerModal";
 
 export type EditableProfileField = "username" | "height" | "dob" | null;
 type HeightUnit = "cm" | "ft";
+type ActiveDobPicker = "day" | "month" | "year" | null;
 
-// Conversioni cm feet & inches
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+// Conversioni cm / feet & inches
 export function cmToFeetInches(cm: number): { feet: number; inches: number } {
   const totalInches = cm / 2.54;
   let feet = Math.floor(totalInches / 12);
@@ -56,14 +76,17 @@ export function EditProfileFieldModal({
   onClose,
 }: EditProfileFieldModalProps) {
   const queryClient = useQueryClient();
-
   const [username, setUsername] = useState("");
-  const [dob, setDob] = useState("");
+
+  const [dobDay, setDobDay] = useState<number>(14);
+  const [dobMonth, setDobMonth] = useState<number>(5);
+  const [dobYear, setDobYear] = useState<number>(2000);
+  const [activeDobPicker, setActiveDobPicker] = useState<ActiveDobPicker>(null);
+
   const [heightUnit, setHeightUnit] = useState<HeightUnit>("cm");
   const [cmInput, setCmInput] = useState("");
   const [feetInput, setFeetInput] = useState("");
   const [inchesInput, setInchesInput] = useState("");
-
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,7 +96,14 @@ export function EditProfileFieldModal({
     if (field === "username") {
       setUsername(user?.username ?? "");
     } else if (field === "dob") {
-      setDob(user?.date_of_birth ?? "");
+      if (user?.date_of_birth) {
+        const [y, m, d] = user.date_of_birth.split("-").map(Number);
+        if (y && m && d) {
+          setDobYear(y);
+          setDobMonth(m);
+          setDobDay(d);
+        }
+      }
     } else if (field === "height") {
       if (user?.height_cm) {
         setCmInput(String(Math.round(user.height_cm)));
@@ -88,10 +118,34 @@ export function EditProfileFieldModal({
     }
   }, [field, user]);
 
+  // Opzioni dinamiche per Anno, Mese e Giorno
+  const yearOptions: PickerOption[] = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years: PickerOption[] = [];
+    for (let y = currentYear; y >= 1930; y--) {
+      years.push({ label: String(y), value: String(y) });
+    }
+    return years;
+  }, []);
+
+  const monthOptions: PickerOption[] = useMemo(() => {
+    return MONTH_NAMES.map((name, idx) => ({
+      label: name,
+      value: String(idx + 1),
+    }));
+  }, []);
+
+  const dayOptions: PickerOption[] = useMemo(() => {
+    const daysInMonth = new Date(dobYear, dobMonth, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const dayNum = i + 1;
+      return { label: String(dayNum), value: String(dayNum) };
+    });
+  }, [dobYear, dobMonth]);
+
   function switchHeightUnit(nextUnit: HeightUnit) {
     setError(null);
     if (nextUnit === heightUnit) return;
-
     if (nextUnit === "ft" && cmInput.trim()) {
       const parsedCm = Number.parseFloat(cmInput.replace(",", "."));
       if (Number.isFinite(parsedCm) && parsedCm > 0) {
@@ -126,7 +180,6 @@ export function EditProfileFieldModal({
 
   function handleSubmit() {
     setError(null);
-
     if (field === "username") {
       const trimmed = username.trim();
       if (trimmed.length < 3) {
@@ -136,20 +189,16 @@ export function EditProfileFieldModal({
       saveField({ username: trimmed });
       return;
     }
-
     if (field === "dob") {
-      const trimmed = dob.trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-        setError("Use YYYY-MM-DD format (e.g. 2002-05-14).");
-        return;
-      }
-      saveField({ date_of_birth: trimmed });
+      const mStr = String(dobMonth).padStart(2, "0");
+      const dStr = String(dobDay).padStart(2, "0");
+      const formattedDob = `${dobYear}-${mStr}-${dStr}`;
+
+      saveField({ date_of_birth: formattedDob });
       return;
     }
-
     if (field === "height") {
       let finalCm = 0;
-
       if (heightUnit === "cm") {
         finalCm = Number.parseFloat(cmInput.replace(",", "."));
       } else {
@@ -161,12 +210,10 @@ export function EditProfileFieldModal({
         }
         finalCm = feetInchesToCm(f, i);
       }
-
       if (!Number.isFinite(finalCm) || finalCm <= 50 || finalCm >= 250) {
         setError("Enter a valid height (between 50 and 249 cm).");
         return;
       }
-
       saveField({ height_cm: finalCm });
     }
   }
@@ -183,7 +230,7 @@ export function EditProfileFieldModal({
       ? "How should we call you?"
       : field === "height"
         ? "Choose centimeters or feet & inches"
-        : "Format: YYYY-MM-DD";
+        : "Select your birth date details";
 
   return (
     <Modal
@@ -193,7 +240,7 @@ export function EditProfileFieldModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1 justify-end bg-black/65"
       >
         <Pressable
@@ -202,7 +249,6 @@ export function EditProfileFieldModal({
           className="absolute inset-0"
           onPress={onClose}
         />
-
         <View
           onStartShouldSetResponder={() => true}
           className="gap-lg rounded-t-lg border border-border bg-surface p-xl"
@@ -227,7 +273,7 @@ export function EditProfileFieldModal({
             </Pressable>
           </View>
 
-          {/* Contenuto dinamico in base al campo cliccato */}
+          {/* Username Input */}
           {field === "username" ? (
             <TextField
               label="Username"
@@ -243,23 +289,92 @@ export function EditProfileFieldModal({
             />
           ) : null}
 
+          {/* Selettore Personalizzato Data di Nascita (Giorno - Mese - Anno) */}
           {field === "dob" ? (
-            <TextField
-              label="Date of birth"
-              placeholder="e.g. 2002-05-14"
-              value={dob}
-              onChangeText={(val) => {
-                setDob(val);
-                setError(null);
-              }}
-              error={error}
-              editable={!isPending}
-            />
+            <View className="gap-md">
+              <Text className="font-body-semibold text-caption text-text-primary">
+                Date of birth
+              </Text>
+
+              <View className="flex-row gap-xs">
+                {/* Giorno */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setActiveDobPicker("day")}
+                  className="min-h-14 flex-1 flex-row items-center justify-between rounded-sm border border-border bg-surface-raised px-md active:bg-surface"
+                >
+                  <View>
+                    <Text className="font-body text-[10px] uppercase text-text-secondary">
+                      Day
+                    </Text>
+                    <Text className="font-body-bold text-body text-text-primary">
+                      {dobDay}
+                    </Text>
+                  </View>
+                  <Icon
+                    name="chevron-down"
+                    size={12}
+                    className="text-text-secondary"
+                  />
+                </Pressable>
+
+                {/* Mese */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setActiveDobPicker("month")}
+                  className="min-h-14 flex-2 flex-row items-center justify-between rounded-sm border border-border bg-surface-raised px-md active:bg-surface"
+                >
+                  <View>
+                    <Text className="font-body text-[10px] uppercase text-text-secondary">
+                      Month
+                    </Text>
+                    <Text
+                      className="font-body-bold text-body text-text-primary"
+                      numberOfLines={1}
+                    >
+                      {MONTH_NAMES[dobMonth - 1]}
+                    </Text>
+                  </View>
+                  <Icon
+                    name="chevron-down"
+                    size={12}
+                    className="text-text-secondary"
+                  />
+                </Pressable>
+
+                {/* Anno */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setActiveDobPicker("year")}
+                  className="min-h-14 flex-[1.5] flex-row items-center justify-between rounded-sm border border-border bg-surface-raised px-md active:bg-surface"
+                >
+                  <View>
+                    <Text className="font-body text-[10px] uppercase text-text-secondary">
+                      Year
+                    </Text>
+                    <Text className="font-body-bold text-body text-text-primary">
+                      {dobYear}
+                    </Text>
+                  </View>
+                  <Icon
+                    name="chevron-down"
+                    size={12}
+                    className="text-text-secondary"
+                  />
+                </Pressable>
+              </View>
+
+              {error ? (
+                <Text className="font-body text-caption text-danger">
+                  {error}
+                </Text>
+              ) : null}
+            </View>
           ) : null}
 
+          {/* Height Inputs */}
           {field === "height" ? (
             <View className="gap-md">
-              {/* Selettore unità cm vs ft/in */}
               <View className="flex-row rounded-sm border border-border bg-surface-raised p-xs">
                 {(
                   [
@@ -289,7 +404,6 @@ export function EditProfileFieldModal({
                   );
                 })}
               </View>
-
               {heightUnit === "cm" ? (
                 <TextField
                   label="Height (cm)"
@@ -349,6 +463,52 @@ export function EditProfileFieldModal({
             disabled={isPending}
           />
         </View>
+
+        {/* Modali di Selezione Singola per Giorno, Mese e Anno */}
+        <SelectPickerModal
+          visible={activeDobPicker === "day"}
+          title="Select Day"
+          options={dayOptions}
+          selectedValues={[String(dobDay)]}
+          multiSelect={false}
+          onConfirm={(vals) => {
+            if (vals[0]) setDobDay(Number(vals[0]));
+            setActiveDobPicker(null);
+          }}
+          onClose={() => setActiveDobPicker(null)}
+        />
+
+        <SelectPickerModal
+          visible={activeDobPicker === "month"}
+          title="Select Month"
+          options={monthOptions}
+          selectedValues={[String(dobMonth)]}
+          multiSelect={false}
+          onConfirm={(vals) => {
+            if (vals[0]) {
+              const newMonth = Number(vals[0]);
+              setDobMonth(newMonth);
+              // Ricalcola i giorni se il mese selezionato ha meno giorni del giorno corrente
+              const maxDays = new Date(dobYear, newMonth, 0).getDate();
+              if (dobDay > maxDays) setDobDay(maxDays);
+            }
+            setActiveDobPicker(null);
+          }}
+          onClose={() => setActiveDobPicker(null)}
+        />
+
+        <SelectPickerModal
+          visible={activeDobPicker === "year"}
+          title="Select Year"
+          options={yearOptions}
+          selectedValues={[String(dobYear)]}
+          multiSelect={false}
+          onConfirm={(vals) => {
+            if (vals[0]) setDobYear(Number(vals[0]));
+            setActiveDobPicker(null);
+          }}
+          onClose={() => setActiveDobPicker(null)}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );
