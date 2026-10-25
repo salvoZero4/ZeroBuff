@@ -156,12 +156,6 @@ export function toggleWorkoutPause() {
   notify();
 }
 
-export function tickWorkoutDuration() {
-  if (!activeSession || activeSession.isPaused) return;
-  activeSession = { ...activeSession };
-  notify();
-}
-
 export function setCurrentExerciseIndex(index: number) {
   if (!activeSession) return;
   activeSession = {

@@ -23,7 +23,6 @@ import {
   useActiveWorkout,
   initOrResumeWorkout,
   toggleWorkoutPause,
-  tickWorkoutDuration,
   setCurrentExerciseIndex,
   createSetLog,
   updateSetLog,
@@ -46,19 +45,11 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     queryFn: () => getRoutine(routineId ?? ""),
     enabled: !!routineId,
   });
-  const [, setTick] = useState(0);
+
   const session = useActiveWorkout();
   const [showFinishModal, setShowFinishModal] = useState(false);
 
-  useEffect(() => {
-    if (!session || session.isPaused) return;
-
-    const interval = setInterval(() => {
-      setTick((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [session?.isPaused]);
+  const [durationSeconds, setDurationSeconds] = useState(0);
 
   useEffect(() => {
     if (routine) {
@@ -67,11 +58,16 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   }, [routine]);
 
   useEffect(() => {
+    if (!session || session.isPaused) return;
+
+    setDurationSeconds(getActiveWorkoutDurationSeconds());
+
     const interval = setInterval(() => {
-      tickWorkoutDuration();
+      setDurationSeconds(getActiveWorkoutDurationSeconds());
     }, 1000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [session?.isPaused, session?.startedAtTimestamp]);
 
   if (isLoading) {
     return (
@@ -95,12 +91,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       </View>
     );
   }
+
   const activeExercise = routine.exercises[session.currentExerciseIndex];
   const activeExerciseLogs =
     session.workoutLogs[activeExercise.exercise_id] ?? [];
   const isLastExercise =
     session.currentExerciseIndex === routine.exercises.length - 1;
-  const durationSeconds = getActiveWorkoutDurationSeconds();
+
   function handleToggleComplete(setIndex: number) {
     const current = activeExerciseLogs[setIndex];
     if (!current.completed) {
@@ -112,8 +109,8 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
   async function confirmFinish() {
     setShowFinishModal(false);
-    await finishWorkoutSession();
     router.replace("/(tabs)");
+    await finishWorkoutSession();
   }
 
   return (
@@ -190,7 +187,6 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
                 </Text>
               </View>
             </View>
-
             <View className="gap-xs">
               {activeExerciseLogs.map((setLog, setIdx) => (
                 <WorkoutSetRow
@@ -203,7 +199,6 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
                 />
               ))}
             </View>
-
             <Pressable
               accessibilityRole="button"
               onPress={() =>
@@ -222,6 +217,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>
+
       {/* Barra comandi inferiore */}
       <View className="absolute bottom-6 left-lg right-lg flex-row gap-md">
         {session.currentExerciseIndex > 0 ? (
@@ -237,7 +233,6 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             </Text>
           </Pressable>
         ) : null}
-
         <Pressable
           accessibilityRole="button"
           onPress={() => {
