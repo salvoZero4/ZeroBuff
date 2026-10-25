@@ -1,5 +1,3 @@
-// app/(tabs)/analytics.tsx
-
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -123,8 +121,8 @@ export default function AnalyticsScreen() {
         ListHeaderComponent={
           <View className="pb-sm">
             <ScreenHeader
-              title="Storico & Analisi"
-              subtitle="Gestisci ed elimina le sessioni registrate"
+              title="Analytics"
+              subtitle="View your workout history for now..."
             />
           </View>
         }

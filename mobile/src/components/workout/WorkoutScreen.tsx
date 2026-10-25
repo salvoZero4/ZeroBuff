@@ -19,17 +19,21 @@ import { ExerciseStepPill } from "@/components/workout/ExerciseStepPill";
 import { WorkoutSetRow } from "@/components/workout/WorkoutSetRow";
 import { RestTimerControl } from "@/components/workout/RestTimerControl";
 import { SessionHeader } from "@/components/workout/SessionHeader";
+
 import {
   useActiveWorkout,
-  initOrResumeWorkout,
   toggleWorkoutPause,
   setCurrentExerciseIndex,
-  createSetLog,
-  updateSetLog,
-  addSetToExercise,
-  finishWorkoutSession,
+  addLocalSetToExercise,
   getActiveWorkoutDurationSeconds,
 } from "@/utils/stores/activeWorkoutStore";
+
+import {
+  initOrResumeWorkout,
+  logSetCompleted,
+  updateOrDeleteSetLog,
+  finishWorkoutSession,
+} from "@/utils/domain/workout";
 
 type WorkoutScreenProp = {
   routineId: string;
@@ -48,7 +52,6 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
   const session = useActiveWorkout();
   const [showFinishModal, setShowFinishModal] = useState(false);
-
   const [durationSeconds, setDurationSeconds] = useState(0);
 
   useEffect(() => {
@@ -101,9 +104,11 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   function handleToggleComplete(setIndex: number) {
     const current = activeExerciseLogs[setIndex];
     if (!current.completed) {
-      createSetLog(activeExercise.exercise_id, setIndex);
+      logSetCompleted(activeExercise.exercise_id, setIndex);
     } else {
-      updateSetLog(activeExercise.exercise_id, setIndex, { completed: false });
+      updateOrDeleteSetLog(activeExercise.exercise_id, setIndex, {
+        completed: false,
+      });
     }
   }
 
@@ -193,7 +198,11 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
                   key={setLog.setNumber}
                   set={setLog}
                   onUpdate={(changes) =>
-                    updateSetLog(activeExercise.exercise_id, setIdx, changes)
+                    updateOrDeleteSetLog(
+                      activeExercise.exercise_id,
+                      setIdx,
+                      changes,
+                    )
                   }
                   onToggleComplete={() => handleToggleComplete(setIdx)}
                 />
@@ -202,7 +211,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             <Pressable
               accessibilityRole="button"
               onPress={() =>
-                addSetToExercise(
+                addLocalSetToExercise(
                   activeExercise.exercise_id,
                   activeExercise.reps,
                 )
