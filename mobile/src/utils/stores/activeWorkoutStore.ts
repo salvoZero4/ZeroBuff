@@ -10,7 +10,7 @@ import {
 } from "@/utils/api/session";
 
 export type ActiveSetLog = {
-  backendId?: string; // UUID restituito da FastAPI
+  backendId?: string;
   setNumber: number;
   weight: string;
   reps: string;
@@ -19,11 +19,13 @@ export type ActiveSetLog = {
 };
 
 export type ActiveWorkoutSession = {
-  sessionId: string | null; // UUID della sessione attiva nel backend
+  sessionId: string | null;
   routineId: string;
   routineName: string;
   currentExerciseIndex: number;
-  durationSeconds: number;
+  startedAtTimestamp: number;
+  pausedAtTimestamp: number | null;
+  accumulatedPauseMs: number;
   isPaused: boolean;
   workoutLogs: Record<string, ActiveSetLog[]>;
 };
@@ -45,6 +47,25 @@ export function getActiveWorkout() {
   return activeSession;
 }
 
+export function cancelActiveWorkoutSession() {
+  activeSession = null;
+  sessionCreationPromise = null;
+  notify();
+}
+
+export function getActiveWorkoutDurationSeconds(): number {
+  if (!activeSession) return 0;
+
+  const now =
+    activeSession.isPaused && activeSession.pausedAtTimestamp
+      ? activeSession.pausedAtTimestamp
+      : Date.now();
+
+  const totalElapsedMs =
+    now - activeSession.startedAtTimestamp - activeSession.accumulatedPauseMs;
+  return Math.max(0, Math.floor(totalElapsedMs / 1000));
+}
+
 export function useActiveWorkout() {
   return useSyncExternalStore(subscribe, getActiveWorkout, getActiveWorkout);
 }
@@ -63,14 +84,16 @@ export async function initOrResumeWorkout(
     return activeSession;
   }
 
-  const nowIso = new Date().toISOString();
+  const now = Date.now();
 
   activeSession = {
     sessionId: null,
     routineId: routine.id,
     routineName: routine.name,
     currentExerciseIndex: 0,
-    durationSeconds: 0,
+    startedAtTimestamp: now,
+    pausedAtTimestamp: null,
+    accumulatedPauseMs: 0,
     isPaused: false,
     workoutLogs: Object.fromEntries(
       routine.exercises.map((ex) => [
@@ -89,7 +112,7 @@ export async function initOrResumeWorkout(
 
   sessionCreationPromise = createSession({
     routine_id: routine.id,
-    started_at: nowIso,
+    started_at: now.toString(),
   })
     .then((sessionRes) => {
       if (activeSession && activeSession.routineId === routine.id) {
@@ -99,7 +122,7 @@ export async function initOrResumeWorkout(
       return sessionRes.id;
     })
     .catch((err) => {
-      console.error("Failed to create session on backend:", err);
+      console.error("Failed to create session on the server:", err);
       return null;
     })
     .finally(() => {
@@ -112,19 +135,30 @@ export async function initOrResumeWorkout(
 
 export function toggleWorkoutPause() {
   if (!activeSession) return;
-  activeSession = {
-    ...activeSession,
-    isPaused: !activeSession.isPaused,
-  };
+  const now = Date.now();
+  if (activeSession.isPaused) {
+    const pauseDuration = activeSession.pausedAtTimestamp
+      ? now - activeSession.pausedAtTimestamp
+      : 0;
+    activeSession = {
+      ...activeSession,
+      isPaused: false,
+      pausedAtTimestamp: null,
+      accumulatedPauseMs: activeSession.accumulatedPauseMs + pauseDuration,
+    };
+  } else {
+    activeSession = {
+      ...activeSession,
+      isPaused: true,
+      pausedAtTimestamp: now,
+    };
+  }
   notify();
 }
 
 export function tickWorkoutDuration() {
   if (!activeSession || activeSession.isPaused) return;
-  activeSession = {
-    ...activeSession,
-    durationSeconds: activeSession.durationSeconds + 1,
-  };
+  activeSession = { ...activeSession };
   notify();
 }
 
