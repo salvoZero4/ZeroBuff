@@ -73,6 +73,8 @@ function RootNavigator() {
               contentStyle: { backgroundColor: "#0B0B0B" },
             }}
           >
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+
             <Stack.Protected guard={status === "signedIn"}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
@@ -82,7 +84,6 @@ function RootNavigator() {
                   animation: "slide_from_bottom",
                 }}
               />
-              <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="schedule" options={{ headerShown: false }} />
               <Stack.Screen
                 name="exercises"

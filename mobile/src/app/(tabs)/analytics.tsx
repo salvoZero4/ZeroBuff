@@ -19,7 +19,7 @@ import {
 } from "@/utils/api/session";
 import { getRoutines, type RoutineListRead } from "@/utils/api/routines";
 import {
-  cancelActiveWorkoutSession,
+  clearActiveWorkout,
   useActiveWorkout,
 } from "@/utils/stores/activeWorkoutStore";
 
@@ -71,7 +71,7 @@ export default function AnalyticsScreen() {
     onSuccess: (_, deletedSessionId) => {
       // Se la sessione eliminata è quella attiva nello store locale, resettala!
       if (activeSession?.sessionId === deletedSessionId) {
-        cancelActiveWorkoutSession();
+        clearActiveWorkout();
       }
 
       // Invalida le query per aggiornare lo schermo e lo schedule di oggi
