@@ -89,6 +89,12 @@ export function updateSession(
   });
 }
 
+export async function deleteSessionApi(sessionId: string): Promise<void> {
+  return apiRequest<void>(`/session/${sessionId}`, {
+    method: "DELETE",
+  });
+}
+
 export function createSetLogApi(
   sessionId: string,
   exerciseId: string,

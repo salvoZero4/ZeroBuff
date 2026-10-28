@@ -1,10 +1,9 @@
 from datetime import UTC, date, datetime, timedelta
 
-from sqlmodel import Session, select
-
 from app.models.exercise import Equipment, Exercise, MuscleGroup
 from app.models.session import Session as WorkoutSession
 from app.models.user import User
+from sqlmodel import Session, select
 
 
 class TestGetWorkoutSessions:

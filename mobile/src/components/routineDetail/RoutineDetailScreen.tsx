@@ -187,21 +187,12 @@ function RoutineEditorForm({
               subtitle="Shape this workout around how you train."
             />
           </View>
-          <Pressable
-            accessibilityLabel="Save routine"
-            accessibilityRole="button"
-            className="min-h-12 min-w-12 items-center justify-center rounded-sm px-sm active:bg-surface-raised"
+
+          <Button
+            label={isSaving ? "Saving..." : "Save"}
+            variant="header"
             onPress={save}
-            disabled={isSaving}
-          >
-            <Text
-              className={`font-body-bold text-body ${
-                isSaving ? "text-text-secondary" : "text-accent"
-              }`}
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </Text>
-          </Pressable>
+          />
         </View>
 
         {generalError ? (

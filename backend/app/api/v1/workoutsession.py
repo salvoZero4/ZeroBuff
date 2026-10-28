@@ -1,7 +1,5 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
-
 from app.api.dependencies import currentUserDep, sessionDep
 from app.schemas.workoutsession import (
     SessionCreate,
@@ -15,12 +13,14 @@ from app.schemas.workoutsession import (
 from app.services.workoutsession_service import (
     create_session,
     create_set_log,
+    delete_session,
     delete_set_log,
     get_session_details,
     get_sessions,
     update_session,
     update_set_log,
 )
+from fastapi import APIRouter, status
 
 router = APIRouter(
     prefix="/v1/session",
@@ -99,3 +99,8 @@ def delete_set_log_route(
     session: sessionDep,
 ):
     delete_set_log(user.id, session_id, set_id, session)
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session_route(session_id: UUID, user: currentUserDep, session: sessionDep):
+    delete_session(session_id, user.id, session)

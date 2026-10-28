@@ -1,14 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from fastapi import HTTPException, status
-from sqlmodel import Session, select
-
 from app.models.exercise import Exercise
 from app.models.routine import Routine, RoutineExercise
 from app.models.session import Session as WorkoutSession
 from app.models.session import Set_log
-from app.services.service_helpers import commit_with_http_error_handling
 from app.schemas.workoutsession import (
     SessionCreate,
     SessionDetailRead,
@@ -18,6 +14,9 @@ from app.schemas.workoutsession import (
     SetLogRead,
     SetLogUpdate,
 )
+from app.services.service_helpers import commit_with_http_error_handling
+from fastapi import HTTPException, status
+from sqlmodel import Session, select
 
 
 def create_session(user_id: UUID, session_data: SessionCreate, session: Session):
@@ -345,4 +344,20 @@ def delete_set_log(
         )
 
     session.delete(set_log)
+    commit_with_http_error_handling(session)
+
+
+def delete_session(session_id: UUID, user_id: UUID, session: Session):
+    workout_session = session.get(WorkoutSession, session_id)
+    if not workout_session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workout session not found.",
+        )
+    if workout_session.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this workout session.",
+        )
+    session.delete(workout_session)
     commit_with_http_error_handling(session)

@@ -45,7 +45,7 @@ export function ExerciseStepPill({
       )}
       <Text
         numberOfLines={1}
-        className={`font-body-semibold text-caption max-w-[110px] ${textStyle}`}
+        className={`font-body-semibold text-caption max-w-27.5 ${textStyle}`}
       >
         {name}
       </Text>

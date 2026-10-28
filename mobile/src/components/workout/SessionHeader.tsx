@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "../ui/Icon";
+import { Button } from "../ui/Button";
+import { IconButton } from "../ui/IconButton";
 
 type SessionHeaderProps = {
   durationSeconds: number;
@@ -24,15 +26,12 @@ export function SessionHeader({
 
   return (
     <View className="flex-row items-center justify-between border-b border-border bg-surface px-md py-sm">
-      {/* Tasto per tornare alla schermata precedente (minimizza sessione) */}
-      <Pressable
-        accessibilityLabel="Go back"
-        accessibilityRole="button"
+      <IconButton
+        icon="arrow-left"
+        label="go back to today page"
+        iconSize={18}
         onPress={onBack}
-        className="h-11 w-11 items-center justify-center rounded-full active:bg-surface-raised"
-      >
-        <Icon name="arrow-left" size={18} className="text-text-primary" />
-      </Pressable>
+      />
 
       {/* Controllo Timer e Pausa */}
       <Pressable
@@ -45,31 +44,18 @@ export function SessionHeader({
       >
         <Icon
           name={isPaused ? "play" : "pause"}
-          size={14}
+          size={18}
           className={isPaused ? "text-accent" : "text-text-secondary"}
         />
         <View className="items-center">
           <Text className="font-numeric-bold text-xl text-text-primary">
             {formattedDuration}
           </Text>
-          {isPaused && (
-            <Text className="font-body-bold text-[10px] uppercase text-accent">
-              Paused
-            </Text>
-          )}
         </View>
       </Pressable>
 
       {/* Tasto Termina */}
-      <Pressable
-        accessibilityRole="button"
-        onPress={onFinish}
-        className="min-h-10 justify-center rounded-sm bg-accent px-md active:bg-accent-pressed"
-      >
-        <Text className="font-body-bold text-caption text-on-accent">
-          Finish
-        </Text>
-      </Pressable>
+      <Button label="Finish" variant="header" onPress={onFinish} />
     </View>
   );
 }

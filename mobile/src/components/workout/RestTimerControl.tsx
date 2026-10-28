@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { AppState, Pressable, Text, View } from "react-native";
 import { Icon } from "../ui/Icon";
 
 type RestTimerControlProps = {
@@ -7,31 +7,59 @@ type RestTimerControlProps = {
 };
 
 export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
+  const [targetEndTimestamp, setTargetEndTimestamp] = useState<number | null>(
+    null,
+  );
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
-    if (secondsLeft === null) return;
-    if (secondsLeft <= 0) {
+    if (!targetEndTimestamp) {
       setSecondsLeft(null);
       return;
     }
 
-    const interval = setInterval(() => {
-      setSecondsLeft((s) => (s !== null ? s - 1 : null));
-    }, 1000);
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = Math.ceil((targetEndTimestamp - now) / 1000);
 
-    return () => clearInterval(interval);
-  }, [secondsLeft]);
+      if (diff <= 0) {
+        setTargetEndTimestamp(null);
+        setSecondsLeft(null);
+      } else {
+        setSecondsLeft(diff);
+      }
+    };
 
-  function startTimer() {
-    setSecondsLeft(defaultSeconds > 0 ? defaultSeconds : 90);
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        updateTimer();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [targetEndTimestamp]);
+
+  function startTimer(seconds?: number) {
+    const duration = seconds ?? (defaultSeconds > 0 ? defaultSeconds : 90);
+    setTargetEndTimestamp(Date.now() + duration * 1000);
   }
 
-  function adjustTime(amount: number) {
-    setSecondsLeft((prev) => Math.max(0, (prev ?? defaultSeconds) + amount));
+  function adjustTime(amountSeconds: number) {
+    if (!targetEndTimestamp) return;
+    setTargetEndTimestamp((prev) => {
+      if (!prev) return null;
+      const newTarget = prev + amountSeconds * 1000;
+      return newTarget > Date.now() ? newTarget : Date.now();
+    });
   }
 
   function stopTimer() {
+    setTargetEndTimestamp(null);
     setSecondsLeft(null);
   }
 
@@ -46,8 +74,6 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
       <Text className="font-body text-caption uppercase tracking-wider text-text-secondary">
         {isRunning ? "Resting" : "Target Rest"}
       </Text>
-
-      {/* Cifra grande e centrata */}
       <Text
         className={`font-numeric-bold text-4xl tracking-wider ${
           isRunning ? "text-accent" : "text-text-primary"
@@ -55,8 +81,6 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
       >
         {timeFormatted}
       </Text>
-
-      {/* Comandi ampi e facili da premere */}
       {isRunning ? (
         <View className="flex-row items-center gap-md pt-xs">
           <Pressable
@@ -68,7 +92,6 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
               -15s
             </Text>
           </Pressable>
-
           <Pressable
             accessibilityRole="button"
             onPress={() => adjustTime(30)}
@@ -78,7 +101,6 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
               +30s
             </Text>
           </Pressable>
-
           <Pressable
             accessibilityRole="button"
             onPress={stopTimer}
@@ -92,7 +114,7 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
       ) : (
         <Pressable
           accessibilityRole="button"
-          onPress={startTimer}
+          onPress={() => startTimer()}
           className="min-h-12 flex-row items-center justify-center gap-sm rounded-sm bg-accent px-xl active:bg-accent-pressed"
         >
           <Icon name="play" size={14} className="text-on-accent" />
