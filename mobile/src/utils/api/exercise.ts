@@ -98,3 +98,25 @@ export function createExercise(
     body: JSON.stringify(payload),
   });
 }
+
+export type ExerciseSessionLog = {
+  session_id: string;
+  date: string;
+  sets: {
+    set_number: number;
+    reps: number;
+    weight: number;
+    rir: number | null;
+  }[];
+};
+
+export type ExerciseStatsResponse = {
+  exercise_id: string;
+  sessions: ExerciseSessionLog[];
+};
+
+export function getExerciseStats(
+  exerciseId: string,
+): Promise<ExerciseStatsResponse> {
+  return apiRequest<ExerciseStatsResponse>(`/exercises/${exerciseId}/stats`);
+}

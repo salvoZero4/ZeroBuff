@@ -136,6 +136,29 @@ export function addLocalSetToExercise(exerciseId: string, defaultReps: number) {
   notify();
 }
 
+export function removeLocalSetFromExercise(
+  exerciseId: string,
+  setIndex: number,
+) {
+  if (!activeSession) return;
+  const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
+  if (setIndex < 0 || setIndex >= currentSets.length) return;
+
+  // Contiguous renumbering: the backend works with set_number
+  const updatedSets = currentSets
+    .filter((_, idx) => idx !== setIndex)
+    .map((set, idx) => ({ ...set, setNumber: idx + 1 }));
+
+  activeSession = {
+    ...activeSession,
+    workoutLogs: {
+      ...activeSession.workoutLogs,
+      [exerciseId]: updatedSets,
+    },
+  };
+  notify();
+}
+
 export function clearActiveWorkout() {
   activeSession = null;
   notify();

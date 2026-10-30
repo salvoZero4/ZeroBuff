@@ -18,11 +18,12 @@ export function SessionHeader({
   onTogglePause,
   onFinish,
 }: SessionHeaderProps) {
-  const mins = Math.floor(durationSeconds / 60);
+  const hours = Math.floor(durationSeconds / 3600);
+  const mins = Math.floor((durationSeconds % 3600) / 60);
   const secs = durationSeconds % 60;
-  const formattedDuration = `${mins < 10 ? "0" : ""}${mins}:${
-    secs < 10 ? "0" : ""
-  }${secs}`;
+  const formattedDuration = `${hours < 10 ? "0" : ""}${hours}:${
+    mins < 10 ? "0" : ""
+  }${mins}:${secs < 10 ? "0" : ""}${secs}`;
 
   return (
     <View className="flex-row items-center justify-between border-b border-border bg-surface px-md py-sm">

@@ -10,6 +10,7 @@ import {
 import {
   clearActiveWorkout,
   getActiveWorkout,
+  removeLocalSetFromExercise,
   setActiveWorkout,
   setSessionBackendId,
   updateLocalSetLog,
@@ -192,6 +193,40 @@ export async function updateOrDeleteSetLog(
       console.error("Failed to update set log:", err);
     }
   }
+}
+
+export async function removeSetFromExercise(
+  exerciseId: string,
+  setIndex: number,
+): Promise<boolean> {
+  const session = getActiveWorkout();
+  if (!session) return false;
+
+  const sets = session.workoutLogs[exerciseId] ?? [];
+  const currentSet = sets[setIndex];
+  if (!currentSet) return false;
+
+  // Only the last set can be removed: deleting a middle set would leave a gap
+  // in set_number on the server (and on the "last session" comparison).
+  if (setIndex !== sets.length - 1) return false;
+  // Always keep at least one set per exercise.
+  if (sets.length <= 1) return false;
+
+  if (currentSet.backendId) {
+    const sessionId = await ensureSessionId();
+    if (!sessionId) return false;
+
+    try {
+      await deleteSetLogApi(sessionId, currentSet.backendId);
+    } catch (err) {
+      // Keep the local set if the server deletion failed: no orphan logs.
+      console.error("Failed to delete set log:", err);
+      return false;
+    }
+  }
+
+  removeLocalSetFromExercise(exerciseId, setIndex);
+  return true;
 }
 
 export async function finishWorkoutSession() {
