@@ -129,13 +129,15 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       />
       <KeyboardAvoidingView
         className="flex-1 bg-bg"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 45}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 70}
+        enabled
       >
         <ScrollView
           className="flex-1"
           contentContainerClassName="gap-lg p-lg pb-32"
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Step Pills degli Esercizi */}
           <ScrollView
