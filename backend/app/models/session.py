@@ -26,7 +26,7 @@ class Set_log(SQLModel, table=True):
     id: UUID = Field(
         default_factory=uuid4, primary_key=True, index=True, unique=True, nullable=False
     )
-    session_id: UUID = Field(foreign_key="session.id")
+    session_id: UUID = Field(foreign_key="session.id", ondelete="CASCADE")
     exercise_id: UUID = Field(foreign_key="exercise.id")
     set_number: int
     reps: int

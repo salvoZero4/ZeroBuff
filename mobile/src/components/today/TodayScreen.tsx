@@ -68,6 +68,12 @@ export function TodayScreen() {
     queryFn: () => getSessions({ limit: 64 }),
   });
 
+  // Session still open on the server (e.g. the app was closed mid-workout)
+  const ongoingSession = useMemo(
+    () => sessions.find((s) => s.status !== "completed"),
+    [sessions],
+  );
+
   const { data: routines = [], refetch: refetchRoutines } = useQuery({
     queryKey: ["routines"],
     queryFn: () => getRoutines(),
@@ -91,7 +97,9 @@ export function TodayScreen() {
   }, [sessions, todayDateStr]);
 
   const showStartWorkoutBotton =
-    !hasCompletedSessionToday || Boolean(activeSession);
+    !hasCompletedSessionToday ||
+    Boolean(activeSession) ||
+    Boolean(ongoingSession);
 
   const motivationalDescription = useMemo(() => {
     const randomIndex = Math.floor(Math.random() * TRAINING_MOTIVATIONS.length);
@@ -124,6 +132,13 @@ export function TodayScreen() {
     )[0];
   }, [sessions]);
 
+  const ongoingRoutineName = useMemo(() => {
+    if (!ongoingSession?.routine_id) return null;
+    return (
+      routines.find((r) => r.id === ongoingSession.routine_id)?.name ?? null
+    );
+  }, [ongoingSession, routines]);
+
   const lastSessionRoutineName = useMemo(() => {
     if (!lastCompletedSession) return undefined;
     if (!lastCompletedSession.routine_id) return "Custom Workout";
@@ -136,6 +151,12 @@ export function TodayScreen() {
   function handleStartWorkout() {
     if (activeSession) {
       router.push(`/workout/${activeSession.routineId}` as any);
+      return;
+    }
+
+    // Resume the session left open on the server
+    if (ongoingSession?.routine_id) {
+      router.push(`/workout/${ongoingSession.routine_id}` as any);
       return;
     }
 
@@ -227,9 +248,11 @@ export function TodayScreen() {
                 ? `Resume ${activeSession.routineName}${
                     activeSession.isPaused ? " (Paused)" : ""
                   }`
-                : todaySchedule
-                  ? `Start`
-                  : "Choose a workout"
+                : ongoingSession
+                  ? `Resume ${ongoingRoutineName ?? "workout"}`
+                  : todaySchedule
+                    ? `Start`
+                    : "Choose a workout"
             }
             onPress={handleStartWorkout}
           />

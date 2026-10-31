@@ -1,11 +1,16 @@
-import type { RoutineRead } from "@/utils/api/routines";
+import { getRoutine, type RoutineRead } from "@/utils/api/routines";
 import { queryClient } from "@/utils/api/queryClient";
+import { ApiError } from "@/utils/api/errors";
 import {
   createSession,
   createSetLogApi,
   deleteSetLogApi,
+  getSessionDetails,
+  getSessions,
   updateSession,
   updateSetLogApi,
+  type SessionDetailRead,
+  type SessionRead,
 } from "@/utils/api/session";
 import {
   clearActiveWorkout,
@@ -15,6 +20,7 @@ import {
   setSessionBackendId,
   updateLocalSetLog,
   type ActiveSetLog,
+  type ActiveWorkoutSession,
 } from "@/utils/stores/activeWorkoutStore";
 
 /**
@@ -61,11 +67,109 @@ async function ensureSessionId(): Promise<string | null> {
   return null;
 }
 
-export async function initOrResumeWorkout(routine: RoutineRead) {
-  const activeSession = getActiveWorkout();
-  if (activeSession && activeSession.routineId === routine.id) {
-    return activeSession;
+/**
+ * Rebuild the in-memory session from a server session and its logged sets.
+ * The routine supplies the exercise order and the target sets/reps.
+ */
+function buildSessionFromServer(
+  routine: RoutineRead,
+  detail: SessionDetailRead,
+): ActiveWorkoutSession {
+  const targetReps = new Map(
+    routine.exercises.map((ex) => [ex.exercise_id, ex.reps]),
+  );
+
+  const workoutLogs: Record<string, ActiveSetLog[]> = {};
+  for (const ex of routine.exercises) {
+    workoutLogs[ex.exercise_id] = Array.from({ length: ex.sets }, (_, i) => ({
+      setNumber: i + 1,
+      weight: "",
+      reps: String(ex.reps),
+      rir: "",
+      completed: false,
+    }));
   }
+
+  for (const log of detail.sets) {
+    const sets = workoutLogs[log.exercise_id];
+    // Exercise removed from the routine after the session started
+    if (!sets) continue;
+
+    // Sets added during the workout beyond the routine target
+    while (sets.length < log.set_number) {
+      sets.push({
+        setNumber: sets.length + 1,
+        weight: "",
+        reps: String(targetReps.get(log.exercise_id) ?? 1),
+        rir: "",
+        completed: false,
+      });
+    }
+
+    const index = log.set_number - 1;
+    sets[index] = {
+      ...sets[index],
+      weight: String(log.weight),
+      reps: String(log.reps),
+      rir: log.rir === null ? "" : String(log.rir),
+      completed: true,
+      backendId: log.id,
+    };
+  }
+
+  // Resume from the first exercise that still has an unfinished set
+  const firstIncomplete = routine.exercises.findIndex((ex) =>
+    (workoutLogs[ex.exercise_id] ?? []).some((set) => !set.completed),
+  );
+
+  const startedAt = new Date(detail.started_at).getTime();
+
+  return {
+    sessionId: detail.id,
+    routineId: routine.id,
+    routineName: routine.name,
+    currentExerciseIndex: firstIncomplete >= 0 ? firstIncomplete : 0,
+    startedAtTimestamp: Number.isFinite(startedAt) ? startedAt : Date.now(),
+    pausedAtTimestamp: null,
+    accumulatedPauseMs: 0,
+    isPaused: false,
+    workoutLogs,
+  };
+}
+
+/**
+ * Adopt the session still marked `ongoing`/`paused` on the server.
+ * Returns null when there is nothing to resume.
+ */
+export async function resumeOngoingWorkout(
+  routine: RoutineRead,
+): Promise<ActiveWorkoutSession | null> {
+  try {
+    const sessions = await getSessions({ limit: 100 });
+    const ongoing = sessions.find((s) => s.status !== "completed");
+    if (!ongoing?.routine_id) return null;
+
+    const sessionRoutine =
+      ongoing.routine_id === routine.id
+        ? routine
+        : await getRoutine(ongoing.routine_id);
+
+    const detail = await getSessionDetails(ongoing.id);
+    const resumed = buildSessionFromServer(sessionRoutine, detail);
+    setActiveWorkout(resumed);
+    return resumed;
+  } catch (err) {
+    console.error("Failed to resume the ongoing session:", err);
+    return null;
+  }
+}
+
+export async function initOrResumeWorkout(
+  routine: RoutineRead,
+): Promise<ActiveWorkoutSession | null> {
+  // A local session always wins: the caller redirects to its routine.
+  const activeSession = getActiveWorkout();
+  if (activeSession) return activeSession;
 
   const now = Date.now();
   setActiveWorkout({
@@ -93,13 +197,18 @@ export async function initOrResumeWorkout(routine: RoutineRead) {
 
   sessionCreationPromise = createSession({
     routine_id: routine.id,
-    started_at: now.toString(),
+    started_at: new Date(now).toISOString(),
   })
     .then((sessionRes) => {
       setSessionBackendId(sessionRes.id);
       return sessionRes.id;
     })
-    .catch((err) => {
+    .catch(async (err) => {
+      // Another ongoing session appeared meanwhile: adopt it.
+      if (err instanceof ApiError && err.status === 409) {
+        const adopted = await resumeOngoingWorkout(routine);
+        return adopted?.sessionId ?? null;
+      }
       console.error("Failed to create session on server:", err);
       return null;
     })
@@ -108,6 +217,7 @@ export async function initOrResumeWorkout(routine: RoutineRead) {
     });
 
   await sessionCreationPromise;
+  return getActiveWorkout();
 }
 
 export async function logSetCompleted(exerciseId: string, setIndex: number) {
@@ -233,10 +343,16 @@ export async function finishWorkoutSession() {
   const sessionId = await ensureSessionId();
   if (sessionId) {
     try {
-      await updateSession(sessionId, {
+      const updated = await updateSession(sessionId, {
         status: "completed",
         ended_at: new Date().toISOString(),
       });
+
+      // Hide the "Resume" CTA immediately, before the refetch completes
+      queryClient.setQueryData<SessionRead[]>(["sessions"], (old) =>
+        old?.map((s) => (s.id === updated.id ? updated : s)),
+      );
+
       await queryClient.invalidateQueries({ queryKey: ["sessions"] });
     } catch (err) {
       console.error("Failed to complete session on server:", err);

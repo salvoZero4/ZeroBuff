@@ -24,9 +24,8 @@ type WorkoutSetRowProps = {
   onRemove?: () => void;
 };
 
-function formatPreviousLabel(prev: PreviousSet | null): string | null {
-  if (!prev) return null;
-  return `${prev.weight} kg × ${prev.reps} reps`;
+function formatValue(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 export function WorkoutSetRow({
@@ -37,11 +36,12 @@ export function WorkoutSetRow({
   onToggleComplete,
   onRemove,
 }: WorkoutSetRowProps) {
-  const previousLabel = formatPreviousLabel(previousSet);
   const prevWeight = previousSet?.weight ?? null;
   const prevReps = previousSet?.reps ?? null;
   const weightNum = Number.parseFloat(set.weight.replace(",", "."));
   const repsNum = Number.parseInt(set.reps, 10);
+  const prevVolume = (prevWeight ?? 0) * (prevReps ?? 0);
+  const volumeNum = weightNum * repsNum;
 
   let trend: "up" | "down" | "equal" | null = null;
   if (
@@ -50,8 +50,18 @@ export function WorkoutSetRow({
     Number.isFinite(weightNum) &&
     Number.isFinite(repsNum)
   ) {
-    if (weightNum > prevWeight || repsNum > prevReps) trend = "up";
-    else if (weightNum < prevWeight || repsNum < prevReps) trend = "down";
+    // Weight is the primary driver: heavier is always progression, even with
+    // fewer reps. Otherwise volume (weight × reps) decides, so a lighter set
+    // with enough extra reps still counts as progression. Bodyweight sets
+    // (weight 0) have no volume: reps are the metric.
+    const isBodyweight = weightNum === 0 && prevWeight === 0;
+    if (weightNum > prevWeight) trend = "up";
+    else if (isBodyweight) {
+      if (repsNum > prevReps) trend = "up";
+      else if (repsNum < prevReps) trend = "down";
+      else trend = "equal";
+    } else if (volumeNum > prevVolume) trend = "up";
+    else if (weightNum < prevWeight || volumeNum < prevVolume) trend = "down";
     else trend = "equal";
   }
 
@@ -161,16 +171,42 @@ export function WorkoutSetRow({
         </View>
       </View>
 
-      {/* Last session left, checkbox right */}
+      {/* Last session table left, checkbox right */}
       <View className="flex-row items-center justify-between gap-sm py-lg">
-        <View className="flex-1">
-          <Text className="text-caption text-text-secondary uppercase tracking-wider">
-            Last session
-          </Text>
-          {previousLabel ? (
-            <Text className={`font-numeric text-base ${trendStyle}`}>
-              {trendIcon} {previousLabel}
+        <View className="flex-1 min-w-0">
+          <View className="flex-row items-center gap-xs">
+            <Text className="text-caption text-text-secondary uppercase tracking-wider">
+              Last session
             </Text>
+            {previousSet ? (
+              <Icon name={trendIcon} size={14} className={trendStyle} />
+            ) : null}
+          </View>
+          {previousSet ? (
+            <View className="mt-xs">
+              <View className="flex-row">
+                <Text className="flex-1 text-caption text-text-secondary uppercase tracking-wider">
+                  Weight
+                </Text>
+                <Text className="flex-1 text-caption text-text-secondary uppercase tracking-wider">
+                  Reps
+                </Text>
+                <Text className="flex-1 text-caption text-text-secondary uppercase tracking-wider">
+                  Volume
+                </Text>
+              </View>
+              <View className="flex-row">
+                <Text className={`flex-1 font-numeric text-base ${trendStyle}`}>
+                  {formatValue(previousSet.weight)} kg
+                </Text>
+                <Text className={`flex-1 font-numeric text-base ${trendStyle}`}>
+                  {previousSet.reps}
+                </Text>
+                <Text className={`flex-1 font-numeric text-base ${trendStyle}`}>
+                  {formatValue(previousSet.weight * previousSet.reps)} kg
+                </Text>
+              </View>
+            </View>
           ) : (
             <Text className="font-numeric text-base text-text-secondary">
               —

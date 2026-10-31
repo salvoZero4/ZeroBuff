@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -79,6 +79,15 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     enabled: !!routine && !!session && !!activeExercise,
   });
 
+  // Only earlier sessions are a reference: the stats endpoint also returns
+  // the ongoing session, which would compare a set with itself.
+  const previousSessions = useMemo(() => {
+    if (!exerciseStats) return [];
+    return exerciseStats.sessions
+      .filter((s) => s.session_id !== session?.sessionId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [exerciseStats, session?.sessionId]);
+
   // Workout duration timer
   useEffect(() => {
     if (!session || session.isPaused) return;
@@ -94,25 +103,31 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
   // Initialize or resume the session when the routine changes
   useEffect(() => {
-    if (routine) {
-      initOrResumeWorkout(routine);
-    }
+    if (!routine) return;
+
+    let cancelled = false;
+
+    initOrResumeWorkout(routine).then((active) => {
+      // A server session for another routine was resumed: open that one
+      if (!cancelled && active && active.routineId !== routine.id) {
+        router.replace(`/workout/${active.routineId}` as any);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [routine]);
 
   // Prefill weight and reps from the previous session for empty sets
   useEffect(() => {
-    if (!exerciseStats || !session || !activeExercise) return;
-
-    // Sort sessions by date descending (most recent first)
-    const sortedSessions = [...exerciseStats.sessions].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
+    if (!session || !activeExercise) return;
 
     session.workoutLogs[activeExercise.exercise_id]?.forEach((setLog, idx) => {
       // If user already entered a weight, do not overwrite
       if (setLog.weight.trim() !== "") return;
 
-      const prevSet = sortedSessions
+      const prevSet = previousSessions
         .map((s) => s.sets.find((set) => set.set_number === setLog.setNumber))
         .find(Boolean);
 
@@ -123,16 +138,12 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         });
       }
     });
-  }, [exerciseStats, session, activeExercise]);
+  }, [previousSessions, session, activeExercise]);
 
   // Helper: previous-session reference for a given set number
   const getPreviousSet = useCallback(
     (setNumber: number): PreviousSet | null => {
-      if (!exerciseStats) return null;
-      const sortedSessions = [...exerciseStats.sessions].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      );
-      for (const s of sortedSessions) {
+      for (const s of previousSessions) {
         const prevSet = s.sets.find((set) => set.set_number === setNumber);
         if (prevSet) {
           return {
@@ -144,7 +155,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       }
       return null;
     },
-    [exerciseStats],
+    [previousSessions],
   );
 
   // Reset the set index when switching exercise
@@ -163,7 +174,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     );
   }
 
-  if (isError || !routine || !session || !activeExercise) {
+  if (isError || !routine) {
     return (
       <View className="flex-1 items-center justify-center gap-md bg-bg p-lg">
         <Text className="font-body-bold text-xl text-text-primary">
@@ -174,6 +185,39 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           label="Go back"
           onPress={() => router.replace("/(tabs)")}
         />
+      </View>
+    );
+  }
+
+  // A session from another routine was resumed: the effect redirects to it
+  if (session && session.routineId !== routine.id) {
+    return (
+      <View className="flex-1 items-center justify-center bg-bg">
+        <ActivityIndicator color="#f5f5f5" />
+      </View>
+    );
+  }
+
+  if (!activeExercise) {
+    return (
+      <View className="flex-1 items-center justify-center gap-md bg-bg p-lg">
+        <Text className="font-body-bold text-xl text-text-primary">
+          Routine not found
+        </Text>
+        <Button
+          variant="outline"
+          label="Go back"
+          onPress={() => router.replace("/(tabs)")}
+        />
+      </View>
+    );
+  }
+
+  // The session is created/resumed in an effect right after the first render
+  if (!session) {
+    return (
+      <View className="flex-1 items-center justify-center bg-bg">
+        <ActivityIndicator color="#f5f5f5" />
       </View>
     );
   }
