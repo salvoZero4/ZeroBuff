@@ -1,4 +1,4 @@
-import { RoutineDetailScreen } from "@/components/routineDetail/RoutineDetailScreen";
+import { RoutineDetailScreen } from "@/features/routines/screens/RoutineDetailScreen";
 import { useLocalSearchParams } from "expo-router";
 
 export default function RoutineDetailRoute() {

@@ -1,4 +1,4 @@
-import { WorkoutScreen } from "@/components/workout/WorkoutScreen";
+import { WorkoutScreen } from "@/features/workout/screens/WorkoutScreen";
 import { useLocalSearchParams } from "expo-router";
 
 export default function WorkoutRoute() {

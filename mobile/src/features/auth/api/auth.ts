@@ -1,0 +1,43 @@
+import { tokenStore } from "@/features/auth/store/tokenStore";
+import { apiRequest } from "@/shared/api/client";
+import type {
+  AuthResponse,
+  ChangePasswordInput,
+  ChangePasswordResponse,
+} from "@/features/auth/types/auth";
+
+async function authenticate(path: string, body: object): Promise<AuthResponse> {
+  const data = await apiRequest<AuthResponse>(path, {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify(body),
+  });
+  await tokenStore.setTokens(data.access_token, data.refresh_token);
+  return data;
+}
+
+export function login(email: string, password: string) {
+  return authenticate("/auth/login", { email, password });
+}
+
+export function register(username: string, email: string, password: string) {
+  return authenticate("/auth/register", { username, email, password });
+}
+
+export function changePassword(
+  payload: ChangePasswordInput,
+): Promise<ChangePasswordResponse> {
+  return apiRequest<ChangePasswordResponse>("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function restoreSession(): Promise<boolean> {
+  await tokenStore.load();
+  return tokenStore.getRefresh() !== null;
+}
+
+export async function logout(): Promise<void> {
+  await tokenStore.clear();
+}

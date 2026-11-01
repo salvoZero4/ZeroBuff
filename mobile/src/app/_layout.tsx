@@ -24,8 +24,8 @@ import {
   InterceptingGestureDetector,
 } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider, useAuth } from "@/providers/AuthProvider";
-import { queryClient } from "@/utils/api/queryClient";
+import { AuthProvider, useAuth } from "@/features/auth/provider/AuthProvider";
+import { queryClient } from "@/shared/api/queryClient";
 
 SplashScreen.preventAutoHideAsync();
 

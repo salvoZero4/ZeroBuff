@@ -69,7 +69,16 @@ The mobile app uses Expo Router for file-based navigation. The main authenticate
 - **Analytics** for progress and consistency views;
 - **Profile** for account and profile settings.
 
-API requests are centralized in `mobile/src/utils/api/`. Access tokens are stored with Expo SecureStore, and expired access tokens are refreshed before an authenticated request is retried.
+API requests use a shared transport in `mobile/src/shared/api/`, while each feature owns its endpoint modules and server-state hooks. Access tokens are stored with Expo SecureStore, and expired access tokens are refreshed before an authenticated request is retried.
+
+The mobile source is organized by feature:
+
+- `mobile/src/app/` contains only Expo Router route adapters and layouts. Routes read parameters, handle redirects, and render the screen owned by a feature.
+- `mobile/src/features/<feature>/` contains the feature's `screens/`, `components/`, `api/`, `utils/`, `hooks/`, and dedicated `types/` files when needed. `store/` and `provider/` are added only when a feature requires them. API modules contain endpoint functions; API and domain contracts live in `types/`.
+- `mobile/src/components/ui/` contains domain-agnostic design-system primitives such as buttons, cards, fields, icons, and modals.
+- `mobile/src/shared/` contains cross-feature API transport, errors, query client, utilities, and types that have no feature ownership.
+
+For example, workout execution lives under `mobile/src/features/workout/`, routine editing under `mobile/src/features/routines/`, and the Today home composition under `mobile/src/features/today/`.
 
 ## Technology stack
 
@@ -126,10 +135,10 @@ API requests are centralized in `mobile/src/utils/api/`. Access tokens are store
 │   ├── pyproject.toml
 │   └── uv.lock
 ├── mobile/
-│   ├── src/app/          # Expo Router routes and screens
-│   ├── src/components/   # reusable UI and feature components
-│   ├── src/utils/api/    # typed API clients
-│   ├── src/providers/    # app providers
+│   ├── src/app/          # Expo Router route adapters and layouts
+│   ├── src/components/ui/ # domain-agnostic UI primitives
+│   ├── src/features/     # feature-owned screens, components, APIs, hooks, and state
+│   ├── src/shared/       # cross-feature API transport and utilities
 │   └── package.json
 └── .github/
     └── workflows/

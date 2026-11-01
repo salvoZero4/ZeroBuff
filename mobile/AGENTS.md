@@ -74,10 +74,21 @@ npx expo install --fix      # fix incompatible package versions
 
 ### 3.1 Layout
 
-- `src/app/` — routes only.
-- `src/services/api/` — one module per resource (`client.ts`, `auth.ts`, `weight.ts`, `session.ts`, ...). No raw `fetch` in UI components.
-- `src/hooks/<resource>/` — TanStack Query hooks and the query-key factory for that resource.
-- `src/components/` — shared UI. `src/utils/` — pure helpers.
+- `src/app/` — Expo Router route adapters and layouts only. Route files may read route
+  params and perform redirects, but must not contain feature UI or domain logic.
+- `src/components/ui/` — domain-agnostic design-system primitives only.
+- `src/features/<feature>/` — autonomous feature modules. Use `screens/`,
+  `components/`, `api/`, `utils/`, `hooks/`, and `types/` as needed; add `store/`
+  and `provider/` only when the feature needs them. Feature screens
+  are not Expo Router routes; routes import them from `src/app/`.
+- `src/shared/api/` — generic request transport, API errors, and the shared
+  TanStack Query client. Feature endpoint modules belong in their feature's
+  `api/` directory.
+- `src/shared/utils/` and `src/shared/types/` — utilities and types used by
+  multiple features. Shared code must not contain feature UI or feature-specific
+  business rules.
+- No raw `fetch` in UI components. Server-state hooks and query-key factories
+  belong to the owning feature.
 
 ### 3.2 Network & auth
 

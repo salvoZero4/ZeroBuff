@@ -1,6 +1,5 @@
-import { RoutinesScreen } from "@/components/routines/RoutinesScreen";
+import { RoutinesScreen } from "@/features/routines/screens/RoutinesScreen";
 
 export default function RoutinesRoute() {
   return <RoutinesScreen />;
 }
-
