@@ -2,7 +2,7 @@ import { Stack } from "expo-router";
 import "../../global.css";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useEffect } from "react";
 import { Oswald_500Medium, Oswald_700Bold } from "@expo-google-fonts/oswald";
 import {
@@ -11,7 +11,10 @@ import {
   WorkSans_600SemiBold,
   WorkSans_700Bold,
 } from "@expo-google-fonts/work-sans";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Platform } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import * as SystemUI from "expo-system-ui";
+import { StatusBar } from "expo-status-bar";
 import {
   GestureHandlerRootView,
   InterceptingGestureDetector,
@@ -22,13 +25,25 @@ import { queryClient } from "@/utils/api/queryClient";
 
 SplashScreen.preventAutoHideAsync();
 
+if (Platform.OS !== "web") {
+  void SystemUI.setBackgroundColorAsync("#0B0B0B");
+}
+
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: "#0B0B0B" }}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <KeyboardProvider
+            statusBarTranslucent
+            navigationBarTranslucent
+            preserveEdgeToEdge
+          >
+            <RootNavigator />
+          </KeyboardProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -62,6 +77,7 @@ function RootNavigator() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0B0B0B" }}>
+      <StatusBar style="light" />
       <InterceptingGestureDetector>
         <SafeAreaView
           edges={["top"]}
@@ -92,7 +108,6 @@ function RootNavigator() {
                   animation: "slide_from_right",
                 }}
               />
-              {/* other protected routes (routine detail, workout...) */}
             </Stack.Protected>
             <Stack.Protected guard={status === "signedOut"}>
               <Stack.Screen name="(auth)" />

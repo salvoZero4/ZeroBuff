@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
@@ -79,9 +80,10 @@ export function WeightLogModal({
       visible={visible}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "padding"}
-        className="flex-1 justify-end bg-black/65"
+      <KeyboardAwareScrollView
+        bottomOffset={20}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ justifyContent: "flex-end", flexGrow: 1 }}
       >
         <Pressable
           accessibilityRole="button"
@@ -142,7 +144,7 @@ export function WeightLogModal({
             disabled={isPending}
           />
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </Modal>
   );
 }

@@ -8,6 +8,9 @@ export type ActiveSetLog = {
   reps: string;
   rir: string;
   completed: boolean;
+  // Set to true as soon as the user edits the set: prefills must never
+  // overwrite a value the user cleared or changed.
+  touched?: boolean;
 };
 
 export type ActiveWorkoutSession = {

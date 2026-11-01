@@ -13,6 +13,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import { ApiError } from "@/utils/api/errors";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 type Field = "email" | "password";
 type FormErrors = Partial<Record<Field, string>>;
@@ -72,10 +73,15 @@ export default function SignIn() {
   }
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-bg"
-      behavior="padding"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+    <KeyboardAwareScrollView
+      style={{ flex: 1, backgroundColor: "#0B0B0B" }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: "space-between",
+        padding: 16,
+      }}
+      keyboardShouldPersistTaps="handled"
+      bottomOffset={20}
     >
       <ScrollView
         contentContainerClassName="flex-grow justify-between gap-xl p-lg"
@@ -161,6 +167,6 @@ export default function SignIn() {
           </Link>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }

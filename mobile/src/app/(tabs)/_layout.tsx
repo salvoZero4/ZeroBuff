@@ -1,4 +1,3 @@
-// app/(tabs)/_layout.tsx
 import { Tabs } from "expo-router";
 import { Text, View } from "react-native";
 
@@ -46,6 +45,9 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
+          // Fixed height on purpose: the bar spans to the bottom of the window,
+          // so its background paints the gesture area with the tab color. Adding
+          // the bottom inset here would lift the icons (and shrink the screen).
           height: 82,
           paddingTop: 10,
           paddingBottom: 10,

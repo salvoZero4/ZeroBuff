@@ -263,7 +263,7 @@ export async function updateOrDeleteSetLog(
   const currentSet = session.workoutLogs[exerciseId]?.[setIndex];
   if (!currentSet) return;
 
-  updateLocalSetLog(exerciseId, setIndex, changes);
+  updateLocalSetLog(exerciseId, setIndex, { ...changes, touched: true });
 
   const sessionId = await ensureSessionId();
   if (!sessionId) return;
