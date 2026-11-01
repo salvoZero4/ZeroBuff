@@ -17,7 +17,7 @@ export function Card({
 }: CardProps) {
   return (
     <View
-      className={`rounded-md border p-lg ${VARIANTS[variant]} ${className}`}
+      className={`will-change-variable rounded-md border p-lg ${VARIANTS[variant]} ${className}`}
       {...props}
     />
   );

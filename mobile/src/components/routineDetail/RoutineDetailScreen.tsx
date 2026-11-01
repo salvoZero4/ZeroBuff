@@ -226,7 +226,11 @@ function RoutineEditorForm({
           {draft.exercises.length > 0 ? (
             <DraggableFlatList
               data={draft.exercises}
-              onDragEnd={({ data }) => reorderExercises(data)}
+              onDragEnd={({ data }) => {
+                setTimeout(() => {
+                  reorderExercises(data);
+                }, 0);
+              }}
               keyExtractor={(item) => item.id}
               renderItem={renderExerciseItem}
               showsVerticalScrollIndicator={false}
