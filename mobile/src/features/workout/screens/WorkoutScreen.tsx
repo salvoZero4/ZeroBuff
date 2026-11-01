@@ -286,7 +286,9 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         contentContainerClassName="gap-lg p-lg"
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
         keyboardShouldPersistTaps="handled"
+        mode="layout"
         bottomOffset={80}
+        extraKeyboardSpace={12}
       >
         {/* Pills Esercizi */}
         <ScrollView

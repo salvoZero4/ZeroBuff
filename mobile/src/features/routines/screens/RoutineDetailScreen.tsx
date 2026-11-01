@@ -2,12 +2,11 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import DraggableFlatList, {
   RenderItemParams,
 } from "react-native-draggable-flatlist";
@@ -171,7 +170,7 @@ function RoutineEditorForm({
     <KeyboardAvoidingView
       className="flex-1 bg-bg"
       behavior="padding"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 20}
+      automaticOffset
     >
       <View className="gap-md px-lg pb-md pt-lg">
         <View className="flex-row items-center gap-md">

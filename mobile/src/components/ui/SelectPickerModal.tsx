@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Icon } from "./Icon";
 import { Button } from "./Button";
 
@@ -85,7 +84,8 @@ export function SelectPickerModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
+        automaticOffset
         className="flex-1 justify-end bg-black/75"
       >
         <Pressable

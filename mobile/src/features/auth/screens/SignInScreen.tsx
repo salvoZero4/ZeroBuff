@@ -72,7 +72,9 @@ export function SignInScreen() {
         padding: 16,
       }}
       keyboardShouldPersistTaps="handled"
+      mode="layout"
       bottomOffset={20}
+      extraKeyboardSpace={12}
     >
       <View className="gap-xl">
           <View className="gap-sm">
