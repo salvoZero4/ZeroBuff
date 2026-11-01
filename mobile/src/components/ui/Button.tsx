@@ -1,4 +1,4 @@
-import { LogBox, Pressable, Text, type PressableProps } from "react-native";
+import { Pressable, Text, type PressableProps } from "react-native";
 import { Icon, type IconName } from "./Icon";
 
 const VARIANTS = {

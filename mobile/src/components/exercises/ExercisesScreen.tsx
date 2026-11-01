@@ -268,7 +268,7 @@ export function ExercisesScreen() {
               <View className="items-center py-lg">
                 <ActivityIndicator color="#f5f5f5" />
               </View>
-            ) : null
+            ) : undefined
           }
           ListEmptyComponent={
             <View className="items-center p-xl">

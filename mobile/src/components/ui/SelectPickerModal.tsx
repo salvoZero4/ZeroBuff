@@ -39,13 +39,19 @@ export function SelectPickerModal({
   const [search, setSearch] = useState("");
   const [currentSelected, setCurrentSelected] =
     useState<string[]>(selectedValues);
+  const selectedValuesKey = selectedValues.join("\u0000");
 
   useEffect(() => {
     if (visible) {
-      setCurrentSelected(selectedValues);
-      setSearch("");
+      const reset = setTimeout(() => {
+        setCurrentSelected(
+          selectedValuesKey === "" ? [] : selectedValuesKey.split("\u0000"),
+        );
+        setSearch("");
+      }, 0);
+      return () => clearTimeout(reset);
     }
-  }, [visible, selectedValues]);
+  }, [visible, selectedValuesKey]);
 
   const filteredOptions = useMemo(() => {
     if (!search.trim()) return options;
@@ -165,7 +171,7 @@ export function SelectPickerModal({
               {filteredOptions.length === 0 ? (
                 <View className="p-xl items-center">
                   <Text className="font-body text-caption text-text-secondary">
-                    No results matching "{search}"
+                    No results matching &quot;{search}&quot;
                   </Text>
                 </View>
               ) : null}

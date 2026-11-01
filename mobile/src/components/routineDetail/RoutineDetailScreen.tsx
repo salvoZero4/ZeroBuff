@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   Text,
   TextInput,
   View,
@@ -144,7 +143,7 @@ function RoutineEditorForm({
     openExercisePicker((selectedExercise) => {
       addExercise(selectedExercise);
     });
-    router.push("/exercises" as any);
+    router.push("/exercises");
   }
 
   function renderExerciseItem({

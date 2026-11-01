@@ -89,7 +89,9 @@ export function RoutinesScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={refetch}
+            onRefresh={() => {
+              void refetch();
+            }}
             tintColor="#f5f5f5"
           />
         }

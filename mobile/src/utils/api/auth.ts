@@ -32,8 +32,14 @@ export function register(username: string, email: string, password: string) {
   return authenticate("/auth/register", { username, email, password });
 }
 
-export function changePassword(payload: ChangePasswordInput): Promise<any> {
-  return apiRequest<any>("/auth/change-password", {
+export type ChangePasswordResponse = {
+  message: string;
+};
+
+export function changePassword(
+  payload: ChangePasswordInput,
+): Promise<ChangePasswordResponse> {
+  return apiRequest<ChangePasswordResponse>("/auth/change-password", {
     method: "POST",
     body: JSON.stringify(payload),
   });

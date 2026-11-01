@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { Modal, Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TextField } from "@/components/ui/TextField";
@@ -36,8 +29,11 @@ export function WeightLogModal({
 
   useEffect(() => {
     if (visible) {
-      setWeightInput(existingLog ? String(existingLog.weight) : "");
-      setError(null);
+      const reset = setTimeout(() => {
+        setWeightInput(existingLog ? String(existingLog.weight) : "");
+        setError(null);
+      }, 0);
+      return () => clearTimeout(reset);
     }
   }, [visible, existingLog]);
 

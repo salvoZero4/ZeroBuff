@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -76,47 +76,39 @@ export function EditProfileFieldModal({
   onClose,
 }: EditProfileFieldModalProps) {
   const queryClient = useQueryClient();
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(
+    field === "username" ? (user?.username ?? "") : "",
+  );
 
-  const [dobDay, setDobDay] = useState<number>(14);
-  const [dobMonth, setDobMonth] = useState<number>(5);
-  const [dobYear, setDobYear] = useState<number>(2000);
+  const [dobDay, setDobDay] = useState<number>(() => {
+    const [, , day] = user?.date_of_birth?.split("-").map(Number) ?? [];
+    return field === "dob" && day ? day : 14;
+  });
+  const [dobMonth, setDobMonth] = useState<number>(() => {
+    const [, month] = user?.date_of_birth?.split("-").map(Number) ?? [];
+    return field === "dob" && month ? month : 5;
+  });
+  const [dobYear, setDobYear] = useState<number>(() => {
+    const [year] = user?.date_of_birth?.split("-").map(Number) ?? [];
+    return field === "dob" && year ? year : 2000;
+  });
   const [activeDobPicker, setActiveDobPicker] = useState<ActiveDobPicker>(null);
 
   const [heightUnit, setHeightUnit] = useState<HeightUnit>("cm");
-  const [cmInput, setCmInput] = useState("");
-  const [feetInput, setFeetInput] = useState("");
-  const [inchesInput, setInchesInput] = useState("");
+  const [cmInput, setCmInput] = useState(() =>
+    field === "height" && user?.height_cm
+      ? String(Math.round(user.height_cm))
+      : "",
+  );
+  const [feetInput, setFeetInput] = useState(() => {
+    if (field !== "height" || !user?.height_cm) return "";
+    return String(cmToFeetInches(user.height_cm).feet);
+  });
+  const [inchesInput, setInchesInput] = useState(() => {
+    if (field !== "height" || !user?.height_cm) return "";
+    return String(cmToFeetInches(user.height_cm).inches);
+  });
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!field) return;
-    setError(null);
-
-    if (field === "username") {
-      setUsername(user?.username ?? "");
-    } else if (field === "dob") {
-      if (user?.date_of_birth) {
-        const [y, m, d] = user.date_of_birth.split("-").map(Number);
-        if (y && m && d) {
-          setDobYear(y);
-          setDobMonth(m);
-          setDobDay(d);
-        }
-      }
-    } else if (field === "height") {
-      if (user?.height_cm) {
-        setCmInput(String(Math.round(user.height_cm)));
-        const { feet, inches } = cmToFeetInches(user.height_cm);
-        setFeetInput(String(feet));
-        setInchesInput(String(inches));
-      } else {
-        setCmInput("");
-        setFeetInput("");
-        setInchesInput("");
-      }
-    }
-  }, [field, user]);
 
   // Opzioni dinamiche per Anno, Mese e Giorno
   const yearOptions: PickerOption[] = useMemo(() => {

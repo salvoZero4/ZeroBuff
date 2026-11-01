@@ -4,8 +4,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { router } from "expo-router";
 import * as authApi from "@/utils/api/auth";
 import { setOnSessionExpired } from "@/utils/api/client";
 import { queryClient } from "@/utils/api/queryClient";
@@ -23,11 +25,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const isSigningOut = useRef(false);
 
   useEffect(() => {
     setOnSessionExpired(() => {
+      if (isSigningOut.current) return;
       queryClient.clear(); // don't leave this user's data visible to the next one
-      setStatus("signedOut");
+      setStatus((current) => (current === "signedOut" ? current : "signedOut"));
     });
 
     let cancelled = false;
@@ -60,9 +64,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    await authApi.logout();
-    queryClient.clear();
-    setStatus("signedOut");
+    if (isSigningOut.current) return;
+    isSigningOut.current = true;
+    try {
+      await authApi.logout();
+      queryClient.clear();
+      setStatus((current) => (current === "signedOut" ? current : "signedOut"));
+      router.replace("/(auth)/sign-in");
+    } finally {
+      isSigningOut.current = false;
+    }
   }, []);
 
   // Stable identity: without useMemo/useCallback every render of the provider

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -27,18 +27,17 @@ export function ChangePasswordModal({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (visible) {
-      setNewPassword("");
-      setConfirmPassword("");
-      setError(null);
-    }
-  }, [visible]);
+  function handleClose() {
+    setNewPassword("");
+    setConfirmPassword("");
+    setError(null);
+    onClose();
+  }
 
   const { mutate: handleSave, isPending } = useMutation({
     mutationFn: () => changePassword({ new_password: newPassword }),
     onSuccess: () => {
-      onClose();
+      handleClose();
     },
     onError: (err) => {
       if (err instanceof ApiError) {
@@ -67,7 +66,7 @@ export function ChangePasswordModal({
       animationType="slide"
       transparent
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "padding"}
@@ -77,7 +76,7 @@ export function ChangePasswordModal({
           accessibilityRole="button"
           accessibilityLabel="Close password modal"
           className="absolute inset-0"
-          onPress={onClose}
+          onPress={handleClose}
         />
 
         <View
@@ -96,7 +95,7 @@ export function ChangePasswordModal({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close"
-              onPress={onClose}
+              onPress={handleClose}
               className="h-9 w-9 items-center justify-center rounded-full bg-surface-raised active:bg-surface"
             >
               <Icon name="xmark" size={14} className="text-text-secondary" />

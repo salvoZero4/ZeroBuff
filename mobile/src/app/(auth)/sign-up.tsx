@@ -1,13 +1,6 @@
 import { Link } from "expo-router";
 import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/providers/AuthProvider";
 import { ApiError } from "@/utils/api/errors";
@@ -47,10 +40,8 @@ export default function SignUp() {
   const [generalError, setGeneralError] = useState<string | null>(null);
 
   const { mutate: handleSignUp, isPending } = useMutation({
-    mutationFn: async () => {
-      setGeneralError(null);
-      await signUp(username.trim(), email.trim().toLowerCase(), password);
-    },
+    mutationFn: () =>
+      signUp(username.trim(), email.trim().toLowerCase(), password),
     onError: (err) => {
       if (err instanceof ApiError) {
         if (err.fieldErrors) {
@@ -76,6 +67,7 @@ export default function SignUp() {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
+    setGeneralError(null);
     handleSignUp();
   }
 
@@ -90,12 +82,7 @@ export default function SignUp() {
       keyboardShouldPersistTaps="handled"
       bottomOffset={20}
     >
-      <ScrollView
-        contentContainerClassName="flex-grow justify-between gap-xl p-lg"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View className="gap-xl">
+      <View className="gap-xl">
           <View className="gap-sm">
             <Text className="font-body-semibold text-caption uppercase tracking-[1.6px] text-accent">
               Get started
@@ -171,25 +158,24 @@ export default function SignUp() {
               disabled={isPending}
             />
           </View>
-        </View>
+      </View>
 
-        <View className="flex-row items-center justify-center gap-xs pb-md">
-          <Text className="font-body text-caption text-text-secondary">
-            Already training with us?
-          </Text>
-          <Link href="/(auth)/sign-in" replace asChild>
-            <Pressable
-              accessibilityRole="link"
-              className="min-h-12 justify-center px-sm"
-              disabled={isPending}
-            >
-              <Text className="font-body-semibold text-caption text-accent">
-                Sign in
-              </Text>
-            </Pressable>
-          </Link>
-        </View>
-      </ScrollView>
+      <View className="flex-row items-center justify-center gap-xs pb-md">
+        <Text className="font-body text-caption text-text-secondary">
+          Already training with us?
+        </Text>
+        <Link href="/(auth)/sign-in" replace asChild>
+          <Pressable
+            accessibilityRole="link"
+            className="min-h-12 justify-center px-sm"
+            disabled={isPending}
+          >
+            <Text className="font-body-semibold text-caption text-accent">
+              Sign in
+            </Text>
+          </Pressable>
+        </Link>
+      </View>
     </KeyboardAwareScrollView>
   );
 }

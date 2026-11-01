@@ -105,19 +105,27 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
   useEffect(() => {
     if (!session || session.isPaused) return;
-    setDurationSeconds(getActiveWorkoutDurationSeconds());
+    const initialUpdate = setTimeout(() => {
+      setDurationSeconds(getActiveWorkoutDurationSeconds());
+    }, 0);
     const interval = setInterval(() => {
       setDurationSeconds(getActiveWorkoutDurationSeconds());
     }, 1000);
-    return () => clearInterval(interval);
-  }, [session?.isPaused, session?.startedAtTimestamp]);
+    return () => {
+      clearTimeout(initialUpdate);
+      clearInterval(interval);
+    };
+  }, [session, session?.isPaused, session?.startedAtTimestamp]);
 
   useEffect(() => {
     if (!routine) return;
     let cancelled = false;
     initOrResumeWorkout(routine).then((active) => {
       if (!cancelled && active && active.routineId !== routine.id) {
-        router.replace(`/workout/${active.routineId}` as any);
+        router.replace({
+          pathname: "/workout/[routineId]",
+          params: { routineId: active.routineId },
+        });
       }
     });
     return () => {

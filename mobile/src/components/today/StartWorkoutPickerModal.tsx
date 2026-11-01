@@ -160,7 +160,7 @@ export function StartWorkoutPickerModal({
                     No routines found
                   </Text>
                   <Text className="text-center font-body text-caption leading-5 text-text-secondary">
-                    You haven't created any routines yet. Let's build your first
+                    You haven&apos;t created any routines yet. Let&apos;s build your first
                     workout routine to get started.
                   </Text>
                   <Button label="Create routine" onPress={handleCreateNew} />

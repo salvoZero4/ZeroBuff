@@ -1,5 +1,12 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { PixelRatio, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  PixelRatio,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  type ScrollViewInstance,
+} from "react-native";
 
 import {
   RECENT_WEEKS,
@@ -165,7 +172,7 @@ function YearGrid({
   year: number;
   showWeekdayLabels: boolean;
 }) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const viewportWidth = useRef(0);
   const todayWeekIndex = useMemo(() => findTodayWeekIndex(weeks), [weeks]);
   const monthLabels = useMemo(() => getMonthLabels(year, weeks), [year, weeks]);

@@ -1,7 +1,9 @@
 import { tokenStore } from "../stores/tokenStore";
 import { ApiError, NetworkError } from "./errors";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL!;
+const BASE_URL = (
+  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000"
+).replace(/\/+$/, "");
 const TIMEOUT_MS = 30_000; // generous on purpose: Render free tier cold start
 
 let onSessionExpired: () => void = () => {};
@@ -29,7 +31,7 @@ async function rawFetch(path: string, init: RequestInit): Promise<Response> {
 }
 
 async function toApiError(res: Response): Promise<ApiError> {
-  let body: any = null;
+  let body: unknown = null;
   try {
     body = await res.json();
   } catch {
@@ -37,17 +39,30 @@ async function toApiError(res: Response): Promise<ApiError> {
   }
 
   // FastAPI 422: detail is a list of { loc: ["body", "email"], msg: "..." }
-  if (res.status === 422 && Array.isArray(body?.detail)) {
+  const detail = isRecord(body) ? body.detail : undefined;
+  if (res.status === 422 && Array.isArray(detail)) {
     const fieldErrors: Record<string, string> = {};
-    for (const d of body.detail) {
-      fieldErrors[d.loc[d.loc.length - 1]] = d.msg;
+    for (const item of detail) {
+      if (!isRecord(item) || !Array.isArray(item.loc) || typeof item.msg !== "string") {
+        continue;
+      }
+      const location = item.loc.filter(
+        (part): part is string => typeof part === "string",
+      );
+      const field = location.at(-1);
+      if (field) fieldErrors[field] = item.msg;
     }
     return new ApiError(422, "Validation error", fieldErrors);
   }
 
+  const detailMessage = isRecord(body) ? body.detail : undefined;
   const message =
-    typeof body?.detail === "string" ? body.detail : res.statusText;
+    typeof detailMessage === "string" ? detailMessage : res.statusText;
   return new ApiError(res.status, message);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 // Single-flight: concurrent 401s share ONE refresh request

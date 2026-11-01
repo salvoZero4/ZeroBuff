@@ -14,8 +14,8 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
 
   useEffect(() => {
     if (!targetEndTimestamp) {
-      setSecondsLeft(null);
-      return;
+      const reset = setTimeout(() => setSecondsLeft(null), 0);
+      return () => clearTimeout(reset);
     }
 
     const updateTimer = () => {
@@ -30,7 +30,7 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
       }
     };
 
-    updateTimer();
+    const initialUpdate = setTimeout(updateTimer, 0);
     const interval = setInterval(updateTimer, 1000);
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
@@ -40,6 +40,7 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
 
     return () => {
       clearInterval(interval);
+      clearTimeout(initialUpdate);
       subscription.remove();
     };
   }, [targetEndTimestamp]);

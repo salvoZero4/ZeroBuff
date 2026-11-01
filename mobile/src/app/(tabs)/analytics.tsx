@@ -63,27 +63,29 @@ export default function AnalyticsScreen() {
     routines.map((r: RoutineListRead) => [r.id, r.name]),
   );
 
-  // 3. Mutation per cancellare
+  // Delete a session.
   const { mutate: handleDeleteSession, isPending: isDeleting } = useMutation({
     mutationFn: async (sessionId: string) => {
       await deleteSessionApi(sessionId);
     },
     onSuccess: (_, deletedSessionId) => {
-      // Se la sessione eliminata è quella attiva nello store locale, resettala!
+      // Reset the local active workout when its server session is deleted.
       if (activeSession?.sessionId === deletedSessionId) {
         clearActiveWorkout();
       }
 
-      // Invalida le query per aggiornare lo schermo e lo schedule di oggi
+      // Refresh the session history and today's schedule.
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
       setSessionToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error) => {
       setSessionToDelete(null);
       Alert.alert(
-        "Errore di eliminazione",
-        error?.message || "Impossibile eliminare la sessione dal server.",
+        "Delete failed",
+        error instanceof Error
+          ? error.message
+          : "Could not delete the session from the server.",
       );
     },
   });
@@ -92,7 +94,7 @@ export default function AnalyticsScreen() {
     try {
       await refetchSessions();
     } catch (error) {
-      console.error("Errore durante il refresh delle sessioni:", error);
+      console.error("Failed to refresh sessions:", error);
     }
   };
 
@@ -122,14 +124,14 @@ export default function AnalyticsScreen() {
           <View className="pb-sm">
             <ScreenHeader
               title="Analytics"
-              subtitle="View your workout history for now..."
+              subtitle="Review your workout history"
             />
           </View>
         }
         renderItem={({ item }) => {
           const routineName = item.routine_id
-            ? (routinesMap.get(item.routine_id) ?? "Allenamento Custom")
-            : "Allenamento Custom";
+            ? (routinesMap.get(item.routine_id) ?? "Custom Workout")
+            : "Custom Workout";
           const isCompleted = item.status === "completed";
 
           return (
@@ -142,18 +144,18 @@ export default function AnalyticsScreen() {
                   {!isCompleted && (
                     <View className="rounded-sm bg-accent/20 px-xs py-2xs">
                       <Text className="font-body-bold text-[10px] uppercase text-accent">
-                        In corso
+                        In progress
                       </Text>
                     </View>
                   )}
                 </View>
                 <Text className="font-body text-caption text-text-secondary">
-                  Data: {formatDate(item.date)}
+                  Date: {formatDate(item.date)}
                 </Text>
               </View>
 
               <Pressable
-                accessibilityLabel="Elimina sessione"
+                accessibilityLabel="Delete session"
                 accessibilityRole="button"
                 onPress={() => setSessionToDelete(item)}
                 className="h-10 w-10 items-center justify-center rounded-sm bg-danger/10 active:bg-danger/20"
@@ -166,10 +168,10 @@ export default function AnalyticsScreen() {
         ListEmptyComponent={
           <View className="items-center justify-center gap-xs rounded-md border border-border bg-surface p-xl">
             <Text className="font-body-bold text-body text-text-primary">
-              Nessuna sessione trovata
+              No sessions found
             </Text>
             <Text className="text-center font-body text-caption text-text-secondary">
-              Le sessioni d'allenamento completate o in corso appariranno qui.
+              Completed and in-progress workouts will appear here.
             </Text>
           </View>
         }
@@ -177,12 +179,12 @@ export default function AnalyticsScreen() {
 
       <ConfirmModal
         visible={sessionToDelete !== null}
-        title="Elimina sessione"
-        description={`Sei sicuro di voler eliminare la sessione del ${
+        title="Delete session"
+        description={`Are you sure you want to delete the session from ${
           sessionToDelete ? formatDate(sessionToDelete.date) : ""
-        }? L'azione sbloccherà anche eventuali allenamenti in corso.`}
-        confirmLabel={isDeleting ? "Eliminazione..." : "Elimina"}
-        cancelLabel="Annulla"
+        }? This will also unlock any workout in progress.`}
+        confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+        cancelLabel="Cancel"
         isDestructive
         onConfirm={() => {
           if (sessionToDelete) {

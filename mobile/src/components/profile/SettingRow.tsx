@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Icon, type IconName } from "@/components/ui/Icon";
+import { Icon } from "@/components/ui/Icon";
 
 type SettingRowProps = {
   title: string;

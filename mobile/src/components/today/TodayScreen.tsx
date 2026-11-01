@@ -34,19 +34,19 @@ const DAY_KEYS: readonly DayOfWeek[] = [
   "sunday",
 ];
 
+const TRAINING_MOTIVATIONS = [
+  "Time to put in the work. Let's get it.",
+  "Lock in. Every single rep counts today.",
+  "No excuses. Push your limits now.",
+  "Bring the focus. Leave nothing in the tank.",
+  "Time to build. Execute with intent.",
+  "Show up, put the work in, and conquer.",
+] as const;
+
 export function TodayScreen() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [showBodyWeightModal, setShowBodyWeightModal] = useState(false);
   const [showWorkoutPicker, setShowWorkoutPicker] = useState(false);
-
-  const TRAINING_MOTIVATIONS = [
-    "Time to put in the work. Let's get it.",
-    "Lock in. Every single rep counts today.",
-    "No excuses. Push your limits now.",
-    "Bring the focus. Leave nothing in the tank.",
-    "Time to build. Execute with intent.",
-    "Show up, put the work in, and conquer.",
-  ];
 
   const todayLongStr = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -102,9 +102,12 @@ export function TodayScreen() {
     Boolean(ongoingSession);
 
   const motivationalDescription = useMemo(() => {
-    const randomIndex = Math.floor(Math.random() * TRAINING_MOTIVATIONS.length);
-    return TRAINING_MOTIVATIONS[randomIndex];
-  }, [todaySchedule]);
+    const seed = [...todayDateStr].reduce(
+      (total, character) => total + character.charCodeAt(0),
+      0,
+    );
+    return TRAINING_MOTIVATIONS[seed % TRAINING_MOTIVATIONS.length];
+  }, [todayDateStr]);
 
   async function handleRefetch() {
     setIsRefetching(true);
@@ -150,18 +153,27 @@ export function TodayScreen() {
 
   function handleStartWorkout() {
     if (activeSession) {
-      router.push(`/workout/${activeSession.routineId}` as any);
+      router.push({
+        pathname: "/workout/[routineId]",
+        params: { routineId: activeSession.routineId },
+      });
       return;
     }
 
     // Resume the session left open on the server
     if (ongoingSession?.routine_id) {
-      router.push(`/workout/${ongoingSession.routine_id}` as any);
+      router.push({
+        pathname: "/workout/[routineId]",
+        params: { routineId: ongoingSession.routine_id },
+      });
       return;
     }
 
     if (todaySchedule) {
-      router.push(`/workout/${todaySchedule.routine_id}` as any);
+      router.push({
+        pathname: "/workout/[routineId]",
+        params: { routineId: todaySchedule.routine_id },
+      });
     } else {
       setShowWorkoutPicker(true);
     }
@@ -269,7 +281,10 @@ export function TodayScreen() {
         visible={showWorkoutPicker}
         onClose={() => setShowWorkoutPicker(false)}
         onSelectRoutine={(routineId) => {
-          router.push(`/workout/${routineId}` as any);
+          router.push({
+            pathname: "/workout/[routineId]",
+            params: { routineId },
+          });
         }}
       />
     </View>

@@ -80,7 +80,9 @@ export function ProfileScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={refetch}
+            onRefresh={() => {
+              void refetch();
+            }}
             tintColor="#f5f5f5"
           />
         }
@@ -137,43 +139,51 @@ export function ProfileScreen() {
       </ScrollView>
 
       {/* Modale singolo campo: Username, Height (cm o ft/in) o Date of Birth */}
-      <EditProfileFieldModal
-        field={editingField}
-        user={user}
-        onClose={() => setEditingField(null)}
-      />
+      {editingField ? (
+        <EditProfileFieldModal
+          field={editingField}
+          user={user}
+          onClose={() => setEditingField(null)}
+        />
+      ) : null}
 
       {/* Selettore diretto per Biological Sex */}
-      <SelectPickerModal
-        visible={showSexPicker}
-        title="Biological sex"
-        options={SEX_OPTIONS}
-        selectedValues={user?.sex ? [user.sex] : []}
-        multiSelect={false}
-        onConfirm={(vals) => updateSex(vals[0] as Sex)}
-        onClose={() => setShowSexPicker(false)}
-      />
+      {showSexPicker ? (
+        <SelectPickerModal
+          visible
+          title="Biological sex"
+          options={SEX_OPTIONS}
+          selectedValues={user?.sex ? [user.sex] : []}
+          multiSelect={false}
+          onConfirm={(vals) => updateSex(vals[0] as Sex)}
+          onClose={() => setShowSexPicker(false)}
+        />
+      ) : null}
 
       {/* Modale Cambio Password */}
-      <ChangePasswordModal
-        visible={showPasswordModal}
-        onClose={() => setShowPasswordModal(false)}
-      />
+      {showPasswordModal ? (
+        <ChangePasswordModal
+          visible
+          onClose={() => setShowPasswordModal(false)}
+        />
+      ) : null}
 
       {/* Modale Conferma Logout */}
-      <ConfirmModal
-        visible={showSignOutModal}
-        title="Sign out"
-        description="Are you sure you want to sign out of your account?"
-        confirmLabel="Sign out"
-        cancelLabel="Cancel"
-        isDestructive
-        onConfirm={() => {
-          setShowSignOutModal(false);
-          signOut();
-        }}
-        onCancel={() => setShowSignOutModal(false)}
-      />
+      {showSignOutModal ? (
+        <ConfirmModal
+          visible
+          title="Sign out"
+          description="Are you sure you want to sign out of your account?"
+          confirmLabel="Sign out"
+          cancelLabel="Cancel"
+          isDestructive
+          onConfirm={() => {
+            setShowSignOutModal(false);
+            void signOut();
+          }}
+          onCancel={() => setShowSignOutModal(false)}
+        />
+      ) : null}
     </View>
   );
 }

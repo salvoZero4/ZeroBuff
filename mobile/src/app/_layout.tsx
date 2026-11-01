@@ -16,6 +16,10 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import * as SystemUI from "expo-system-ui";
 import { StatusBar } from "expo-status-bar";
 import {
+  configureReanimatedLogger,
+  ReanimatedLogLevel,
+} from "react-native-reanimated";
+import {
   GestureHandlerRootView,
   InterceptingGestureDetector,
 } from "react-native-gesture-handler";
@@ -24,6 +28,10 @@ import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { queryClient } from "@/utils/api/queryClient";
 
 SplashScreen.preventAutoHideAsync();
+
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.error,
+});
 
 if (Platform.OS !== "web") {
   void SystemUI.setBackgroundColorAsync("#0B0B0B");

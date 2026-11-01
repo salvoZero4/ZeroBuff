@@ -135,7 +135,7 @@ export function ScheduleScreen() {
         {routines.length === 0 && !isLoading && (
           <View className="rounded-md border border-border bg-surface p-lg">
             <Text className="text-center font-body text-caption text-text-secondary">
-              You haven't created any routines yet. Create a routine first to
+              You haven&apos;t created any routines yet. Create a routine first to
               assign it to your week.
             </Text>
           </View>
