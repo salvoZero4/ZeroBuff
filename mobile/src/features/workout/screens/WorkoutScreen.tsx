@@ -1,6 +1,8 @@
+import { WorkoutSkeleton } from "@/features/workout/components/WorkoutSkeleton";
+import { ScreenError } from "@/components/ui/ScreenState";
+import { loadErrorMessage } from "@/shared/api/loadError";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -75,6 +77,9 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     data: routine,
     isLoading,
     isError,
+    error,
+    refetch,
+    isFetching,
   } = useQuery({
     queryKey: ["routines", routineId],
     queryFn: () => getRoutine(routineId ?? ""),
@@ -180,27 +185,32 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     setCurrentExerciseIndex(index);
   }
 
-  if (isLoading) {
+  if (isError || !routineId)
     return (
-      <View className="flex-1 items-center justify-center bg-bg">
-        <ActivityIndicator color="#f5f5f5" />
-      </View>
+      <ScreenError
+        title="Workout couldn’t load"
+        message={loadErrorMessage(error)}
+        onRetry={() => {
+          void refetch();
+        }}
+        busy={isFetching}
+        onBack={() => router.replace("/(tabs)")}
+      />
     );
-  }
-
-  if (
-    isError ||
-    !routine ||
-    (session && session.routineId !== routine.id) ||
-    !activeExercise ||
-    !session
-  ) {
+  if (isLoading || !routine || !session || session.routineId !== routine.id)
+    return <WorkoutSkeleton />;
+  if (!activeExercise)
     return (
-      <View className="flex-1 items-center justify-center gap-md bg-bg p-lg">
-        <ActivityIndicator color="#f5f5f5" />
-      </View>
+      <ScreenError
+        title="No exercises in this routine"
+        message="Add exercises to your routine before starting a workout."
+        onRetry={() => {
+          void refetch();
+        }}
+        busy={isFetching}
+        onBack={() => router.replace("/(tabs)")}
+      />
     );
-  }
 
   const ex = activeExercise;
   const activeExerciseLogs = session.workoutLogs[ex.exercise_id] ?? [];

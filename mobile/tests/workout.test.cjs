@@ -54,7 +54,7 @@ function setup(overrides = {}) {
     vm.runInThisContext(
       "(function(require, module, exports) {" + code + "\n})",
       { filename: file },
-    )(load, mod, mod.exports);
+    )((dependency) => load(dependency.startsWith(".") ? path.posix.join(path.posix.dirname(name), dependency) : dependency), mod, mod.exports);
     return mod.exports;
   }
   const workout = load("@/features/workout/utils/workout");
@@ -79,6 +79,7 @@ function setup(overrides = {}) {
     workout,
     store,
     errors,
+    loadErrorMessage: load("@/shared/api/loadError").loadErrorMessage,
     calls,
     row: () => store.getActiveWorkout().workoutLogs.exercise[0],
   };
@@ -276,4 +277,26 @@ test("editing a failed new set keeps finish blocked until the draft is saved", a
   fail = false;
   await t.workout.updateOrDeleteSetLog("exercise", 0, {});
   assert.equal(t.row().saveStatus, "saved");
+});
+
+test("loading errors provide actionable messages without exposing server details", () => {
+  const { errors, loadErrorMessage } = setup();
+  assert.match(
+    loadErrorMessage(new errors.NetworkError()),
+    /internet connection/,
+  );
+  for (const [status, pattern] of [
+    [401, /session/],
+    [403, /access/],
+    [404, /no longer/],
+    [429, /minute/],
+    [503, /temporarily/],
+  ]) {
+    const message = loadErrorMessage(
+      new errors.ApiError(status, "private server detail"),
+    );
+    assert.match(message, pattern);
+    assert.doesNotMatch(message, /private server detail/);
+  }
+  assert.match(loadErrorMessage(new Error("private")), /try again/);
 });

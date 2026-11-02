@@ -1,3 +1,13 @@
+import { Skeleton } from "@/components/ui/Skeleton";
+import {
+  RoutineCardSkeleton,
+  WeekStripSkeleton,
+  WeightBannerSkeleton,
+  LastSessionSkeleton,
+  ConsistencySkeleton,
+} from "@/features/today/components/TodaySkeletons";
+import { ScreenError } from "@/components/ui/ScreenState";
+import { loadErrorMessage } from "@/shared/api/loadError";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -59,12 +69,22 @@ export function TodayScreen() {
 
   const activeSession = useActiveWorkout();
 
-  const { data: todaySchedule, refetch: refetchTodaySchedule } = useQuery({
+  const {
+    data: todaySchedule,
+    isPending: pendingTodaySchedule,
+    error: errorTodaySchedule,
+    refetch: refetchTodaySchedule,
+  } = useQuery({
     queryKey: ["schedule", "today"],
     queryFn: getTodaySchedule,
   });
 
-  const { data: sessions = [], refetch: refetchSessions } = useQuery({
+  const {
+    data: sessions = [],
+    isPending: pendingSessions,
+    error: errorSessions,
+    refetch: refetchSessions,
+  } = useQuery({
     queryKey: ["sessions"],
     queryFn: () => getSessions({ limit: 64 }),
   });
@@ -75,18 +95,32 @@ export function TodayScreen() {
     [sessions],
   );
 
-  const { data: routines = [], refetch: refetchRoutines } = useQuery({
+  const {
+    data: routines = [],
+    isPending: pendingRoutines,
+    error: errorRoutines,
+    refetch: refetchRoutines,
+  } = useQuery({
     queryKey: ["routines"],
     queryFn: () => getRoutines(),
   });
 
-  const { data: todayWeight, refetch: refetchWeight } =
-    useQuery<WeightLogRead | null>({
-      queryKey: ["bodyWeight", "today"],
-      queryFn: () => getTodayWeight(),
-    });
+  const {
+    data: todayWeight,
+    isPending: pendingWeight,
+    error: errorWeight,
+    refetch: refetchWeight,
+  } = useQuery<WeightLogRead | null>({
+    queryKey: ["bodyWeight", "today"],
+    queryFn: () => getTodayWeight(),
+  });
 
-  const { data: weekSchedule = [], refetch: refetchWeekSchedule } = useQuery({
+  const {
+    data: weekSchedule = [],
+    isPending: pendingWeekSchedule,
+    error: errorWeekSchedule,
+    refetch: refetchWeekSchedule,
+  } = useQuery({
     queryKey: ["schedule"],
     queryFn: getSchedule,
   });
@@ -180,6 +214,22 @@ export function TodayScreen() {
     }
   }
 
+  const loadError =
+    errorTodaySchedule ||
+    errorSessions ||
+    errorRoutines ||
+    errorWeight ||
+    errorWeekSchedule;
+  if (loadError)
+    return (
+      <ScreenError
+        title="Today couldn’t load"
+        message={loadErrorMessage(loadError)}
+        onRetry={handleRefetch}
+        busy={isRefetching}
+      />
+    );
+
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -196,15 +246,21 @@ export function TodayScreen() {
       >
         <ScreenHeader title="This week" subtitle={todayLongStr} />
 
-        <WeekStrip
-          hasRoutine={(_date, dayIndex) => {
-            const dayKey = DAY_KEYS[dayIndex];
-            return scheduledDayKeys.has(dayKey);
-          }}
-        />
+        {pendingWeekSchedule ? (
+          <WeekStripSkeleton />
+        ) : (
+          <WeekStrip
+            hasRoutine={(_date, dayIndex) => {
+              const dayKey = DAY_KEYS[dayIndex];
+              return scheduledDayKeys.has(dayKey);
+            }}
+          />
+        )}
 
         <Section title="Today's routine">
-          {todaySchedule ? (
+          {pendingTodaySchedule ? (
+            <RoutineCardSkeleton />
+          ) : todaySchedule ? (
             <InfoCard
               title={todaySchedule.routine_name}
               description={motivationalDescription}
@@ -217,32 +273,44 @@ export function TodayScreen() {
           )}
         </Section>
 
-        {!todayWeight && (
-          <View className="flex-row items-center gap-md rounded-md border border-accent/30 bg-surface-raised p-lg">
-            <View className="flex-1 gap-xs">
-              <Text className="font-body-semibold text-body text-text-primary">
-                Track body weight
-              </Text>
-              <Text className="font-body text-caption leading-5 text-text-secondary">
-                Keep your progress context up to date.
-              </Text>
+        {pendingWeight ? (
+          <WeightBannerSkeleton />
+        ) : (
+          !todayWeight && (
+            <View className="flex-row items-center gap-md rounded-md border border-accent/30 bg-surface-raised p-lg">
+              <View className="flex-1 gap-xs">
+                <Text className="font-body-semibold text-body text-text-primary">
+                  Track body weight
+                </Text>
+                <Text className="font-body text-caption leading-5 text-text-secondary">
+                  Keep your progress context up to date.
+                </Text>
+              </View>
+              <IconButton
+                icon="plus"
+                iconSize={16}
+                label="Log body weight"
+                onPress={() => setShowBodyWeightModal(true)}
+              />
             </View>
-            <IconButton
-              icon="plus"
-              iconSize={16}
-              label="Log body weight"
-              onPress={() => setShowBodyWeightModal(true)}
-            />
-          </View>
+          )
         )}
 
-        <ConsistencyGrid sessions={sessions} mode="recent" />
+        {pendingSessions ? (
+          <ConsistencySkeleton />
+        ) : (
+          <ConsistencyGrid sessions={sessions} mode="recent" />
+        )}
 
         <Section title="Last session">
-          <LastSessionCard
-            session={lastCompletedSession}
-            routineName={lastSessionRoutineName}
-          />
+          {pendingSessions || pendingRoutines ? (
+            <LastSessionSkeleton />
+          ) : (
+            <LastSessionCard
+              session={lastCompletedSession}
+              routineName={lastSessionRoutineName}
+            />
+          )}
         </Section>
 
         <Button
@@ -252,24 +320,30 @@ export function TodayScreen() {
           onPress={() => router.push("/schedule")}
         />
       </ScrollView>
-      {showStartWorkoutBotton && (
+      {pendingSessions || pendingRoutines || pendingTodaySchedule ? (
         <View className="absolute bottom-md left-lg right-lg">
-          <Button
-            variant="primary"
-            label={
-              activeSession
-                ? `Resume ${activeSession.routineName}${
-                    activeSession.isPaused ? " (Paused)" : ""
-                  }`
-                : ongoingSession
-                  ? `Resume ${ongoingRoutineName ?? "workout"}`
-                  : todaySchedule
-                    ? `Start`
-                    : "Choose a workout"
-            }
-            onPress={handleStartWorkout}
-          />
+          <Skeleton className="h-14 w-full rounded-md" />
         </View>
+      ) : (
+        showStartWorkoutBotton && (
+          <View className="absolute bottom-md left-lg right-lg">
+            <Button
+              variant="primary"
+              label={
+                activeSession
+                  ? `Resume ${activeSession.routineName}${
+                      activeSession.isPaused ? " (Paused)" : ""
+                    }`
+                  : ongoingSession
+                    ? `Resume ${ongoingRoutineName ?? "workout"}`
+                    : todaySchedule
+                      ? `Start`
+                      : "Choose a workout"
+              }
+              onPress={handleStartWorkout}
+            />
+          </View>
+        )
       )}
 
       <WeightLogModal

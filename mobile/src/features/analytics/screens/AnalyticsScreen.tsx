@@ -1,6 +1,8 @@
+import { AnalyticsSkeleton } from "@/features/analytics/components/AnalyticsSkeleton";
+import { ScreenError } from "@/components/ui/ScreenState";
+import { loadErrorMessage } from "@/shared/api/loadError";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -12,10 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Icon } from "@/components/ui/Icon";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import {
-  deleteSessionApi,
-  getSessions,
-} from "@/features/workout/api/session";
+import { deleteSessionApi, getSessions } from "@/features/workout/api/session";
 import type { SessionRead } from "@/features/workout/types/session";
 import { getRoutines } from "@/features/routines/api/routines";
 import type { RoutineListRead } from "@/features/routines/types/routine";
@@ -46,7 +45,8 @@ export function AnalyticsScreen() {
   // 1. Fetch delle sessioni
   const {
     data: sessions = [],
-    isLoading: isSessionsLoading,
+    isPending: isSessionsLoading,
+    error: sessionsError,
     refetch: refetchSessions,
     isRefetching,
   } = useQuery({
@@ -55,7 +55,12 @@ export function AnalyticsScreen() {
   });
 
   // 2. Fetch delle routine per i nomi
-  const { data: routines = [] } = useQuery({
+  const {
+    data: routines = [],
+    error: routinesError,
+    isPending: routinesPending,
+    refetch: refetchRoutines,
+  } = useQuery({
     queryKey: ["routines"],
     queryFn: () => getRoutines(),
   });
@@ -93,19 +98,22 @@ export function AnalyticsScreen() {
 
   const handleRefresh = async () => {
     try {
-      await refetchSessions();
+      await Promise.all([refetchSessions(), refetchRoutines()]);
     } catch (error) {
       console.error("Failed to refresh sessions:", error);
     }
   };
 
-  if (isSessionsLoading) {
+  if (sessionsError || routinesError)
     return (
-      <View className="flex-1 items-center justify-center bg-bg">
-        <ActivityIndicator color="#f5f5f5" />
-      </View>
+      <ScreenError
+        title="History couldn’t load"
+        message={loadErrorMessage(sessionsError || routinesError)}
+        onRetry={handleRefresh}
+        busy={isRefetching}
+      />
     );
-  }
+  if (isSessionsLoading || routinesPending) return <AnalyticsSkeleton />;
 
   return (
     <View className="flex-1 bg-bg">

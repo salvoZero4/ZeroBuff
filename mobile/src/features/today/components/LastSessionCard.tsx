@@ -1,5 +1,6 @@
+import { SessionStatsSkeleton } from "./TodaySkeletons";
 import { useMemo } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
@@ -96,9 +97,7 @@ export function LastSessionCard({
 
       {/* Statistiche della sessione */}
       {isLoading ? (
-        <View className="py-sm items-center">
-          <ActivityIndicator color="#f5f5f5" size="small" />
-        </View>
+        <SessionStatsSkeleton />
       ) : (
         <View className="flex-row gap-sm pt-xs">
           <View className="flex-1 gap-xs rounded-sm border border-border bg-surface-raised p-md">
