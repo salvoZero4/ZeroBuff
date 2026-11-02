@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/Button";
+import { loadErrorMessage } from "@/shared/api/loadError";
 import { SessionStatsSkeleton } from "./TodaySkeletons";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
@@ -40,7 +42,13 @@ export function LastSessionCard({
   session,
   routineName,
 }: LastSessionCardProps) {
-  const { data: detail, isLoading } = useQuery({
+  const {
+    data: detail,
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ["sessions", session?.id],
     queryFn: () => getSessionDetails(session!.id),
     enabled: !!session?.id,
@@ -96,7 +104,21 @@ export function LastSessionCard({
       </View>
 
       {/* Statistiche della sessione */}
-      {isLoading ? (
+      {error ? (
+        <View className="gap-sm">
+          <Text className="font-body text-caption text-text-secondary">
+            {loadErrorMessage(error)}
+          </Text>
+          <Button
+            variant="outline"
+            label={isFetching ? "Retrying…" : "Try again"}
+            disabled={isFetching}
+            onPress={() => {
+              void refetch();
+            }}
+          />
+        </View>
+      ) : isLoading ? (
         <SessionStatsSkeleton />
       ) : (
         <View className="flex-row gap-sm pt-xs">

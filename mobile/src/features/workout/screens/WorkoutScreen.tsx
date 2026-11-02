@@ -98,6 +98,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   const [setCardHeight, setSetCardHeight] = useState(0);
   const setsScrollRef = useRef<ScrollViewInstance>(null);
   const addingSetRef = useRef(false);
+  const pagerContentWidthRef = useRef(0);
   const insets = useSafeAreaInsets();
 
   const activeExercise = routine?.exercises[session?.currentExerciseIndex ?? 0];
@@ -181,7 +182,12 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
   function selectExercise(index: number) {
     setCurrentSetIndex(0);
-    setsScrollRef.current?.scrollTo({ x: 0, animated: false });
+    // Re-selecting the current exercise does not remount its pager.
+    if (index === session?.currentExerciseIndex) {
+      setsScrollRef.current?.scrollTo({ x: 0, animated: false });
+    }
+    addingSetRef.current = false;
+    pagerContentWidthRef.current = 0;
     setCurrentExerciseIndex(index);
   }
 
@@ -380,14 +386,35 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
         {/* Carosello Set */}
         <ScrollView
+          key={`${ex.exercise_id}:${pageWidth}`}
           ref={setsScrollRef}
           horizontal
           pagingEnabled
+          snapToInterval={pageWidth}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          disableIntervalMomentum
+          onContentSizeChange={(width) => {
+            if (width === pagerContentWidthRef.current) return;
+            pagerContentWidthRef.current = width;
+            setsScrollRef.current?.scrollTo({
+              x:
+                pageWidth *
+                Math.min(currentSetIndex, activeExerciseLogs.length - 1),
+              animated: false,
+            });
+          }}
           showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0 }}
           keyboardShouldPersistTaps="handled"
           onMomentumScrollEnd={handleSetsScrollEnd}
-          onLayout={(e) => setPageWidth(e.nativeEvent.layout.width)}
+          onLayout={(e) => {
+            const width = e.nativeEvent.layout.width;
+            if (width > 0 && width !== pageWidth) {
+              pagerContentWidthRef.current = 0;
+              setPageWidth(width);
+            }
+          }}
         >
           {activeExerciseLogs.map((setLog, setIdx) => (
             <View

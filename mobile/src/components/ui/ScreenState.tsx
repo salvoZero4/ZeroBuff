@@ -10,11 +10,6 @@ export function ScreenSkeleton({
   label: string;
   children: ReactNode;
 }) {
-  const [slow, setSlow] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setSlow(true), 8000);
-    return () => clearTimeout(timer);
-  }, []);
   return (
     <ScrollView
       className="flex-1 bg-bg"
@@ -23,15 +18,37 @@ export function ScreenSkeleton({
       accessibilityState={{ busy: true }}
     >
       {children}
-      <Text
-        accessibilityLiveRegion="polite"
-        className="font-body text-caption text-text-secondary"
-      >
-        {slow
-          ? "This is taking longer than usual. The server may be waking up."
-          : label}
-      </Text>
+      <LoadingNotice label={label} />
     </ScrollView>
+  );
+}
+
+export function LoadingNotice({
+  loading = true,
+  label = "Loading your day…",
+}: {
+  loading?: boolean;
+  label?: string;
+}) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => setSlow(true), 8000);
+    return () => {
+      clearTimeout(timer);
+      setSlow(false);
+    };
+  }, [loading]);
+  if (!loading) return null;
+  return (
+    <Text
+      accessibilityLiveRegion="polite"
+      className="font-body text-caption text-text-secondary"
+    >
+      {slow
+        ? "This is taking longer than usual. The server may be waking up."
+        : label}
+    </Text>
   );
 }
 

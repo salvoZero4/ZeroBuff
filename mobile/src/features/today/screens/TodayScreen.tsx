@@ -6,7 +6,7 @@ import {
   LastSessionSkeleton,
   ConsistencySkeleton,
 } from "@/features/today/components/TodaySkeletons";
-import { ScreenError } from "@/components/ui/ScreenState";
+import { LoadingNotice, ScreenError } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
@@ -55,6 +55,7 @@ const TRAINING_MOTIVATIONS = [
 ] as const;
 
 export function TodayScreen() {
+  const [startButtonHeight, setStartButtonHeight] = useState(0);
   const [isRefetching, setIsRefetching] = useState(false);
   const [showBodyWeightModal, setShowBodyWeightModal] = useState(false);
   const [showWorkoutPicker, setShowWorkoutPicker] = useState(false);
@@ -234,7 +235,7 @@ export function TodayScreen() {
     <View className="flex-1 bg-bg">
       <ScrollView
         className="flex-1"
-        contentContainerClassName={`gap-lg p-lg ${showStartWorkoutBotton ? "pb-31" : "pb-xl"}`}
+        contentContainerClassName="gap-lg p-lg pb-xl"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -245,6 +246,15 @@ export function TodayScreen() {
         }
       >
         <ScreenHeader title="This week" subtitle={todayLongStr} />
+        <LoadingNotice
+          loading={
+            pendingWeekSchedule ||
+            pendingTodaySchedule ||
+            pendingWeight ||
+            pendingSessions ||
+            pendingRoutines
+          }
+        />
 
         {pendingWeekSchedule ? (
           <WeekStripSkeleton />
@@ -319,14 +329,30 @@ export function TodayScreen() {
           label="Edit your schedule"
           onPress={() => router.push("/schedule")}
         />
+        {(pendingSessions ||
+          pendingRoutines ||
+          pendingTodaySchedule ||
+          showStartWorkoutBotton) && (
+          <View className="mb-md" style={{ height: startButtonHeight }} />
+        )}
       </ScrollView>
       {pendingSessions || pendingRoutines || pendingTodaySchedule ? (
-        <View className="absolute bottom-md left-lg right-lg">
+        <View
+          className="absolute bottom-md left-lg right-lg"
+          onLayout={(event) =>
+            setStartButtonHeight(event.nativeEvent.layout.height)
+          }
+        >
           <Skeleton className="h-14 w-full rounded-md" />
         </View>
       ) : (
         showStartWorkoutBotton && (
-          <View className="absolute bottom-md left-lg right-lg">
+          <View
+            className="absolute bottom-md left-lg right-lg"
+            onLayout={(event) =>
+              setStartButtonHeight(event.nativeEvent.layout.height)
+            }
+          >
             <Button
               variant="primary"
               label={
