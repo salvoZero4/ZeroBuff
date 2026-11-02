@@ -1,7 +1,7 @@
 import { getRoutine } from "@/features/routines/api/routines";
 import type { RoutineRead } from "@/features/routines/types/routine";
 import { queryClient } from "@/shared/api/queryClient";
-import { ApiError } from "@/shared/api/errors";
+import { ApiError, NetworkError } from "@/shared/api/errors";
 import {
   createSession,
   createSetLogApi,
@@ -11,7 +11,10 @@ import {
   updateSession,
   updateSetLogApi,
 } from "@/features/workout/api/session";
-import type { SessionDetailRead, SessionRead } from "@/features/workout/types/session";
+import type {
+  SessionDetailRead,
+  SessionRead,
+} from "@/features/workout/types/session";
 import {
   clearActiveWorkout,
   getActiveWorkout,
@@ -19,6 +22,7 @@ import {
   setActiveWorkout,
   setSessionBackendId,
   updateLocalSetLog,
+  setWorkoutFinishing,
   type ActiveSetLog,
   type ActiveWorkoutSession,
 } from "@/features/workout/store/activeWorkoutStore";
@@ -47,15 +51,48 @@ export function parseSetInputValues(
   repsStr: string,
   rirStr: string,
 ) {
-  const parsedWeight = Number.parseFloat(weightStr.replace(",", "."));
-  const weightNum = Math.max(
-    0.1,
-    Number.isFinite(parsedWeight) ? parsedWeight : 0.1,
-  );
-  const repsNum = Math.max(1, Number.parseInt(repsStr, 10) || 1);
-  const rirNum = rirStr.trim() !== "" ? Number.parseInt(rirStr, 10) : null;
-
+  const weightNum = Number(weightStr.trim().replace(",", "."));
+  const repsNum = Number(repsStr.trim());
+  const rirNum = rirStr.trim() === "" ? null : Number(rirStr.trim());
+  if (!weightStr.trim() || !Number.isFinite(weightNum) || weightNum <= 0) {
+    throw new Error("Enter a weight greater than 0 kg.");
+  }
+  if (!repsStr.trim() || !Number.isInteger(repsNum) || repsNum <= 0) {
+    throw new Error("Enter a whole number of reps greater than 0.");
+  }
+  if (
+    rirNum !== null &&
+    (!Number.isInteger(rirNum) || rirNum < 0 || rirNum > 10)
+  ) {
+    throw new Error("RIR must be a whole number from 0 to 10.");
+  }
   return { weightNum, repsNum, rirNum };
+}
+
+export function workoutErrorMessage(error: unknown): string {
+  if (error instanceof NetworkError)
+    return "Connection lost. Check your connection and retry.";
+  if (error instanceof ApiError) {
+    if (error.status === 429)
+      return "Too many requests. Try again in a minute.";
+    if (error.status === 403) return "Not allowed to change this workout.";
+    if (error.status === 404)
+      return "This workout or set is no longer available.";
+    if (error.status >= 500) return "The server is unavailable. Please retry.";
+  }
+  return error instanceof Error
+    ? error.message
+    : "Could not save. Please retry.";
+}
+
+function invalidateWorkout(sessionId: string | null, exerciseId?: string) {
+  void queryClient.invalidateQueries({ queryKey: ["sessions"] });
+  if (sessionId)
+    void queryClient.invalidateQueries({ queryKey: ["session", sessionId] });
+  if (exerciseId)
+    void queryClient.invalidateQueries({
+      queryKey: ["exerciseStats", exerciseId],
+    });
 }
 
 let sessionCreationPromise: Promise<string | null> | null = null;
@@ -64,7 +101,36 @@ async function ensureSessionId(): Promise<string | null> {
   const session = getActiveWorkout();
   if (session?.sessionId) return session.sessionId;
   if (sessionCreationPromise) return await sessionCreationPromise;
-  return null;
+  if (!session) return null;
+  sessionCreationPromise = createSession({
+    routine_id: session.routineId,
+    started_at: new Date(session.startedAtTimestamp).toISOString(),
+  })
+    .then((created) => {
+      if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
+        setSessionBackendId(created.id);
+      return created.id;
+    })
+    .catch(async (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        const ongoing = (await getSessions({ limit: 100 })).find(
+          (s) => s.status !== "completed",
+        );
+        if (ongoing?.routine_id === session.routineId) {
+          if (
+            getActiveWorkout()?.startedAtTimestamp ===
+            session.startedAtTimestamp
+          )
+            setSessionBackendId(ongoing.id);
+          return ongoing.id;
+        }
+      }
+      throw error;
+    })
+    .finally(() => {
+      sessionCreationPromise = null;
+    });
+  return sessionCreationPromise;
 }
 
 /**
@@ -200,7 +266,8 @@ export async function initOrResumeWorkout(
     started_at: new Date(now).toISOString(),
   })
     .then((sessionRes) => {
-      setSessionBackendId(sessionRes.id);
+      if (getActiveWorkout()?.startedAtTimestamp === now)
+        setSessionBackendId(sessionRes.id);
       return sessionRes.id;
     })
     .catch(async (err) => {
@@ -220,36 +287,105 @@ export async function initOrResumeWorkout(
   return getActiveWorkout();
 }
 
-export async function logSetCompleted(exerciseId: string, setIndex: number) {
+/** Serialize each row, keep failed drafts, and reconcile uncertain writes before retrying. */
+async function saveSet(exerciseId: string, setIndex: number, deleting = false) {
   const session = getActiveWorkout();
-  if (!session) return;
-
-  const currentSet = session.workoutLogs[exerciseId]?.[setIndex];
-  if (!currentSet) return;
-
-  // Optimistic update locale
-  updateLocalSetLog(exerciseId, setIndex, { completed: true });
-
-  const { weightNum, repsNum, rirNum } = parseSetInputValues(
-    currentSet.weight,
-    currentSet.reps,
-    currentSet.rir,
-  );
-
-  const sessionId = await ensureSessionId();
-  if (sessionId) {
-    try {
-      const res = await createSetLogApi(sessionId, exerciseId, {
-        set_number: currentSet.setNumber,
-        weight: weightNum,
-        reps: repsNum,
-        rir: rirNum,
-      });
-      updateLocalSetLog(exerciseId, setIndex, { backendId: res.id });
-    } catch (err) {
-      console.error("Failed to log set to server:", err);
+  const before = session?.workoutLogs[exerciseId]?.[setIndex];
+  if (
+    !session ||
+    !before ||
+    session.isFinishing ||
+    before.saveStatus === "pending"
+  )
+    return;
+  const sameSession = () =>
+    getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp;
+  const patch = (changes: Partial<ActiveSetLog>) => {
+    if (sameSession()) updateLocalSetLog(exerciseId, setIndex, changes);
+  };
+  let sessionId = session.sessionId;
+  let backendId = before.backendId?.startsWith("tmp-")
+    ? undefined
+    : before.backendId;
+  let writeAttempted = false;
+  patch({ saveStatus: "pending", saveError: undefined, touched: true });
+  try {
+    const values = deleting
+      ? null
+      : parseSetInputValues(before.weight, before.reps, before.rir);
+    sessionId = await ensureSessionId();
+    if (!sessionId || !sameSession())
+      throw new Error("Workout is not connected to the server. Please retry.");
+    // The server may have committed a previous request whose response was lost.
+    if (before.needsReconcile || !backendId) {
+      const detail = await getSessionDetails(sessionId);
+      const existing = detail.sets.find(
+        (set) =>
+          set.exercise_id === exerciseId && set.set_number === before.setNumber,
+      );
+      backendId = existing?.id;
     }
+    if (deleting) {
+      if (backendId) {
+        writeAttempted = true;
+        await deleteSetLogApi(sessionId, backendId);
+      }
+      patch({
+        backendId: undefined,
+        completed: false,
+        saveStatus: undefined,
+        retryAction: undefined,
+        needsReconcile: false,
+      });
+    } else {
+      const payload = {
+        weight: values!.weightNum,
+        reps: values!.repsNum,
+        rir: values!.rirNum,
+      };
+      const temporaryId =
+        "tmp-" +
+        "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+          const n = Math.floor(Math.random() * 16);
+          return (c === "x" ? n : (n & 3) | 8).toString(16);
+        });
+      patch({ completed: true, backendId: backendId ?? temporaryId });
+      writeAttempted = true;
+      const saved = backendId
+        ? await updateSetLogApi(sessionId, backendId, payload)
+        : await createSetLogApi(sessionId, exerciseId, {
+            ...payload,
+            set_number: before.setNumber,
+          });
+      patch({
+        backendId: saved.id,
+        completed: true,
+        saveStatus: "saved",
+        retryAction: undefined,
+        needsReconcile: false,
+      });
+    }
+  } catch (error) {
+    patch({
+      backendId,
+      completed: before.completed,
+      saveStatus: "error",
+      saveError: workoutErrorMessage(error),
+      retryAction: deleting ? "delete" : "save",
+      needsReconcile: before.needsReconcile || writeAttempted,
+    });
+  } finally {
+    invalidateWorkout(sessionId, exerciseId);
   }
+}
+
+export async function logSetCompleted(exerciseId: string, setIndex: number) {
+  return saveSet(exerciseId, setIndex);
+}
+
+export async function retrySetLog(exerciseId: string, setIndex: number) {
+  const set = getActiveWorkout()?.workoutLogs[exerciseId]?.[setIndex];
+  return saveSet(exerciseId, setIndex, set?.retryAction === "delete");
 }
 
 export async function updateOrDeleteSetLog(
@@ -257,52 +393,10 @@ export async function updateOrDeleteSetLog(
   setIndex: number,
   changes: Partial<ActiveSetLog>,
 ) {
-  const session = getActiveWorkout();
-  if (!session) return;
-
-  const currentSet = session.workoutLogs[exerciseId]?.[setIndex];
-  if (!currentSet) return;
-
-  updateLocalSetLog(exerciseId, setIndex, { ...changes, touched: true });
-
-  const sessionId = await ensureSessionId();
-  if (!sessionId) return;
-
-  // Deselezione -> DELETE
-  if (changes.completed === false && currentSet.backendId) {
-    try {
-      await deleteSetLogApi(sessionId, currentSet.backendId);
-      updateLocalSetLog(exerciseId, setIndex, { backendId: undefined });
-    } catch (err) {
-      console.error("Failed to delete set log:", err);
-    }
-    return;
-  }
-
-  // Modifica valori -> PATCH
-  const updatedSet = { ...currentSet, ...changes };
-  if (
-    updatedSet.backendId &&
-    (changes.weight !== undefined ||
-      changes.reps !== undefined ||
-      changes.rir !== undefined)
-  ) {
-    try {
-      const { weightNum, repsNum, rirNum } = parseSetInputValues(
-        updatedSet.weight,
-        updatedSet.reps,
-        updatedSet.rir,
-      );
-
-      await updateSetLogApi(sessionId, updatedSet.backendId, {
-        weight: changes.weight !== undefined ? weightNum : undefined,
-        reps: changes.reps !== undefined ? repsNum : undefined,
-        rir: changes.rir !== undefined ? rirNum : undefined,
-      });
-    } catch (err) {
-      console.error("Failed to update set log:", err);
-    }
-  }
+  const set = getActiveWorkout()?.workoutLogs[exerciseId]?.[setIndex];
+  if (!set) return;
+  if (changes.completed === false) return saveSet(exerciseId, setIndex, true);
+  if (set.saveStatus === "dirty") return saveSet(exerciseId, setIndex);
 }
 
 export async function removeSetFromExercise(
@@ -310,54 +404,66 @@ export async function removeSetFromExercise(
   setIndex: number,
 ): Promise<boolean> {
   const session = getActiveWorkout();
-  if (!session) return false;
-
-  const sets = session.workoutLogs[exerciseId] ?? [];
-  const currentSet = sets[setIndex];
-  if (!currentSet) return false;
-
-  // Only the last set can be removed: deleting a middle set would leave a gap
-  // in set_number on the server (and on the "last session" comparison).
-  if (setIndex !== sets.length - 1) return false;
-  // Always keep at least one set per exercise.
-  if (sets.length <= 1) return false;
-
-  if (currentSet.backendId) {
-    const sessionId = await ensureSessionId();
-    if (!sessionId) return false;
-
-    try {
-      await deleteSetLogApi(sessionId, currentSet.backendId);
-    } catch (err) {
-      // Keep the local set if the server deletion failed: no orphan logs.
-      console.error("Failed to delete set log:", err);
-      return false;
-    }
-  }
-
+  const sets = session?.workoutLogs[exerciseId] ?? [];
+  const set = sets[setIndex];
+  if (
+    !session ||
+    session.isFinishing ||
+    !set ||
+    set.saveStatus === "pending" ||
+    set.needsReconcile ||
+    set.backendId
+  )
+    return false;
+  if (setIndex !== sets.length - 1 || sets.length <= 1) return false;
   removeLocalSetFromExercise(exerciseId, setIndex);
   return true;
 }
 
-export async function finishWorkoutSession() {
-  const sessionId = await ensureSessionId();
-  if (sessionId) {
-    try {
-      const updated = await updateSession(sessionId, {
-        status: "completed",
-        ended_at: new Date().toISOString(),
-      });
-
-      // Hide the "Resume" CTA immediately, before the refetch completes
-      queryClient.setQueryData<SessionRead[]>(["sessions"], (old) =>
-        old?.map((s) => (s.id === updated.id ? updated : s)),
-      );
-
-      await queryClient.invalidateQueries({ queryKey: ["sessions"] });
-    } catch (err) {
-      console.error("Failed to complete session on server:", err);
-    }
+export async function finishWorkoutSession(): Promise<boolean> {
+  const session = getActiveWorkout();
+  if (!session || session.isFinishing) return false;
+  const sets = Object.values(session.workoutLogs).flat();
+  if (sets.some((set) => set.saveStatus === "pending"))
+    throw new Error("Wait for your sets to finish saving.");
+  if (
+    sets.some(
+      (set) =>
+        set.saveStatus === "error" ||
+        set.saveStatus === "dirty" ||
+        set.needsReconcile,
+    )
+  ) {
+    throw new Error(
+      "Save or retry the highlighted sets before finishing your workout.",
+    );
   }
-
-  clearActiveWorkout();
+  setWorkoutFinishing(true);
+  let sessionId = session.sessionId;
+  try {
+    sessionId = await ensureSessionId();
+    if (!sessionId)
+      throw new Error("Workout is not connected to the server. Please retry.");
+    if (getActiveWorkout()?.startedAtTimestamp !== session.startedAtTimestamp)
+      return false;
+    // Makes a retry safe when the previous finish succeeded but its response was lost.
+    const detail = await getSessionDetails(sessionId);
+    const updated =
+      detail.status === "completed"
+        ? detail
+        : await updateSession(sessionId, {
+            status: "completed",
+            ended_at: new Date().toISOString(),
+          });
+    queryClient.setQueryData<SessionRead[]>(["sessions"], (old) =>
+      old?.map((s) => (s.id === updated.id ? updated : s)),
+    );
+    if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
+      clearActiveWorkout();
+    return true;
+  } finally {
+    if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
+      setWorkoutFinishing(false);
+    invalidateWorkout(sessionId);
+  }
 }

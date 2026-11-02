@@ -9,6 +9,7 @@ type ConfirmModalProps = {
   cancelLabel?: string;
   confirmVariant?: ButtonVariant;
   isDestructive?: boolean;
+  isPending?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -21,6 +22,7 @@ export function ConfirmModal({
   cancelLabel = "Cancel",
   confirmVariant = "primary",
   isDestructive = false,
+  isPending = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
@@ -29,7 +31,9 @@ export function ConfirmModal({
   return (
     <Modal
       animationType="fade"
-      onRequestClose={onCancel}
+      onRequestClose={() => {
+        if (!isPending) onCancel();
+      }}
       transparent
       visible={visible}
     >
@@ -38,6 +42,7 @@ export function ConfirmModal({
           accessibilityLabel="Dismiss confirmation"
           accessibilityRole="button"
           className="absolute inset-0"
+          disabled={isPending}
           onPress={onCancel}
         />
 
@@ -58,10 +63,16 @@ export function ConfirmModal({
             <Button
               variant={resolvedVariant}
               label={confirmLabel}
+              disabled={isPending}
               onPress={onConfirm}
             />
 
-            <Button variant="outline" label={cancelLabel} onPress={onCancel} />
+            <Button
+              disabled={isPending}
+              variant="outline"
+              label={cancelLabel}
+              onPress={onCancel}
+            />
           </View>
         </View>
       </View>

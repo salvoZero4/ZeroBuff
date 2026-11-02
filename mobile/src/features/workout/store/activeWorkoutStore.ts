@@ -3,6 +3,10 @@ import { calculateWorkoutDurationSeconds } from "@/features/workout/utils/workou
 
 export type ActiveSetLog = {
   backendId?: string;
+  saveStatus?: "pending" | "saved" | "error" | "dirty";
+  saveError?: string;
+  retryAction?: "save" | "delete";
+  needsReconcile?: boolean;
   setNumber: number;
   weight: string;
   reps: string;
@@ -14,6 +18,7 @@ export type ActiveSetLog = {
 };
 
 export type ActiveWorkoutSession = {
+  isFinishing?: boolean;
   sessionId: string | null;
   routineId: string;
   routineName: string;
@@ -165,4 +170,29 @@ export function removeLocalSetFromExercise(
 export function clearActiveWorkout() {
   activeSession = null;
   notify();
+}
+
+export function setWorkoutFinishing(isFinishing: boolean) {
+  if (!activeSession) return;
+  activeSession = { ...activeSession, isFinishing };
+  notify();
+}
+
+export function editSetLog(
+  exerciseId: string,
+  setIndex: number,
+  changes: Partial<ActiveSetLog>,
+) {
+  const set = activeSession?.workoutLogs[exerciseId]?.[setIndex];
+  if (!set || activeSession?.isFinishing || set.saveStatus === "pending")
+    return;
+  updateLocalSetLog(exerciseId, setIndex, {
+    ...changes,
+    touched: true,
+    saveStatus:
+      set.backendId || set.saveStatus === "error" || set.saveStatus === "dirty"
+        ? "dirty"
+        : undefined,
+    saveError: undefined,
+  });
 }

@@ -19,3 +19,7 @@ mobile/eas.json
 .DS_Store
 *.pem
 
+./agents/*
+
+# Codex skills
+/.agents/skills/

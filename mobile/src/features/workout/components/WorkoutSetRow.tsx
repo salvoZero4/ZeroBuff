@@ -1,13 +1,7 @@
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 
-export type ActiveSetLog = {
-  setNumber: number;
-  weight: string;
-  reps: string;
-  rir: string; // opzionale
-  completed: boolean;
-};
+import type { ActiveSetLog } from "@/features/workout/store/activeWorkoutStore";
 
 export type PreviousSet = {
   weight: number;
@@ -22,6 +16,9 @@ type WorkoutSetRowProps = {
   onUpdate: (changes: Partial<ActiveSetLog>) => void;
   onToggleComplete: () => void;
   onRemove?: () => void;
+  onSave: () => void;
+  onRetry: () => void;
+  disabled?: boolean;
 };
 
 function formatValue(value: number): string {
@@ -35,7 +32,11 @@ export function WorkoutSetRow({
   onUpdate,
   onToggleComplete,
   onRemove,
+  onSave,
+  onRetry,
+  disabled = false,
 }: WorkoutSetRowProps) {
+  const pending = disabled || set.saveStatus === "pending";
   const prevWeight = previousSet?.weight ?? null;
   const prevReps = previousSet?.reps ?? null;
   const weightNum = Number.parseFloat(set.weight.replace(",", "."));
@@ -91,13 +92,14 @@ export function WorkoutSetRow({
         <Text className="font-numeric-bold text-lg text-text-primary">
           Set {set.setNumber}
         </Text>
-        <View className="h-10 w-10 items-center justify-center">
+        <View className="h-12 w-12 items-center justify-center">
           {isLast && onRemove && !set.completed ? (
             <Pressable
               accessibilityLabel={`Remove set ${set.setNumber}`}
               accessibilityRole="button"
+              disabled={pending || set.needsReconcile}
               onPress={onRemove}
-              className="h-10 w-10 items-center justify-center rounded-sm border border-danger/40 bg-danger/10 active:bg-danger/20"
+              className="h-12 w-12 items-center justify-center rounded-sm border border-danger/40 bg-danger/10 active:bg-danger/20"
             >
               <Icon name="trash" size={16} className="text-danger" />
             </Pressable>
@@ -114,6 +116,8 @@ export function WorkoutSetRow({
           </Text>
           <View className="flex-row items-end rounded-sm border border-border bg-surface-raised px-xs">
             <TextInput
+              editable={!pending}
+              onBlur={onSave}
               accessibilityLabel={`Set ${set.setNumber} weight`}
               keyboardType="decimal-pad"
               value={set.weight}
@@ -135,6 +139,8 @@ export function WorkoutSetRow({
           </Text>
           <View className="flex-row items-end rounded-sm border border-border bg-surface-raised px-xs">
             <TextInput
+              editable={!pending}
+              onBlur={onSave}
               accessibilityLabel={`Set ${set.setNumber} reps`}
               keyboardType="number-pad"
               value={set.reps}
@@ -156,6 +162,8 @@ export function WorkoutSetRow({
           </Text>
           <View className="flex-row items-end rounded-sm border border-border bg-surface-raised px-xs">
             <TextInput
+              editable={!pending}
+              onBlur={onSave}
               accessibilityLabel={`Set ${set.setNumber} RIR`}
               keyboardType="number-pad"
               value={set.rir}
@@ -222,9 +230,14 @@ export function WorkoutSetRow({
               : `Mark set ${set.setNumber} as done`
           }
           accessibilityRole="checkbox"
-          accessibilityState={{ checked: set.completed }}
+          accessibilityState={{
+            checked: set.completed,
+            disabled: pending,
+            busy: pending,
+          }}
+          disabled={pending}
           onPress={onToggleComplete}
-          className={`h-10 w-10 items-center justify-center rounded-md border-2 ${
+          className={`h-12 w-12 items-center justify-center rounded-md border-2 ${
             set.completed
               ? "border-accent bg-accent"
               : "border-text-secondary bg-transparent"
@@ -234,6 +247,31 @@ export function WorkoutSetRow({
             <Icon name="check" size={24} className="text-on-accent" />
           ) : null}
         </Pressable>
+      </View>
+      <View accessibilityLiveRegion="polite" className="gap-xs">
+        <Text className="font-body text-caption text-text-secondary">
+          {set.saveStatus === "pending"
+            ? "Saving…"
+            : set.saveStatus === "error"
+              ? set.saveError
+              : set.saveStatus === "dirty"
+                ? "Unsaved changes"
+                : set.completed && set.backendId
+                  ? "Saved"
+                  : "Not logged"}
+        </Text>
+        {set.saveStatus === "error" || set.saveStatus === "dirty" ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={pending}
+            onPress={set.saveStatus === "error" ? onRetry : onSave}
+            className="min-h-12 items-center justify-center rounded-sm border border-border"
+          >
+            <Text className="font-body-semibold text-body text-text-primary">
+              {set.saveStatus === "error" ? "Retry" : "Save changes"}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

@@ -9,6 +9,7 @@ import {
   type ScrollViewInstance,
 } from "react-native";
 import { router } from "expo-router";
+import { useNetInfo } from "@react-native-community/netinfo";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -33,6 +34,7 @@ import {
   setCurrentExerciseIndex,
   addLocalSetToExercise,
   updateLocalSetLog,
+  editSetLog,
   getActiveWorkoutDurationSeconds,
 } from "@/features/workout/store/activeWorkoutStore";
 import {
@@ -41,6 +43,8 @@ import {
   updateOrDeleteSetLog,
   removeSetFromExercise,
   finishWorkoutSession,
+  retrySetLog,
+  workoutErrorMessage,
 } from "@/features/workout/utils/workout";
 
 type WorkoutScreenProp = {
@@ -78,6 +82,9 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   });
 
   const session = useActiveWorkout();
+  const network = useNetInfo();
+  const [finishError, setFinishError] = useState<string | null>(null);
+  const finishingRef = useRef(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
@@ -227,7 +234,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   }
 
   function handleAddSet() {
-    if (addingSetRef.current) return;
+    if (session?.isFinishing || addingSetRef.current) return;
     addingSetRef.current = true;
     const newIndex = activeExerciseLogs.length;
     addLocalSetToExercise(ex.exercise_id, ex.reps);
@@ -253,9 +260,19 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   }
 
   async function confirmFinish() {
-    setShowFinishModal(false);
-    router.replace("/(tabs)");
-    await finishWorkoutSession();
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setFinishError(null);
+    try {
+      if (await finishWorkoutSession()) {
+        setShowFinishModal(false);
+        router.replace("/(tabs)");
+      }
+    } catch (error) {
+      setFinishError(workoutErrorMessage(error));
+    } finally {
+      finishingRef.current = false;
+    }
   }
 
   function handleBackToToday() {
@@ -281,6 +298,19 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         onFinish={() => setShowFinishModal(true)}
       />
 
+      {network.isConnected === false ||
+      network.isInternetReachable === false ? (
+        <View
+          accessibilityLiveRegion="polite"
+          className="bg-surface px-lg py-sm"
+        >
+          <Text className="font-body text-caption text-text-secondary">
+            You are offline. Reconnect to save your sets and finish this
+            workout.
+          </Text>
+        </View>
+      ) : null}
+
       <KeyboardAwareScrollView
         className="flex-1"
         contentContainerClassName="gap-lg p-lg"
@@ -304,7 +334,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           {routine.exercises.map((exItem, idx) => {
             const logs = session.workoutLogs[exItem.exercise_id] ?? [];
             const isCompleted =
-              logs.length > 0 && logs.every((s) => s.completed);
+              logs.length > 0 &&
+              logs.every(
+                (s) =>
+                  s.completed &&
+                  s.backendId &&
+                  (!s.saveStatus || s.saveStatus === "saved"),
+              );
             return (
               <ExerciseStepPill
                 key={exItem.exercise_id}
@@ -364,10 +400,17 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               >
                 <WorkoutSetRow
                   set={setLog}
+                  disabled={session.isFinishing}
+                  onSave={() => {
+                    void updateOrDeleteSetLog(ex.exercise_id, setIdx, {});
+                  }}
+                  onRetry={() => {
+                    void retrySetLog(ex.exercise_id, setIdx);
+                  }}
                   previousSet={getPreviousSet(setLog.setNumber)}
                   isLast={setIdx === activeExerciseLogs.length - 1}
                   onUpdate={(changes) =>
-                    updateOrDeleteSetLog(ex.exercise_id, setIdx, changes)
+                    editSetLog(ex.exercise_id, setIdx, changes)
                   }
                   onToggleComplete={() => handleToggleComplete(setIdx)}
                   onRemove={
@@ -434,8 +477,18 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       <ConfirmModal
         visible={showFinishModal}
         title="Finish workout"
-        description="Are you sure you want to end and save this training session?"
-        confirmLabel="Finish & Save"
+        description={
+          finishError ??
+          "Are you sure you want to end and save this training session?"
+        }
+        confirmLabel={
+          session.isFinishing
+            ? "Saving…"
+            : finishError
+              ? "Retry"
+              : "Finish & Save"
+        }
+        isPending={session.isFinishing}
         cancelLabel="Keep training"
         onConfirm={confirmFinish}
         onCancel={() => setShowFinishModal(false)}
