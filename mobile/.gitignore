@@ -44,3 +44,5 @@ example
 
 #build
 eas.json
+
+/.agents
