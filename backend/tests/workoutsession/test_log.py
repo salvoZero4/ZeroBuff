@@ -54,6 +54,17 @@ class TestCreateSetLog:
         assert data["weight"] == 80.5
         assert data["rir"] == 2
 
+    def test_create_bodyweight_set_log(self, authenticated_client, session: Session):
+        exercise = self.create_exercise(session)
+        session_id = self.create_ongoing_session(authenticated_client)
+        response = authenticated_client.post(
+            f"/v1/session/{session_id}/log/{exercise.id}",
+            json={"set_number": 1, "reps": 12, "weight": 0, "rir": 0},
+        )
+        assert response.status_code == 201
+        assert response.json()["weight"] == 0
+        assert response.json()["reps"] == 12
+
     def test_create_set_log_without_rir(self, authenticated_client, session: Session):
         exercise = self.create_exercise(session)
         session_id = self.create_ongoing_session(authenticated_client)

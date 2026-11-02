@@ -1,4 +1,11 @@
-import { Pressable, Text, TextInput, View } from "react-native";
+import { isSetSaved, WEIGHT_UNIT } from "@/features/workout/utils/experience";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { Icon } from "@/components/ui/Icon";
 
 import type { ActiveSetLog } from "@/features/workout/store/activeWorkoutStore";
@@ -19,6 +26,8 @@ type WorkoutSetRowProps = {
   onSave: () => void;
   onRetry: () => void;
   disabled?: boolean;
+  totalSets?: number;
+  onInteract?: () => void;
 };
 
 function formatValue(value: number): string {
@@ -35,7 +44,10 @@ export function WorkoutSetRow({
   onSave,
   onRetry,
   disabled = false,
+  totalSets,
+  onInteract,
 }: WorkoutSetRowProps) {
+  const saved = isSetSaved(set);
   const pending = disabled || set.saveStatus === "pending";
   const prevWeight = previousSet?.weight ?? null;
   const prevReps = previousSet?.reps ?? null;
@@ -46,6 +58,7 @@ export function WorkoutSetRow({
 
   let trend: "up" | "down" | "equal" | null = null;
   if (
+    saved &&
     prevWeight !== null &&
     prevReps !== null &&
     Number.isFinite(weightNum) &&
@@ -81,198 +94,151 @@ export function WorkoutSetRow({
 
   return (
     <View
-      className={`w-full self-center flex-col gap-sm rounded-lg border p-lg ${
-        set.completed
-          ? "border-accent/30 bg-surface-raised"
-          : "border-border bg-surface"
-      }`}
+      className={`w-full gap-sm rounded-lg border p-lg ${set.completed ? "border-accent/30 bg-surface-raised" : "border-border bg-surface"}`}
     >
-      {/* Header: set number + fixed-size slot (keeps every card the same height) */}
-      <View className="flex-row justify-between items-start">
+      <View className="min-h-12 flex-row flex-wrap items-center justify-between gap-sm">
         <Text className="font-numeric-bold text-lg text-text-primary">
           Set {set.setNumber}
+          {totalSets ? ` of ${totalSets}` : ""}
         </Text>
-        <View className="h-12 w-12 items-center justify-center">
-          {isLast && onRemove && !set.completed ? (
-            <Pressable
-              accessibilityLabel={`Remove set ${set.setNumber}`}
-              accessibilityRole="button"
-              disabled={pending || set.needsReconcile}
-              onPress={onRemove}
-              className="h-12 w-12 items-center justify-center rounded-sm border border-danger/40 bg-danger/10 active:bg-danger/20"
-            >
-              <Icon name="trash" size={16} className="text-danger" />
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-
-      {/* Weight, Reps and RIR on the same row */}
-      <View className="flex-row gap-xs">
-        {/* Weight */}
-        <View className="flex-1 min-w-0">
-          <Text className="text-caption text-text-secondary uppercase tracking-wider">
-            Weight
-          </Text>
-          <View className="flex-row items-end rounded-sm border border-border bg-surface-raised px-xs">
-            <TextInput
-              editable={!pending}
-              onBlur={onSave}
-              accessibilityLabel={`Set ${set.setNumber} weight`}
-              keyboardType="decimal-pad"
-              value={set.weight}
-              placeholder="0"
-              placeholderTextColor="#737373"
-              onChangeText={(weight) => onUpdate({ weight })}
-              className="flex-1 min-w-0 min-h-14 text-center font-numeric text-2xl text-text-primary"
-            />
-            <Text className="font-body text-base text-text-secondary mr-xs">
-              kg
-            </Text>
-          </View>
-        </View>
-
-        {/* Reps */}
-        <View className="flex-1 min-w-0">
-          <Text className="text-caption text-text-secondary uppercase tracking-wider">
-            Reps
-          </Text>
-          <View className="flex-row items-end rounded-sm border border-border bg-surface-raised px-xs">
-            <TextInput
-              editable={!pending}
-              onBlur={onSave}
-              accessibilityLabel={`Set ${set.setNumber} reps`}
-              keyboardType="number-pad"
-              value={set.reps}
-              placeholder="0"
-              placeholderTextColor="#737373"
-              onChangeText={(reps) => onUpdate({ reps })}
-              className="flex-1 min-w-0 min-h-14 text-center font-numeric text-2xl text-text-primary"
-            />
-            <Text className="font-body text-base text-text-secondary mr-xs">
-              reps
-            </Text>
-          </View>
-        </View>
-
-        {/* RIR */}
-        <View className="w-20">
-          <Text className="text-caption text-text-secondary uppercase tracking-wider">
-            RIR
-          </Text>
-          <View className="flex-row items-end rounded-sm border border-border bg-surface-raised px-xs">
-            <TextInput
-              editable={!pending}
-              onBlur={onSave}
-              accessibilityLabel={`Set ${set.setNumber} RIR`}
-              keyboardType="number-pad"
-              value={set.rir}
-              placeholder="-"
-              placeholderTextColor="#737373"
-              onChangeText={(rir) => onUpdate({ rir })}
-              className="flex-1 min-w-0 min-h-14 text-center font-numeric text-lg text-text-primary"
-            />
-            <Text className="font-body text-caption text-text-secondary mr-xs">
-              rir
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Last session table left, checkbox right */}
-      <View className="flex-row items-center justify-between gap-sm py-lg">
-        <View className="flex-1 min-w-0">
-          <View className="flex-row items-center gap-xs">
-            <Text className="text-caption text-text-secondary uppercase tracking-wider">
-              Last session
-            </Text>
-            {previousSet ? (
-              <Icon name={trendIcon} size={14} className={trendStyle} />
-            ) : null}
-          </View>
-          {previousSet ? (
-            <View className="mt-xs">
-              <View className="flex-row">
-                <Text className="flex-1 text-caption text-text-secondary uppercase tracking-wider">
-                  Weight
-                </Text>
-                <Text className="flex-1 text-caption text-text-secondary uppercase tracking-wider">
-                  Reps
-                </Text>
-                <Text className="flex-1 text-caption text-text-secondary uppercase tracking-wider">
-                  Volume
-                </Text>
-              </View>
-              <View className="flex-row">
-                <Text className={`flex-1 font-numeric text-base ${trendStyle}`}>
-                  {formatValue(previousSet.weight)} kg
-                </Text>
-                <Text className={`flex-1 font-numeric text-base ${trendStyle}`}>
-                  {previousSet.reps}
-                </Text>
-                <Text className={`flex-1 font-numeric text-base ${trendStyle}`}>
-                  {formatValue(previousSet.weight * previousSet.reps)} kg
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <Text className="font-numeric text-base text-text-secondary">
-              —
-            </Text>
-          )}
-        </View>
-
-        {/* Checkbox */}
-        <Pressable
-          accessibilityLabel={
-            set.completed
-              ? `Unmark set ${set.setNumber} as done`
-              : `Mark set ${set.setNumber} as done`
-          }
-          accessibilityRole="checkbox"
-          accessibilityState={{
-            checked: set.completed,
-            disabled: pending,
-            busy: pending,
-          }}
-          disabled={pending}
-          onPress={onToggleComplete}
-          className={`h-12 w-12 items-center justify-center rounded-md border-2 ${
-            set.completed
-              ? "border-accent bg-accent"
-              : "border-text-secondary bg-transparent"
-          }`}
+        <Text
+          accessibilityLiveRegion="polite"
+          className="font-body text-caption text-text-secondary"
         >
-          {set.completed ? (
-            <Icon name="check" size={24} className="text-on-accent" />
-          ) : null}
-        </Pressable>
-      </View>
-      <View accessibilityLiveRegion="polite" className="gap-xs">
-        <Text className="font-body text-caption text-text-secondary">
           {set.saveStatus === "pending"
             ? "Saving…"
-            : set.saveStatus === "error"
-              ? set.saveError
-              : set.saveStatus === "dirty"
-                ? "Unsaved changes"
-                : set.completed && set.backendId
-                  ? "Saved"
-                  : "Not logged"}
+            : set.saveStatus === "dirty"
+              ? "Unsaved changes"
+              : saved
+                ? "Saved"
+                : ""}
         </Text>
-        {set.saveStatus === "error" || set.saveStatus === "dirty" ? (
+        {isLast && onRemove ? (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={`Remove set ${set.setNumber}`}
             disabled={pending}
-            onPress={set.saveStatus === "error" ? onRetry : onSave}
-            className="min-h-12 items-center justify-center rounded-sm border border-border"
+            onPress={onRemove}
+            className="min-h-12 flex-row items-center justify-center gap-xs px-sm"
           >
-            <Text className="font-body-semibold text-body text-text-primary">
-              {set.saveStatus === "error" ? "Retry" : "Save changes"}
+            <Icon name="trash" size={14} className="text-danger" />
+            <Text className="font-body text-caption text-danger">
+              Remove set
             </Text>
           </Pressable>
         ) : null}
       </View>
+
+      <View className="flex-row items-end gap-sm">
+        <View className="flex-1 gap-xs">
+          <Text className="font-body text-caption text-text-secondary">
+            Weight · {WEIGHT_UNIT}
+          </Text>
+          <TextInput
+            accessibilityLabel={`Set ${set.setNumber} weight`}
+            keyboardType="decimal-pad"
+            editable={!pending}
+            value={set.weight}
+            placeholder="0"
+            onFocus={onInteract}
+            onChangeText={(weight) => onUpdate({ weight })}
+            onBlur={onSave}
+            className="min-h-16 rounded-sm border border-border bg-surface-raised px-sm text-center font-numeric-bold text-4xl text-text-primary"
+          />
+        </View>
+        <View className="flex-1 gap-xs">
+          <Text className="font-body text-caption text-text-secondary">
+            Reps
+          </Text>
+          <TextInput
+            accessibilityLabel={`Set ${set.setNumber} reps`}
+            keyboardType="number-pad"
+            editable={!pending}
+            value={set.reps}
+            placeholder="0"
+            onFocus={onInteract}
+            onChangeText={(reps) => onUpdate({ reps })}
+            onBlur={onSave}
+            className="min-h-16 rounded-sm border border-border bg-surface-raised px-sm text-center font-numeric-bold text-4xl text-text-primary"
+          />
+        </View>
+        <View className="gap-xs">
+          <Text className="font-body text-caption text-text-secondary">
+            Done
+          </Text>
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityLabel={
+              set.completed
+                ? `Unmark set ${set.setNumber} as done`
+                : `Mark set ${set.setNumber} as done`
+            }
+            accessibilityState={{
+              checked: saved,
+              disabled: pending,
+              busy: pending,
+            }}
+            disabled={pending}
+            onPress={onToggleComplete}
+            className={`h-16 w-14 items-center justify-center rounded-sm border ${saved ? "border-accent bg-accent" : "border-border bg-surface-raised"}`}
+          >
+            {set.saveStatus === "pending" ? (
+              <ActivityIndicator accessibilityLabel="Saving set" />
+            ) : saved ? (
+              <Icon name="check" size={22} className="text-on-accent" />
+            ) : null}
+          </Pressable>
+        </View>
+      </View>
+
+      <View className="flex-row items-center gap-md">
+        <View className="flex-1 flex-row flex-wrap items-center gap-xs">
+          <Text className="font-body text-caption text-text-secondary">
+            Previous
+          </Text>
+          <Text className="font-numeric text-body text-text-secondary">
+            {previousSet
+              ? `${formatValue(previousSet.weight)} ${WEIGHT_UNIT} × ${previousSet.reps}`
+              : "—"}
+          </Text>
+          {previousSet && saved ? (
+            <Icon name={trendIcon} size={12} className={trendStyle} />
+          ) : null}
+        </View>
+        <Text className="font-body text-caption text-text-secondary">RIR</Text>
+        <TextInput
+          accessibilityLabel={`Set ${set.setNumber} RIR (optional)`}
+          keyboardType="number-pad"
+          editable={!pending}
+          value={set.rir}
+          placeholder="—"
+          onFocus={onInteract}
+          onChangeText={(rir) => onUpdate({ rir })}
+          onBlur={onSave}
+          className="min-h-12 w-12 rounded-sm border border-border bg-surface-raised text-center font-numeric text-xl text-text-primary"
+        />
+      </View>
+
+      {set.saveStatus === "error" ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          className="font-body text-caption text-danger"
+        >
+          {set.saveError}
+        </Text>
+      ) : null}
+      {set.saveStatus === "error" || set.saveStatus === "dirty" ? (
+        <Pressable
+          accessibilityRole="button"
+          disabled={pending}
+          onPress={set.saveStatus === "error" ? onRetry : onSave}
+          className="min-h-12 items-center justify-center rounded-sm border border-border"
+        >
+          <Text className="font-body-semibold text-body text-text-primary">
+            {set.saveStatus === "error" ? "Retry" : "Save changes"}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

@@ -22,7 +22,7 @@ class SessionRead(BaseModel):
 class SetLogCreate(BaseModel):
     set_number: int = Field(gt=0, description="The set number must be greater than 0.")
     reps: int = Field(gt=0, description="The number of reps must be greater than 0.")
-    weight: float = Field(gt=0, description="The weight must be greater than 0.")
+    weight: float = Field(ge=0, description="The added weight must be 0 or greater.")
     rir: int | None = Field(
         default=None,
         ge=0,

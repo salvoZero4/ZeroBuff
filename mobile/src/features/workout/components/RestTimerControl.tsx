@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
-import { AppState, Pressable, Text, View } from "react-native";
+import { AppState, Pressable, Switch, Text, View } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 
 type RestTimerControlProps = {
   defaultSeconds: number;
+  targetEndTimestamp: number | null;
+  onTargetChange: (value: number | null) => void;
+  autoRestEnabled: boolean;
+  onToggleAutoRest: () => void;
 };
 
-export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
-  const [targetEndTimestamp, setTargetEndTimestamp] = useState<number | null>(
-    null,
-  );
+export function RestTimerControl({
+  defaultSeconds,
+  targetEndTimestamp,
+  onTargetChange,
+  autoRestEnabled,
+  onToggleAutoRest,
+}: RestTimerControlProps) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
@@ -23,8 +30,7 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
       const diff = Math.ceil((targetEndTimestamp - now) / 1000);
 
       if (diff <= 0) {
-        setTargetEndTimestamp(null);
-        setSecondsLeft(null);
+        setSecondsLeft(0);
       } else {
         setSecondsLeft(diff);
       }
@@ -47,20 +53,16 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
 
   function startTimer(seconds?: number) {
     const duration = seconds ?? (defaultSeconds > 0 ? defaultSeconds : 90);
-    setTargetEndTimestamp(Date.now() + duration * 1000);
+    onTargetChange(Date.now() + duration * 1000);
   }
 
   function adjustTime(amountSeconds: number) {
     if (!targetEndTimestamp) return;
-    setTargetEndTimestamp((prev) => {
-      if (!prev) return null;
-      const newTarget = prev + amountSeconds * 1000;
-      return newTarget > Date.now() ? newTarget : Date.now();
-    });
+    onTargetChange(targetEndTimestamp + amountSeconds * 1000);
   }
 
   function stopTimer() {
-    setTargetEndTimestamp(null);
+    onTargetChange(null);
     setSecondsLeft(null);
   }
 
@@ -71,59 +73,76 @@ export function RestTimerControl({ defaultSeconds }: RestTimerControlProps) {
   const timeFormatted = `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 
   return (
-    <View className="items-center justify-center gap-md rounded-md border border-border bg-surface p-lg">
-      <Text className="font-body text-caption uppercase tracking-wider text-text-secondary">
-        {isRunning ? "Resting" : "Target Rest"}
+    <View className="items-center gap-sm py-md">
+      <Text
+        accessibilityLiveRegion="polite"
+        className="font-body text-body text-text-secondary"
+      >
+        {isRunning
+          ? "Resting"
+          : secondsLeft === 0
+            ? "Rest complete"
+            : "Rest timer"}
       </Text>
       <Text
-        className={`font-numeric-bold text-4xl tracking-wider ${
-          isRunning ? "text-accent" : "text-text-primary"
-        }`}
+        accessibilityLabel={`${mins} minutes ${secs} seconds`}
+        className="font-numeric-bold text-8xl text-text-primary"
       >
         {timeFormatted}
       </Text>
-      {isRunning ? (
-        <View className="flex-row items-center gap-md pt-xs">
+      <View className="flex-row items-center justify-center gap-lg">
+        {isRunning ? (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Remove 15 seconds"
             onPress={() => adjustTime(-15)}
-            className="min-h-12 min-w-16 items-center justify-center rounded-sm border border-border bg-surface-raised active:bg-surface"
+            className="min-h-12 min-w-16 items-center justify-center rounded-sm border border-border"
           >
-            <Text className="font-numeric-bold text-body text-text-secondary">
-              -15s
+            <Text className="font-numeric text-body text-text-secondary">
+              −15s
             </Text>
           </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isRunning ? "Skip rest" : "Start rest"}
+          onPress={isRunning ? stopTimer : () => startTimer()}
+          className="min-h-12 min-w-24 flex-row items-center justify-center gap-sm rounded-sm border border-border px-lg"
+        >
+          <Icon
+            name={isRunning ? "xmark" : "play"}
+            size={14}
+            className="text-text-primary"
+          />
+          <Text className="font-body-semibold text-body text-text-primary">
+            {isRunning ? "Skip" : "Start"}
+          </Text>
+        </Pressable>
+        {isRunning ? (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Add 30 seconds"
             onPress={() => adjustTime(30)}
-            className="min-h-12 min-w-16 items-center justify-center rounded-sm border border-border bg-surface-raised active:bg-surface"
+            className="min-h-12 min-w-16 items-center justify-center rounded-sm border border-border"
           >
-            <Text className="font-numeric-bold text-body text-text-primary">
+            <Text className="font-numeric text-body text-text-secondary">
               +30s
             </Text>
           </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={stopTimer}
-            className="min-h-12 min-w-20 items-center justify-center rounded-sm bg-danger/20 active:bg-danger/30"
-          >
-            <Text className="font-body-semibold text-body text-danger">
-              Stop
-            </Text>
-          </Pressable>
+        ) : null}
+      </View>
+      <View className="min-h-12 flex-row items-center gap-sm">
+        <Text className="font-body text-caption text-text-secondary">
+          Auto rest
+        </Text>
+        <View className="min-h-12 min-w-12 items-center justify-center">
+          <Switch
+            accessibilityLabel="Automatically start rest after saving a set"
+            value={autoRestEnabled}
+            onValueChange={onToggleAutoRest}
+          />
         </View>
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => startTimer()}
-          className="min-h-12 flex-row items-center justify-center gap-sm rounded-sm bg-accent px-xl active:bg-accent-pressed"
-        >
-          <Icon name="play" size={14} className="text-on-accent" />
-          <Text className="font-body-bold text-body text-on-accent">
-            Start rest
-          </Text>
-        </Pressable>
-      )}
+      </View>
     </View>
   );
 }

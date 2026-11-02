@@ -23,6 +23,7 @@ import {
   setSessionBackendId,
   updateLocalSetLog,
   setWorkoutFinishing,
+  setWorkoutRestEndTimestamp,
   type ActiveSetLog,
   type ActiveWorkoutSession,
 } from "@/features/workout/store/activeWorkoutStore";
@@ -54,8 +55,8 @@ export function parseSetInputValues(
   const weightNum = Number(weightStr.trim().replace(",", "."));
   const repsNum = Number(repsStr.trim());
   const rirNum = rirStr.trim() === "" ? null : Number(rirStr.trim());
-  if (!weightStr.trim() || !Number.isFinite(weightNum) || weightNum <= 0) {
-    throw new Error("Enter a weight greater than 0 kg.");
+  if (!weightStr.trim() || !Number.isFinite(weightNum) || weightNum < 0) {
+    throw new Error("Enter a weight of 0 kg or more.");
   }
   if (!repsStr.trim() || !Number.isInteger(repsNum) || repsNum <= 0) {
     throw new Error("Enter a whole number of reps greater than 0.");
@@ -379,8 +380,31 @@ async function saveSet(exerciseId: string, setIndex: number, deleting = false) {
   }
 }
 
-export async function logSetCompleted(exerciseId: string, setIndex: number) {
-  return saveSet(exerciseId, setIndex);
+export async function logSetCompleted(
+  exerciseId: string,
+  setIndex: number,
+  restSeconds = 90,
+) {
+  const original = getActiveWorkout();
+  const before = original?.workoutLogs[exerciseId]?.[setIndex];
+  if (
+    !original ||
+    !before ||
+    before.saveStatus === "pending" ||
+    before.completed
+  )
+    return;
+  await saveSet(exerciseId, setIndex);
+  const session = getActiveWorkout();
+  const saved = session?.workoutLogs[exerciseId]?.[setIndex];
+  if (
+    session?.startedAtTimestamp === original.startedAtTimestamp &&
+    saved?.saveStatus === "saved" &&
+    (session.autoRestEnabled ?? true) &&
+    restSeconds > 0
+  ) {
+    setWorkoutRestEndTimestamp(Date.now() + restSeconds * 1000);
+  }
 }
 
 export async function retrySetLog(exerciseId: string, setIndex: number) {
@@ -411,11 +435,44 @@ export async function removeSetFromExercise(
     session.isFinishing ||
     !set ||
     set.saveStatus === "pending" ||
-    set.needsReconcile ||
-    set.backendId
+    setIndex !== sets.length - 1 ||
+    sets.length <= 1
   )
     return false;
-  if (setIndex !== sets.length - 1 || sets.length <= 1) return false;
+  if (set.backendId || set.needsReconcile) {
+    updateLocalSetLog(exerciseId, setIndex, { saveStatus: "pending" });
+    try {
+      const sessionId = session.sessionId ?? (await ensureSessionId());
+      if (!sessionId)
+        throw new Error("Workout is not connected to the server.");
+      let backendId = set.backendId;
+      if (set.needsReconcile) {
+        const detail = await getSessionDetails(sessionId);
+        backendId = detail.sets.find(
+          (log) =>
+            log.exercise_id === exerciseId && log.set_number === set.setNumber,
+        )?.id;
+      }
+      if (backendId) {
+        try {
+          await deleteSetLogApi(sessionId, backendId);
+        } catch (error) {
+          if (!(error instanceof ApiError && error.status === 404)) throw error;
+        }
+      }
+    } catch (error) {
+      if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
+        updateLocalSetLog(exerciseId, setIndex, {
+          ...set,
+          saveStatus: set.saveStatus,
+        });
+      throw error;
+    } finally {
+      invalidateWorkout(session.sessionId, exerciseId);
+    }
+  }
+  if (getActiveWorkout()?.startedAtTimestamp !== session.startedAtTimestamp)
+    return false;
   removeLocalSetFromExercise(exerciseId, setIndex);
   return true;
 }

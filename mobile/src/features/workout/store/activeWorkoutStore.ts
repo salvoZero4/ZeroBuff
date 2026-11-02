@@ -19,6 +19,8 @@ export type ActiveSetLog = {
 
 export type ActiveWorkoutSession = {
   isFinishing?: boolean;
+  autoRestEnabled?: boolean;
+  restEndTimestamp?: number | null;
   sessionId: string | null;
   routineId: string;
   routineName: string;
@@ -195,4 +197,23 @@ export function editSetLog(
         : undefined,
     saveError: undefined,
   });
+}
+
+export function setWorkoutRestEndTimestamp(restEndTimestamp: number | null) {
+  if (!activeSession) return;
+  activeSession = { ...activeSession, restEndTimestamp };
+  notify();
+}
+
+export function toggleAutoRest() {
+  if (!activeSession) return;
+  activeSession = {
+    ...activeSession,
+    autoRestEnabled: !(activeSession.autoRestEnabled ?? true),
+  };
+  notify();
+}
+
+export function pauseWorkout() {
+  if (activeSession && !activeSession.isPaused) toggleWorkoutPause();
 }

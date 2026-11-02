@@ -17,13 +17,13 @@ export function ExerciseStepPill({
   onPress,
 }: ExerciseStepPillProps) {
   const containerStyle = isActive
-    ? "border-accent bg-accent"
+    ? "border-accent/40 bg-surface-raised"
     : isCompleted
       ? "border-accent/40 bg-surface-raised"
       : "border-border bg-surface";
 
   const textStyle = isActive
-    ? "text-on-accent"
+    ? "text-text-primary"
     : isCompleted
       ? "text-accent"
       : "text-text-secondary";
@@ -34,7 +34,7 @@ export function ExerciseStepPill({
       accessibilityRole="button"
       accessibilityState={{ selected: isActive }}
       onPress={onPress}
-      className={`min-h-10 flex-row items-center gap-xs rounded-full border px-md ${containerStyle}`}
+      className={`min-h-12 flex-row items-center gap-xs rounded-full border px-md ${containerStyle}`}
     >
       {isCompleted && !isActive ? (
         <Icon name="check" size={12} className="text-accent" />

@@ -1,8 +1,16 @@
+import { WorkoutSummaryScreen } from "@/features/workout/components/WorkoutSummaryScreen";
+import {
+  summarizeWorkout,
+  isSetSaved,
+  nextSetAfterSave,
+  type WorkoutSummary,
+} from "@/features/workout/utils/experience";
 import { WorkoutSkeleton } from "@/features/workout/components/WorkoutSkeleton";
 import { ScreenError } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
+  Keyboard,
   Pressable,
   ScrollView,
   Text,
@@ -33,11 +41,15 @@ import { SessionHeader } from "@/features/workout/components/SessionHeader";
 import {
   useActiveWorkout,
   toggleWorkoutPause,
+  pauseWorkout,
   setCurrentExerciseIndex,
   addLocalSetToExercise,
   updateLocalSetLog,
   editSetLog,
   getActiveWorkoutDurationSeconds,
+  getActiveWorkout,
+  setWorkoutRestEndTimestamp,
+  toggleAutoRest,
 } from "@/features/workout/store/activeWorkoutStore";
 import {
   initOrResumeWorkout,
@@ -88,6 +100,12 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
   const session = useActiveWorkout();
   const network = useNetInfo();
+  const [summary, setSummary] = useState<WorkoutSummary | null>(null);
+  const previousSetsRef = useRef<
+    Record<string, { weight: number; reps: number }[]>
+  >({});
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const [finishError, setFinishError] = useState<string | null>(null);
   const finishingRef = useRef(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
@@ -98,6 +116,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   const [setCardHeight, setSetCardHeight] = useState(0);
   const setsScrollRef = useRef<ScrollViewInstance>(null);
   const addingSetRef = useRef(false);
+  const interactionEpoch = useRef(0);
   const pagerContentWidthRef = useRef(0);
   const insets = useSafeAreaInsets();
 
@@ -117,10 +136,11 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   }, [exerciseStats, session?.sessionId]);
 
   useEffect(() => {
-    if (!session || session.isPaused) return;
+    if (!session) return;
     const initialUpdate = setTimeout(() => {
       setDurationSeconds(getActiveWorkoutDurationSeconds());
     }, 0);
+    if (session.isPaused) return () => clearTimeout(initialUpdate);
     const interval = setInterval(() => {
       setDurationSeconds(getActiveWorkoutDurationSeconds());
     }, 1000);
@@ -163,6 +183,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     });
   }, [previousSessions, session, activeExercise]);
 
+  useEffect(() => {
+    if (activeExercise && previousSessions[0]) {
+      previousSetsRef.current[activeExercise.exercise_id] =
+        previousSessions[0].sets;
+    }
+  }, [activeExercise, previousSessions]);
+
   const getPreviousSet = useCallback(
     (setNumber: number): PreviousSet | null => {
       for (const s of previousSessions) {
@@ -181,6 +208,8 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   );
 
   function selectExercise(index: number) {
+    interactionEpoch.current++;
+    Keyboard.dismiss();
     setCurrentSetIndex(0);
     // Re-selecting the current exercise does not remount its pager.
     if (index === session?.currentExerciseIndex) {
@@ -190,6 +219,14 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     pagerContentWidthRef.current = 0;
     setCurrentExerciseIndex(index);
   }
+
+  if (summary)
+    return (
+      <WorkoutSummaryScreen
+        summary={summary}
+        onDone={() => router.replace("/(tabs)")}
+      />
+    );
 
   if (isError || !routineId)
     return (
@@ -223,30 +260,58 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   const isLastExercise =
     session.currentExerciseIndex === routine.exercises.length - 1;
 
-  function handleToggleComplete(setIndex: number) {
-    const current = activeExerciseLogs[setIndex];
-    if (!current) return;
-    if (!current.completed) {
-      logSetCompleted(ex.exercise_id, setIndex);
-    } else {
-      updateOrDeleteSetLog(ex.exercise_id, setIndex, {
-        completed: false,
-      });
+  async function completeAndAdvance(setIndex: number, retry = false) {
+    const snapshot = getActiveWorkout();
+    const epoch = interactionEpoch.current;
+    if (retry) await retrySetLog(ex.exercise_id, setIndex);
+    else await logSetCompleted(ex.exercise_id, setIndex, ex.rest_time);
+    const latest = getActiveWorkout();
+    const next = nextSetAfterSave(
+      snapshot,
+      latest,
+      ex.exercise_id,
+      setIndex,
+      epoch !== interactionEpoch.current,
+    );
+    if (next >= 0) {
+      Keyboard.dismiss();
+      setCurrentSetIndex(next);
+      setsScrollRef.current?.scrollTo({ x: pageWidth * next, animated: true });
     }
   }
 
+  function handleToggleComplete(setIndex: number) {
+    const current = activeExerciseLogs[setIndex];
+    if (!current || current.saveStatus === "pending") return;
+    if (!current.completed) void completeAndAdvance(setIndex);
+    else
+      void updateOrDeleteSetLog(ex.exercise_id, setIndex, { completed: false });
+  }
+
   async function handleRemoveLastSet() {
+    const snapshot = getActiveWorkout();
     const lastIndex = activeExerciseLogs.length - 1;
-    const current = activeExerciseLogs[lastIndex];
-    if (!current || current.completed) return;
-    const removed = await removeSetFromExercise(ex.exercise_id, lastIndex);
-    if (!removed) return;
-    const nextIndex = Math.max(0, lastIndex - 1);
-    setCurrentSetIndex(nextIndex);
-    setsScrollRef.current?.scrollTo({
-      x: pageWidth * nextIndex,
-      animated: true,
-    });
+    setRemoveError(null);
+    try {
+      const removed = await removeSetFromExercise(ex.exercise_id, lastIndex);
+      if (
+        !removed ||
+        getActiveWorkout()?.startedAtTimestamp !==
+          snapshot?.startedAtTimestamp ||
+        getActiveWorkout()?.currentExerciseIndex !==
+          session!.currentExerciseIndex
+      )
+        return;
+      setShowRemoveModal(false);
+      const nextIndex = Math.max(0, lastIndex - 1);
+      setCurrentSetIndex(nextIndex);
+      setsScrollRef.current?.scrollTo({
+        x: pageWidth * nextIndex,
+        animated: true,
+      });
+    } catch (error) {
+      setRemoveError(workoutErrorMessage(error));
+    }
   }
 
   function handleAddSet() {
@@ -263,8 +328,20 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   function handleSetsScrollEnd(e: {
     nativeEvent: { contentOffset: { x: number } };
   }) {
-    if (pageWidth <= 0) return;
-    const index = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
+    if (
+      pageWidth <= 0 ||
+      routine?.exercises[getActiveWorkout()?.currentExerciseIndex ?? 0]
+        ?.exercise_id !== ex.exercise_id
+    )
+      return;
+    const index = Math.max(
+      0,
+      Math.min(
+        activeExerciseLogs.length,
+        Math.round(e.nativeEvent.contentOffset.x / pageWidth),
+      ),
+    );
+    interactionEpoch.current++;
     if (index >= activeExerciseLogs.length) {
       handleAddSet();
       return;
@@ -280,9 +357,14 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     finishingRef.current = true;
     setFinishError(null);
     try {
+      const snapshot = getActiveWorkout();
+      const duration = getActiveWorkoutDurationSeconds();
       if (await finishWorkoutSession()) {
+        if (snapshot)
+          setSummary(
+            summarizeWorkout(snapshot, duration, previousSetsRef.current),
+          );
         setShowFinishModal(false);
-        router.replace("/(tabs)");
       }
     } catch (error) {
       setFinishError(workoutErrorMessage(error));
@@ -292,7 +374,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   }
 
   function handleBackToToday() {
-    toggleWorkoutPause();
+    pauseWorkout();
     router.replace("/(tabs)");
   }
 
@@ -330,7 +412,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       <KeyboardAwareScrollView
         className="flex-1"
         contentContainerClassName="gap-lg p-lg"
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
+        contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         mode="layout"
         bottomOffset={80}
@@ -371,145 +453,183 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         </ScrollView>
 
         {/* Info Esercizio */}
-        <View className="gap-xs">
-          <Text className="font-body-bold text-title text-text-primary">
+        <View className="flex-row items-center gap-md">
+          <Text className="flex-1 font-body-semibold text-xl text-text-primary">
             {ex.name}
           </Text>
           <Text className="font-body text-caption text-text-secondary">
-            Exercise {session.currentExerciseIndex + 1} of{" "}
-            {routine.exercises.length}
+            {session.currentExerciseIndex + 1} / {routine.exercises.length}
           </Text>
         </View>
 
-        {/* Timer Riposo */}
-        <RestTimerControl defaultSeconds={ex.rest_time} />
+        <View className="flex-1 justify-center gap-lg">
+          {/* Timer Riposo */}
+          <RestTimerControl
+            defaultSeconds={ex.rest_time}
+            targetEndTimestamp={session.restEndTimestamp ?? null}
+            onTargetChange={setWorkoutRestEndTimestamp}
+            autoRestEnabled={session.autoRestEnabled ?? true}
+            onToggleAutoRest={toggleAutoRest}
+          />
 
-        {/* Carosello Set */}
-        <ScrollView
-          key={`${ex.exercise_id}:${pageWidth}`}
-          ref={setsScrollRef}
-          horizontal
-          pagingEnabled
-          snapToInterval={pageWidth}
-          snapToAlignment="start"
-          decelerationRate="fast"
-          disableIntervalMomentum
-          onContentSizeChange={(width) => {
-            if (width === pagerContentWidthRef.current) return;
-            pagerContentWidthRef.current = width;
-            setsScrollRef.current?.scrollTo({
-              x:
-                pageWidth *
-                Math.min(currentSetIndex, activeExerciseLogs.length - 1),
-              animated: false,
-            });
-          }}
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          keyboardShouldPersistTaps="handled"
-          onMomentumScrollEnd={handleSetsScrollEnd}
-          onLayout={(e) => {
-            const width = e.nativeEvent.layout.width;
-            if (width > 0 && width !== pageWidth) {
-              pagerContentWidthRef.current = 0;
-              setPageWidth(width);
-            }
-          }}
-        >
-          {activeExerciseLogs.map((setLog, setIdx) => (
+          {/* Carosello Set */}
+          <ScrollView
+            key={`${ex.exercise_id}:${pageWidth}`}
+            ref={setsScrollRef}
+            horizontal
+            pagingEnabled
+            snapToInterval={pageWidth}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            disableIntervalMomentum
+            onContentSizeChange={(width) => {
+              if (width === pagerContentWidthRef.current) return;
+              pagerContentWidthRef.current = width;
+              setsScrollRef.current?.scrollTo({
+                x:
+                  pageWidth *
+                  Math.min(currentSetIndex, activeExerciseLogs.length),
+                animated: false,
+              });
+            }}
+            showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0 }}
+            keyboardShouldPersistTaps="handled"
+            onMomentumScrollEnd={handleSetsScrollEnd}
+            onLayout={(e) => {
+              const width = e.nativeEvent.layout.width;
+              if (width > 0 && width !== pageWidth) {
+                pagerContentWidthRef.current = 0;
+                setPageWidth(width);
+              }
+            }}
+          >
+            {activeExerciseLogs.map((setLog, setIdx) => (
+              <View
+                key={setLog.setNumber}
+                style={{ width: pageWidth }}
+                className="items-center justify-center"
+              >
+                <View
+                  className="w-full"
+                  onLayout={
+                    setIdx === 0
+                      ? (e) => {
+                          const height = Math.round(
+                            e.nativeEvent.layout.height,
+                          );
+                          if (height > 0 && height !== setCardHeight) {
+                            setSetCardHeight(height);
+                          }
+                        }
+                      : undefined
+                  }
+                >
+                  <WorkoutSetRow
+                    set={setLog}
+                    totalSets={activeExerciseLogs.length}
+                    onInteract={() => {
+                      interactionEpoch.current++;
+                    }}
+                    disabled={session.isFinishing}
+                    onSave={() => {
+                      void updateOrDeleteSetLog(ex.exercise_id, setIdx, {});
+                    }}
+                    onRetry={() => {
+                      void completeAndAdvance(setIdx, true);
+                    }}
+                    previousSet={getPreviousSet(setLog.setNumber)}
+                    isLast={setIdx === activeExerciseLogs.length - 1}
+                    onUpdate={(changes) => {
+                      interactionEpoch.current++;
+                      editSetLog(ex.exercise_id, setIdx, changes);
+                    }}
+                    onToggleComplete={() => handleToggleComplete(setIdx)}
+                    onRemove={
+                      activeExerciseLogs.length > 1
+                        ? handleRemoveLastSet
+                        : undefined
+                    }
+                  />
+                </View>
+              </View>
+            ))}
+
+            {/* Card aggiungi set */}
             <View
-              key={setLog.setNumber}
               style={{ width: pageWidth }}
               className="items-center justify-center"
             >
-              <View
-                className="w-full"
-                onLayout={
-                  setIdx === 0
-                    ? (e) => {
-                        const height = Math.round(e.nativeEvent.layout.height);
-                        if (height > 0 && height !== setCardHeight) {
-                          setSetCardHeight(height);
-                        }
-                      }
-                    : undefined
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Add set"
+                onPress={handleAddSet}
+                style={
+                  setCardHeight > 0 ? { minHeight: setCardHeight } : undefined
                 }
+                className="w-full items-center justify-center gap-sm rounded-lg border border-dashed border-border bg-surface active:bg-surface-raised"
               >
-                <WorkoutSetRow
-                  set={setLog}
-                  disabled={session.isFinishing}
-                  onSave={() => {
-                    void updateOrDeleteSetLog(ex.exercise_id, setIdx, {});
-                  }}
-                  onRetry={() => {
-                    void retrySetLog(ex.exercise_id, setIdx);
-                  }}
-                  previousSet={getPreviousSet(setLog.setNumber)}
-                  isLast={setIdx === activeExerciseLogs.length - 1}
-                  onUpdate={(changes) =>
-                    editSetLog(ex.exercise_id, setIdx, changes)
-                  }
-                  onToggleComplete={() => handleToggleComplete(setIdx)}
-                  onRemove={
-                    activeExerciseLogs.length > 1
-                      ? handleRemoveLastSet
-                      : undefined
-                  }
-                />
-              </View>
+                <Icon name="plus" size={28} className="text-text-secondary" />
+                <Text className="font-body-semibold text-body text-text-secondary">
+                  Add set
+                </Text>
+                <Text className="font-body text-caption text-text-secondary">
+                  Swipe here to add the next set
+                </Text>
+              </Pressable>
             </View>
-          ))}
+          </ScrollView>
 
-          {/* Card aggiungi set */}
-          <View
-            style={{ width: pageWidth }}
-            className="items-center justify-center"
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add set"
-              onPress={handleAddSet}
-              style={
-                setCardHeight > 0 ? { minHeight: setCardHeight } : undefined
-              }
-              className="w-full items-center justify-center gap-sm rounded-lg border border-dashed border-border bg-surface active:bg-surface-raised"
+          <View className="flex-row items-center justify-end gap-sm">
+            <Text
+              accessibilityLiveRegion="polite"
+              className="font-body text-caption text-text-secondary"
             >
-              <Icon name="plus" size={28} className="text-text-secondary" />
-              <Text className="font-body-semibold text-body text-text-secondary">
-                Add set
-              </Text>
-              <Text className="font-body text-caption text-text-secondary">
-                Swipe here to add the next set
-              </Text>
-            </Pressable>
+              {activeExerciseLogs.filter(isSetSaved).length} of{" "}
+              {activeExerciseLogs.length} saved
+            </Text>
           </View>
-        </ScrollView>
 
-        {/* Indicatori Pagine */}
-        {activeExerciseLogs.length > 1 ? (
-          <View className="flex-row justify-center gap-xs">
-            {activeExerciseLogs.map((setLog, idx) => (
-              <View
-                key={setLog.setNumber}
-                className={`h-1.5 rounded-full ${
-                  idx === currentSetIndex ? "w-4 bg-accent" : "w-1.5 bg-border"
-                }`}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {/* Pulsante Avanzamento */}
+          {removeError ? (
+            <Text
+              accessibilityLiveRegion="polite"
+              className="font-body text-caption text-danger"
+            >
+              Could not remove the set. {removeError}
+            </Text>
+          ) : null}
+        </View>
+      </KeyboardAwareScrollView>
+      <View
+        className="bg-bg px-lg pt-sm"
+        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+      >
         <Pressable
           accessibilityRole="button"
           onPress={handleNextExercise}
-          className="w-[92%] self-center min-h-14 rounded-md bg-accent active:bg-accent-pressed flex-row items-center justify-center gap-sm"
+          className="w-full min-h-14 items-center justify-center rounded-md bg-accent active:bg-accent-pressed"
         >
-          <Text className="font-body-bold text-lg text-on-accent">
+          <Text className="font-body-semibold text-body text-on-accent">
             {isLastExercise ? "Complete workout" : "Next exercise"}
           </Text>
         </Pressable>
-      </KeyboardAwareScrollView>
+      </View>
+
+      <ConfirmModal
+        visible={showRemoveModal}
+        title="Remove saved set?"
+        description={
+          removeError ??
+          "This removes the last set and its saved performance from this workout."
+        }
+        confirmLabel="Remove set"
+        isDestructive
+        isPending={activeExerciseLogs.at(-1)?.saveStatus === "pending"}
+        onConfirm={() => {
+          void handleRemoveLastSet();
+        }}
+        onCancel={() => setShowRemoveModal(false)}
+      />
 
       <ConfirmModal
         visible={showFinishModal}
