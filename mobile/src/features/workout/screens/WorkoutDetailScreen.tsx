@@ -1,3 +1,4 @@
+import { sessionKeys } from "@/features/workout/api/queryKeys";
 import { ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +12,7 @@ import { loadErrorMessage } from "@/shared/api/loadError";
 export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
   const insets = useSafeAreaInsets();
   const { data, isPending, error, refetch, isFetching } = useQuery({
-    queryKey: ["sessions", sessionId],
+    queryKey: sessionKeys.detail(sessionId),
     queryFn: () => getSessionDetails(sessionId),
     enabled: !!sessionId,
   });

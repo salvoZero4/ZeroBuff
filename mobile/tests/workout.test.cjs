@@ -30,12 +30,16 @@ function setup(overrides = {}) {
   const cache = {};
   const stubs = {
     react: { useSyncExternalStore() {} },
+    "@/features/auth/store/tokenStore": { tokenStore: { getSessionScope: () => null } },
+    "@react-native-async-storage/async-storage": { __esModule: true, default: {
+      getItem: async () => null, setItem: async () => {}, removeItem: async () => {},
+    } },
     "@/features/routines/api/routines": {},
     "@/features/workout/api/session": api,
     "@/shared/api/queryClient": {
       queryClient: {
         invalidateQueries: async (key) => calls.push(["invalidate", key]),
-        setQueryData() {},
+        setQueriesData: (filters, updater) => calls.push(["setQueriesData", filters, updater]),
       },
     },
   };
@@ -609,4 +613,48 @@ test("rest intervals keep identity for adjustments and reject old native actions
   assert.equal(store.getActiveWorkout().restEndTimestamp, null);
   store.setWorkoutRestEndTimestamp(Date.now() + 90_000);
   assert.notEqual(store.getActiveWorkout().restTimerId, id);
+});
+
+
+test("saving a set refreshes session lists, its real detail key and exercise stats", async () => {
+  const t = setup();
+  await t.workout.logSetCompleted("exercise", 0);
+  const keys = t.calls.filter(([name]) => name === "invalidate").map(([, filters]) => filters.queryKey);
+  assert.ok(keys.some((key) => JSON.stringify(key) === '["sessions","list"]'));
+  assert.ok(keys.some((key) => JSON.stringify(key) === '["sessions","detail","session"]'));
+  assert.ok(keys.some((key) => JSON.stringify(key) === '["exercises","stats","exercise"]'));
+});
+
+test("finishing updates every cached session list without overwriting details", async () => {
+  const t = setup();
+  await t.workout.finishWorkoutSession();
+  const [, filters, updater] = t.calls.find(([name]) => name === "setQueriesData");
+  assert.deepEqual(filters, { queryKey: ["sessions", "list"] });
+  assert.equal(updater(undefined), undefined);
+  const other = { id: "other", status: "ongoing" };
+  const result = updater([{ id: "session", status: "ongoing" }, other]);
+  assert.equal(result[0].status, "completed");
+  assert.equal(result[1], other);
+});
+
+
+test("workout duration excludes paused time across pause and resume", (context) => {
+  let now = 1000;
+  context.mock.method(Date, "now", () => now);
+  const t = setup();
+  t.store.setActiveWorkout({
+    ...t.store.getActiveWorkout(),
+    startedAtTimestamp: now,
+    pausedAtTimestamp: null,
+    accumulatedPauseMs: 0,
+    isPaused: false,
+  });
+  now = 6200;
+  assert.equal(t.store.getActiveWorkoutDurationSeconds(), 5);
+  t.store.toggleWorkoutPause();
+  now = 17000;
+  assert.equal(t.store.getActiveWorkoutDurationSeconds(), 5);
+  t.store.toggleWorkoutPause();
+  now = 19000;
+  assert.equal(t.store.getActiveWorkoutDurationSeconds(), 7);
 });

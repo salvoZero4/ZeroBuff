@@ -1,11 +1,14 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { tokenStore } from "@/features/auth/store/tokenStore";
+import { WorkoutDraftStorage } from "../storage/workoutDraftStorage";
 import { useSyncExternalStore } from "react";
-import { calculateWorkoutDurationSeconds } from "@/features/workout/utils/workout";
+import { calculateWorkoutDurationSeconds } from "@/features/workout/utils/duration";
 
 export type ActiveSetLog = {
   backendId?: string;
   saveStatus?: "pending" | "saved" | "error" | "dirty";
   saveError?: string;
-  retryAction?: "save" | "delete";
+  retryAction?: "save" | "delete" | "remove";
   needsReconcile?: boolean;
   setNumber: number;
   weight: string;
@@ -37,9 +40,97 @@ export type ActiveWorkoutSession = {
 let activeSession: ActiveWorkoutSession | null = null;
 const listeners = new Set<() => void>();
 
-function notify() {
+const drafts = new WorkoutDraftStorage(AsyncStorage);
+let revision = 0;
+let hydratedScope: string | null = null;
+let storageScope: string | null = null;
+let hydration: {
+  scope: string;
+  promise: Promise<ActiveWorkoutSession | null>;
+} | null = null;
+let persistenceError: string | null = null;
+
+function reportPersistenceError(message: string | null) {
+  if (persistenceError === message) return;
+  persistenceError = message;
   listeners.forEach((listener) => listener());
 }
+
+function persist(scope: string, session: ActiveWorkoutSession | null) {
+  storageScope = scope;
+  return drafts.write(scope, session).then(
+    () => {
+      if (tokenStore.getSessionScope() === scope) reportPersistenceError(null);
+    },
+    () => {
+      if (tokenStore.getSessionScope() === scope)
+        reportPersistenceError(
+          "Changes couldn’t be backed up on this device. Keep the app open and try again.",
+        );
+    },
+  );
+}
+
+function notify() {
+  revision++;
+  const scope = tokenStore.getSessionScope();
+  if (scope) void persist(scope, activeSession);
+  listeners.forEach((listener) => listener());
+}
+
+export const getWorkoutPersistenceError = () => persistenceError;
+
+export function useWorkoutPersistenceError() {
+  return useSyncExternalStore(
+    subscribe,
+    getWorkoutPersistenceError,
+    () => null,
+  );
+}
+
+/** Read disk before server recovery; late reads must never overwrite a newer edit. */
+export async function restoreActiveWorkout(): Promise<ActiveWorkoutSession | null> {
+  const scope = tokenStore.getSessionScope();
+  if (!scope) return null;
+  if (hydratedScope === scope) return activeSession;
+  if (hydration?.scope === scope) return hydration.promise;
+  const before = revision;
+  const promise = drafts
+    .read(scope)
+    .then((saved) => {
+      if (tokenStore.getSessionScope() !== scope) return null;
+      hydratedScope = scope;
+      storageScope = scope;
+      if (revision === before) {
+        activeSession = saved;
+        // Persist normalized interrupted requests, too.
+        notify();
+      }
+      return activeSession;
+    })
+    .catch((error: unknown) => {
+      if (tokenStore.getSessionScope() === scope)
+        reportPersistenceError(
+          error instanceof Error
+            ? error.message
+            : "Your saved workout couldn’t be read. Please try again.",
+        );
+      throw error;
+    })
+    .finally(() => {
+      if (hydration?.promise === promise) hydration = null;
+    });
+  hydration = { scope, promise };
+  return promise;
+}
+
+export async function retryWorkoutPersistence() {
+  await restoreActiveWorkout();
+  const scope = tokenStore.getSessionScope();
+  if (scope) await persist(scope, activeSession);
+}
+
+export const flushWorkoutPersistence = () => drafts.flush();
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -171,8 +262,15 @@ export function removeLocalSetFromExercise(
 }
 
 export function clearActiveWorkout() {
+  const oldScope = storageScope;
   activeSession = null;
+  reportPersistenceError(null);
+  hydratedScope = tokenStore.getSessionScope();
   notify();
+  // Session expiry clears tokens before its callback. Still remove the old draft.
+  if (oldScope && oldScope !== tokenStore.getSessionScope())
+    void drafts.write(oldScope, null).catch(() => {});
+  storageScope = tokenStore.getSessionScope();
 }
 
 export function setWorkoutFinishing(isFinishing: boolean) {

@@ -1,3 +1,4 @@
+import { sessionKeys } from "@/features/workout/api/queryKeys";
 import { Button } from "@/components/ui/Button";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { SessionStatsSkeleton } from "./TodaySkeletons";
@@ -49,7 +50,7 @@ export function LastSessionCard({
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ["sessions", session?.id],
+    queryKey: sessionKeys.detail(session?.id),
     queryFn: () => getSessionDetails(session!.id),
     enabled: !!session?.id,
   });

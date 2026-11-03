@@ -1,3 +1,5 @@
+import { exerciseKeys } from "@/features/exercises/api/queryKeys";
+import { routineKeys } from "@/features/routines/api/queryKeys";
 import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
 import { WorkoutSummaryScreen } from "@/features/workout/components/WorkoutSummaryScreen";
 import {
@@ -42,6 +44,8 @@ import { RestTimerControl } from "@/features/workout/components/RestTimerControl
 import { SessionHeader } from "@/features/workout/components/SessionHeader";
 import {
   useActiveWorkout,
+  useWorkoutPersistenceError,
+  retryWorkoutPersistence,
   toggleWorkoutPause,
   pauseWorkout,
   setCurrentExerciseIndex,
@@ -95,12 +99,15 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ["routines", routineId],
+    queryKey: routineKeys.detail(routineId),
     queryFn: () => getRoutine(routineId ?? ""),
     enabled: !!routineId,
   });
 
   const session = useActiveWorkout();
+  const persistenceError = useWorkoutPersistenceError();
+  const [initError, setInitError] = useState(false);
+  const [initAttempt, setInitAttempt] = useState(0);
   const network = useNetInfo();
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const previousSetsRef = useRef<
@@ -125,7 +132,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   const activeExercise = routine?.exercises[session?.currentExerciseIndex ?? 0];
 
   const { data: exerciseStats } = useQuery({
-    queryKey: ["exerciseStats", activeExercise?.exercise_id],
+    queryKey: exerciseKeys.stats(activeExercise?.exercise_id),
     queryFn: () => getExerciseStats(activeExercise!.exercise_id),
     enabled: !!routine && !!session && !!activeExercise,
   });
@@ -148,18 +155,22 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   useEffect(() => {
     if (!routine) return;
     let cancelled = false;
-    initOrResumeWorkout(routine).then((active) => {
-      if (!cancelled && active && active.routineId !== routine.id) {
-        router.replace({
-          pathname: "/workout/[routineId]",
-          params: { routineId: active.routineId },
-        });
-      }
-    });
+    initOrResumeWorkout(routine)
+      .then((active) => {
+        if (!cancelled && active && active.routineId !== routine.id) {
+          router.replace({
+            pathname: "/workout/[routineId]",
+            params: { routineId: active.routineId },
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setInitError(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [routine]);
+  }, [routine, initAttempt]);
 
   useEffect(() => {
     if (!session || !activeExercise) return;
@@ -239,6 +250,21 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           void refetch();
         }}
         busy={isFetching}
+        onBack={() => router.replace("/(tabs)")}
+      />
+    );
+  if (initError)
+    return (
+      <ScreenError
+        title="Workout recovery couldn’t finish"
+        message={
+          persistenceError ??
+          "Your saved workout couldn’t be restored. Please try again."
+        }
+        onRetry={() => {
+          setInitError(false);
+          setInitAttempt((attempt) => attempt + 1);
+        }}
         onBack={() => router.replace("/(tabs)")}
       />
     );
@@ -423,6 +449,28 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             You are offline. Reconnect to save your sets and finish this
             workout.
           </Text>
+        </View>
+      ) : null}
+
+      {persistenceError ? (
+        <View
+          accessibilityLiveRegion="polite"
+          className="gap-xs bg-surface px-lg py-sm"
+        >
+          <Text className="font-body text-caption text-danger">
+            {persistenceError}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void retryWorkoutPersistence().catch(() => {});
+            }}
+            className="min-h-12 justify-center"
+          >
+            <Text className="font-body-medium text-caption text-text-primary">
+              Try again
+            </Text>
+          </Pressable>
         </View>
       ) : null}
 

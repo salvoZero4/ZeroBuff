@@ -1,3 +1,4 @@
+import { weightKeys } from "@/features/weight/api/queryKeys";
 import { useEffect, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -45,7 +46,7 @@ export function WeightLogModal({
       return await createWeight({ weight: value });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bodyWeight"] });
+      queryClient.invalidateQueries({ queryKey: weightKeys.all });
       onClose();
     },
     onError: (err) => {

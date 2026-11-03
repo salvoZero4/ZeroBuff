@@ -1,3 +1,6 @@
+import { routineKeys } from "@/features/routines/api/queryKeys";
+import { scheduleKeys } from "@/features/schedule/api/queryKeys";
+import { sessionKeys } from "@/features/workout/api/queryKeys";
 import { AnalyticsSkeleton } from "@/features/analytics/components/AnalyticsSkeleton";
 import { ScreenError } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
@@ -50,7 +53,7 @@ export function AnalyticsScreen() {
     refetch: refetchSessions,
     isRefetching,
   } = useQuery({
-    queryKey: ["sessions"],
+    queryKey: sessionKeys.list({ limit: 50 }),
     queryFn: () => getSessions({ limit: 50 }),
   });
 
@@ -61,7 +64,7 @@ export function AnalyticsScreen() {
     isPending: routinesPending,
     refetch: refetchRoutines,
   } = useQuery({
-    queryKey: ["routines"],
+    queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
   });
 
@@ -81,8 +84,8 @@ export function AnalyticsScreen() {
       }
 
       // Refresh the session history and today's schedule.
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
       setSessionToDelete(null);
     },
     onError: (error) => {

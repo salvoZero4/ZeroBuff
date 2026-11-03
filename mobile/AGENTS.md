@@ -1,6 +1,6 @@
 # ZeroBuff Mobile — AI Agent Directives & Architecture Rules
 
-Expo / React Native app for **ZeroBuff**, a science-based progressive overload strength training tracker. Backend: FastAPI (separate project). Priorities: mobile-first patterns, performance, gym-ready usability, and online reliability. The app is **online-only** (no offline sync, see §2).
+Expo / React Native app for **ZeroBuff**, a science-based progressive overload strength training tracker. Backend: FastAPI (separate project). Priorities: mobile-first patterns, performance, gym-ready usability, and online reliability. The app is **online-only** (no offline sync, see §2). Local active-workout snapshots are allowed for crash recovery.
 
 ---
 
@@ -138,6 +138,7 @@ Set logging (`POST /v1/session/{session_id}/log/{exercise_id}`) must update the 
 - Insert the set with a temporary id (`tmp-<uuid>`); on success replace it with the server id; on error roll back and show a retry.
 - **Race:** a row with a temporary id must not be editable or deletable until its `POST` resolves (a `PATCH`/`DELETE` would target an id the server does not know).
 - Always invalidate the session detail on `onSettled`.
+- Local active-workout snapshots in AsyncStorage are explicitly allowed for crash/memory-kill recovery (user decision, 2026-11-03). Restore them before server recovery; retain drafts, isolate login sessions, and reconcile interrupted writes only after an explicit user action. No automatic API replay or offline mutation queue.
 - No persisted mutation queue. Never claim a set is saved until the server confirmed it: show a subtle "pending" state while it is in flight. When offline, show a connection banner.
 
 ### 3.5 Error handling

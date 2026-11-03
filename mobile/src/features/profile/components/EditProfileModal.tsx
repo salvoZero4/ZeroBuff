@@ -1,3 +1,4 @@
+import { userKeys } from "@/features/profile/api/queryKeys";
 import { useMemo, useState } from "react";
 import {
   Modal,
@@ -156,7 +157,7 @@ export function EditProfileFieldModal({
   const { mutate: saveField, isPending } = useMutation({
     mutationFn: (payload: UserNewInfo) => updateCurrentUser(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+      queryClient.invalidateQueries({ queryKey: userKeys.me() });
       onClose();
     },
     onError: (err) => {

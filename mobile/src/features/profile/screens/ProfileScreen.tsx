@@ -1,3 +1,4 @@
+import { userKeys } from "@/features/profile/api/queryKeys";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -49,14 +50,14 @@ export function ProfileScreen() {
     refetch,
     isRefetching,
   } = useQuery({
-    queryKey: ["users", "me"],
+    queryKey: userKeys.me(),
     queryFn: getCurrentUser,
   });
 
   const { mutate: updateSex } = useMutation({
     mutationFn: (selectedSex: Sex) => updateCurrentUser({ sex: selectedSex }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+      queryClient.invalidateQueries({ queryKey: userKeys.me() });
     },
   });
 

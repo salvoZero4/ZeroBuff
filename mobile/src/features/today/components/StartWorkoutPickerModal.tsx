@@ -1,3 +1,4 @@
+import { routineKeys } from "@/features/routines/api/queryKeys";
 import {
   ActivityIndicator,
   Modal,
@@ -24,7 +25,7 @@ export function StartWorkoutPickerModal({
   onSelectRoutine,
 }: StartWorkoutPickerModalProps) {
   const { data: routines = [], isLoading } = useQuery({
-    queryKey: ["routines"],
+    queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
     enabled: visible,
   });

@@ -1,3 +1,5 @@
+import { routineKeys } from "@/features/routines/api/queryKeys";
+import { scheduleKeys } from "@/features/schedule/api/queryKeys";
 import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
@@ -31,12 +33,12 @@ export function ScheduleScreen() {
   const [selectedDayKey, setSelectedDayKey] = useState<DayOfWeek | null>(null);
 
   const { data: routines = [], isLoading: isRoutinesLoading } = useQuery({
-    queryKey: ["routines"],
+    queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
   });
 
   const { data: schedule = [], isLoading: isScheduleLoading } = useQuery({
-    queryKey: ["schedule"],
+    queryKey: scheduleKeys.list(),
     queryFn: getSchedule,
   });
 
@@ -73,8 +75,7 @@ export function ScheduleScreen() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule", "today"] });
+      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
       setSelectedDayKey(null);
     },
     onError: () => {

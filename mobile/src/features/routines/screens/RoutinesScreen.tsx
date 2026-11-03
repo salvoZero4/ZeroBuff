@@ -1,3 +1,5 @@
+import { routineKeys } from "@/features/routines/api/queryKeys";
+import { scheduleKeys } from "@/features/schedule/api/queryKeys";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -39,16 +41,15 @@ export function RoutinesScreen() {
     refetch,
     isRefetching,
   } = useQuery({
-    queryKey: ["routines"],
+    queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
   });
 
   const { mutate: handleDeleteRoutine, isPending: isDeleting } = useMutation({
     mutationFn: (id: string) => deleteRoutine(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["routines"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule", "today"] });
+      queryClient.invalidateQueries({ queryKey: routineKeys.all });
+      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
       setRoutineToDelete(null);
     },
   });

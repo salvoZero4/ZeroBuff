@@ -1,4 +1,9 @@
 import {
+  clearActiveWorkout,
+  restoreActiveWorkout,
+  flushWorkoutPersistence,
+} from "@/features/workout/store/activeWorkoutStore";
+import {
   createContext,
   useCallback,
   useContext,
@@ -30,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setOnSessionExpired(() => {
       if (isSigningOut.current) return;
+      clearActiveWorkout();
       queryClient.clear(); // don't leave this user's data visible to the next one
       setStatus((current) => (current === "signedOut" ? current : "signedOut"));
     });
@@ -37,7 +43,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     authApi
       .restoreSession()
-      .then((hasSession) => {
+      .then(async (hasSession) => {
+        if (hasSession) {
+          // A disk failure must not sign the user out; Workout exposes Retry.
+          await restoreActiveWorkout().catch(() => {});
+        } else clearActiveWorkout();
         if (!cancelled) setStatus(hasSession ? "signedIn" : "signedOut");
       })
       .catch(() => {
@@ -51,12 +61,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (username: string, password: string) => {
+    clearActiveWorkout();
     await authApi.login(username, password); // throws on failure: status stays signedOut
     setStatus("signedIn");
   }, []);
 
   const signUp = useCallback(
     async (username: string, email: string, password: string) => {
+      clearActiveWorkout();
       await authApi.register(username, email, password); // register also returns tokens
       setStatus("signedIn");
     },
@@ -67,6 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isSigningOut.current) return;
     isSigningOut.current = true;
     try {
+      clearActiveWorkout();
+      await flushWorkoutPersistence();
       await authApi.logout();
       queryClient.clear();
       setStatus((current) => (current === "signedOut" ? current : "signedOut"));

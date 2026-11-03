@@ -1,3 +1,6 @@
+import { tokenStore } from "@/features/auth/store/tokenStore";
+import { exerciseKeys } from "@/features/exercises/api/queryKeys";
+import { sessionKeys } from "@/features/workout/api/queryKeys";
 import { getRoutine } from "@/features/routines/api/routines";
 import type { RoutineRead } from "@/features/routines/types/routine";
 import { queryClient } from "@/shared/api/queryClient";
@@ -18,6 +21,7 @@ import type {
 import {
   clearActiveWorkout,
   getActiveWorkout,
+  restoreActiveWorkout,
   removeLocalSetFromExercise,
   setActiveWorkout,
   setSessionBackendId,
@@ -27,21 +31,6 @@ import {
   type ActiveSetLog,
   type ActiveWorkoutSession,
 } from "@/features/workout/store/activeWorkoutStore";
-
-/**
- * Calcola la durata attuale della sessione in secondi
- * al netto delle pause.
- */
-export function calculateWorkoutDurationSeconds(
-  startedAtTimestamp: number,
-  pausedAtTimestamp: number | null,
-  accumulatedPauseMs: number,
-  isPaused: boolean,
-): number {
-  const now = isPaused && pausedAtTimestamp ? pausedAtTimestamp : Date.now();
-  const totalElapsedMs = now - startedAtTimestamp - accumulatedPauseMs;
-  return Math.max(0, Math.floor(totalElapsedMs / 1000));
-}
 
 /**
  * Normalizza e valida gli input utente trasformandoli
@@ -87,28 +76,36 @@ export function workoutErrorMessage(error: unknown): string {
 }
 
 function invalidateWorkout(sessionId: string | null, exerciseId?: string) {
-  void queryClient.invalidateQueries({ queryKey: ["sessions"] });
+  void queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
   if (sessionId)
-    void queryClient.invalidateQueries({ queryKey: ["session", sessionId] });
+    void queryClient.invalidateQueries({
+      queryKey: sessionKeys.detail(sessionId),
+    });
   if (exerciseId)
     void queryClient.invalidateQueries({
-      queryKey: ["exerciseStats", exerciseId],
+      queryKey: exerciseKeys.stats(exerciseId),
     });
 }
 
 let sessionCreationPromise: Promise<string | null> | null = null;
+let sessionCreationKey: string | null = null;
+const creationKey = (session: ActiveWorkoutSession) =>
+  `${tokenStore.getSessionScope()}:${session.routineId}:${session.startedAtTimestamp}`;
 
 async function ensureSessionId(): Promise<string | null> {
   const session = getActiveWorkout();
   if (session?.sessionId) return session.sessionId;
-  if (sessionCreationPromise) return await sessionCreationPromise;
   if (!session) return null;
-  sessionCreationPromise = createSession({
+  const key = creationKey(session);
+  if (sessionCreationPromise && sessionCreationKey === key)
+    return await sessionCreationPromise;
+  sessionCreationKey = key;
+  const promise = createSession({
     routine_id: session.routineId,
     started_at: new Date(session.startedAtTimestamp).toISOString(),
   })
     .then((created) => {
-      if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
+      if (getActiveWorkout() && creationKey(getActiveWorkout()!) === key)
         setSessionBackendId(created.id);
       return created.id;
     })
@@ -118,10 +115,7 @@ async function ensureSessionId(): Promise<string | null> {
           (s) => s.status !== "completed",
         );
         if (ongoing?.routine_id === session.routineId) {
-          if (
-            getActiveWorkout()?.startedAtTimestamp ===
-            session.startedAtTimestamp
-          )
+          if (getActiveWorkout() && creationKey(getActiveWorkout()!) === key)
             setSessionBackendId(ongoing.id);
           return ongoing.id;
         }
@@ -129,9 +123,10 @@ async function ensureSessionId(): Promise<string | null> {
       throw error;
     })
     .finally(() => {
-      sessionCreationPromise = null;
+      if (sessionCreationPromise === promise) sessionCreationPromise = null;
     });
-  return sessionCreationPromise;
+  sessionCreationPromise = promise;
+  return promise;
 }
 
 /**
@@ -211,6 +206,8 @@ function buildSessionFromServer(
 export async function resumeOngoingWorkout(
   routine: RoutineRead,
 ): Promise<ActiveWorkoutSession | null> {
+  const scope = tokenStore.getSessionScope();
+  const previous = getActiveWorkout();
   try {
     const sessions = await getSessions({ limit: 100 });
     const ongoing = sessions.find((s) => s.status !== "completed");
@@ -222,6 +219,12 @@ export async function resumeOngoingWorkout(
         : await getRoutine(ongoing.routine_id);
 
     const detail = await getSessionDetails(ongoing.id);
+    if (
+      tokenStore.getSessionScope() !== scope ||
+      getActiveWorkout() !== previous
+    )
+      return getActiveWorkout();
+    if (detail.status === "completed") return null;
     const resumed = buildSessionFromServer(sessionRoutine, detail);
     setActiveWorkout(resumed);
     return resumed;
@@ -231,12 +234,38 @@ export async function resumeOngoingWorkout(
   }
 }
 
+let initialization: {
+  scope: string | null;
+  promise: Promise<ActiveWorkoutSession | null>;
+} | null = null;
+
 export async function initOrResumeWorkout(
   routine: RoutineRead,
 ): Promise<ActiveWorkoutSession | null> {
+  const scope = tokenStore.getSessionScope();
+  if (initialization?.scope === scope) return initialization.promise;
+  const promise = initializeWorkout(routine, scope).finally(() => {
+    if (initialization?.promise === promise) initialization = null;
+  });
+  initialization = { scope, promise };
+  return promise;
+}
+
+async function initializeWorkout(
+  routine: RoutineRead,
+  scope: string | null,
+): Promise<ActiveWorkoutSession | null> {
+  await restoreActiveWorkout();
+  if (tokenStore.getSessionScope() !== scope) return null;
   // A local session always wins: the caller redirects to its routine.
   const activeSession = getActiveWorkout();
   if (activeSession) return activeSession;
+
+  const resumed = await resumeOngoingWorkout(routine);
+  if (tokenStore.getSessionScope() !== scope) return null;
+  if (resumed) return resumed;
+  // Another caller or hydration may have installed a session during the request.
+  if (getActiveWorkout()) return getActiveWorkout();
 
   const now = Date.now();
   setActiveWorkout({
@@ -262,18 +291,25 @@ export async function initOrResumeWorkout(
     ),
   });
 
-  sessionCreationPromise = createSession({
+  sessionCreationKey = creationKey(getActiveWorkout()!);
+  const key = sessionCreationKey;
+  const promise = createSession({
     routine_id: routine.id,
     started_at: new Date(now).toISOString(),
   })
     .then((sessionRes) => {
-      if (getActiveWorkout()?.startedAtTimestamp === now)
+      if (getActiveWorkout() && creationKey(getActiveWorkout()!) === key)
         setSessionBackendId(sessionRes.id);
       return sessionRes.id;
     })
     .catch(async (err) => {
       // Another ongoing session appeared meanwhile: adopt it.
-      if (err instanceof ApiError && err.status === 409) {
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        tokenStore.getSessionScope() === scope &&
+        getActiveWorkout()?.startedAtTimestamp === now
+      ) {
         const adopted = await resumeOngoingWorkout(routine);
         return adopted?.sessionId ?? null;
       }
@@ -281,10 +317,12 @@ export async function initOrResumeWorkout(
       return null;
     })
     .finally(() => {
-      sessionCreationPromise = null;
+      if (sessionCreationPromise === promise) sessionCreationPromise = null;
     });
 
-  await sessionCreationPromise;
+  sessionCreationPromise = promise;
+  await promise;
+  if (tokenStore.getSessionScope() !== scope) return null;
   return getActiveWorkout();
 }
 
@@ -299,8 +337,11 @@ async function saveSet(exerciseId: string, setIndex: number, deleting = false) {
     before.saveStatus === "pending"
   )
     return;
-  const sameSession = () =>
-    getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp;
+  const key = creationKey(session);
+  const sameSession = () => {
+    const current = getActiveWorkout();
+    return current !== null && creationKey(current) === key;
+  };
   const patch = (changes: Partial<ActiveSetLog>) => {
     if (sameSession()) updateLocalSetLog(exerciseId, setIndex, changes);
   };
@@ -309,7 +350,12 @@ async function saveSet(exerciseId: string, setIndex: number, deleting = false) {
     ? undefined
     : before.backendId;
   let writeAttempted = false;
-  patch({ saveStatus: "pending", saveError: undefined, touched: true });
+  patch({
+    saveStatus: "pending",
+    saveError: undefined,
+    touched: true,
+    retryAction: deleting ? "delete" : "save",
+  });
   try {
     const values = deleting
       ? null
@@ -326,6 +372,7 @@ async function saveSet(exerciseId: string, setIndex: number, deleting = false) {
       );
       backendId = existing?.id;
     }
+    if (!sameSession()) return;
     if (deleting) {
       if (backendId) {
         writeAttempted = true;
@@ -409,6 +456,21 @@ export async function logSetCompleted(
 
 export async function retrySetLog(exerciseId: string, setIndex: number) {
   const set = getActiveWorkout()?.workoutLogs[exerciseId]?.[setIndex];
+  if (set?.retryAction === "remove") {
+    const original = getActiveWorkout();
+    const key = original ? creationKey(original) : null;
+    try {
+      await removeSetFromExercise(exerciseId, setIndex);
+    } catch (error) {
+      if (!getActiveWorkout() || creationKey(getActiveWorkout()!) !== key)
+        return;
+      updateLocalSetLog(exerciseId, setIndex, {
+        saveStatus: "error",
+        saveError: workoutErrorMessage(error),
+      });
+    }
+    return;
+  }
   return saveSet(exerciseId, setIndex, set?.retryAction === "delete");
 }
 
@@ -439,8 +501,12 @@ export async function removeSetFromExercise(
     sets.length <= 1
   )
     return false;
+  const key = creationKey(session);
   if (set.backendId || set.needsReconcile) {
-    updateLocalSetLog(exerciseId, setIndex, { saveStatus: "pending" });
+    updateLocalSetLog(exerciseId, setIndex, {
+      saveStatus: "pending",
+      retryAction: "remove",
+    });
     try {
       const sessionId = session.sessionId ?? (await ensureSessionId());
       if (!sessionId)
@@ -453,6 +519,8 @@ export async function removeSetFromExercise(
             log.exercise_id === exerciseId && log.set_number === set.setNumber,
         )?.id;
       }
+      if (!getActiveWorkout() || creationKey(getActiveWorkout()!) !== key)
+        return false;
       if (backendId) {
         try {
           await deleteSetLogApi(sessionId, backendId);
@@ -461,7 +529,7 @@ export async function removeSetFromExercise(
         }
       }
     } catch (error) {
-      if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
+      if (getActiveWorkout() && creationKey(getActiveWorkout()!) === key)
         updateLocalSetLog(exerciseId, setIndex, {
           ...set,
           saveStatus: set.saveStatus,
@@ -471,7 +539,7 @@ export async function removeSetFromExercise(
       invalidateWorkout(session.sessionId, exerciseId);
     }
   }
-  if (getActiveWorkout()?.startedAtTimestamp !== session.startedAtTimestamp)
+  if (!getActiveWorkout() || creationKey(getActiveWorkout()!) !== key)
     return false;
   removeLocalSetFromExercise(exerciseId, setIndex);
   return true;
@@ -498,15 +566,18 @@ export async function finishWorkoutSession(
     );
   }
   setWorkoutFinishing(true);
+  const key = creationKey(session);
   let sessionId = session.sessionId;
   try {
     sessionId = await ensureSessionId();
     if (!sessionId)
       throw new Error("Workout is not connected to the server. Please retry.");
-    if (getActiveWorkout()?.startedAtTimestamp !== session.startedAtTimestamp)
+    if (!getActiveWorkout() || creationKey(getActiveWorkout()!) !== key)
       return false;
     // Makes a retry safe when the previous finish succeeded but its response was lost.
     const detail = await getSessionDetails(sessionId);
+    if (!getActiveWorkout() || creationKey(getActiveWorkout()!) !== key)
+      return false;
     const updated =
       detail.status === "completed"
         ? detail
@@ -514,15 +585,17 @@ export async function finishWorkoutSession(
             status: "completed",
             ended_at: new Date().toISOString(),
           });
-    queryClient.setQueryData<SessionRead[]>(["sessions"], (old) =>
-      old?.map((s) => (s.id === updated.id ? updated : s)),
+    queryClient.setQueriesData<SessionRead[]>(
+      { queryKey: sessionKeys.lists() },
+      (old) => old?.map((s) => (s.id === updated.id ? updated : s)),
     );
-    if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
-      clearActiveWorkout();
+    if (!getActiveWorkout() || creationKey(getActiveWorkout()!) !== key)
+      return false;
+    clearActiveWorkout();
     onConfirmed?.(sessionId);
     return true;
   } finally {
-    if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
+    if (getActiveWorkout() && creationKey(getActiveWorkout()!) === key)
       setWorkoutFinishing(false);
     invalidateWorkout(sessionId);
   }

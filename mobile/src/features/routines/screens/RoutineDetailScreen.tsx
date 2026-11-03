@@ -1,3 +1,4 @@
+import { routineKeys } from "@/features/routines/api/queryKeys";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -39,7 +40,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["routines", routineId],
+    queryKey: routineKeys.detail(routineId),
     queryFn: () => getRoutine(routineId),
     enabled: !isNewRoutine,
   });
@@ -109,10 +110,7 @@ function RoutineEditorForm({
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["routines"] });
-      if (!isNewRoutine) {
-        queryClient.invalidateQueries({ queryKey: ["routines", routineId] });
-      }
+      queryClient.invalidateQueries({ queryKey: routineKeys.all });
       router.back();
     },
     onError: (err) => {

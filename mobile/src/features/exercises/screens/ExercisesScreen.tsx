@@ -1,3 +1,4 @@
+import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -70,6 +71,15 @@ export function ExercisesScreen() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const exerciseParams = {
+    name: debouncedSearch || undefined,
+    muscle_group:
+      selectedMuscle === "all" ? undefined : (selectedMuscle as MuscleGroup),
+    equipment:
+      selectedEquipment === "all" ? undefined : (selectedEquipment as Equipment),
+    limit: PAGE_SIZE,
+  };
+
   const {
     data,
     fetchNextPage,
@@ -78,28 +88,9 @@ export function ExercisesScreen() {
     isLoading,
     isError,
   } = useInfiniteQuery({
-    queryKey: [
-      "exercises",
-      {
-        name: debouncedSearch,
-        muscle_group: selectedMuscle === "all" ? undefined : selectedMuscle,
-        equipment: selectedEquipment === "all" ? undefined : selectedEquipment,
-      },
-    ],
+    queryKey: exerciseKeys.infiniteList(exerciseParams),
     queryFn: ({ pageParam = 0 }) =>
-      getExercises({
-        offset: pageParam,
-        limit: PAGE_SIZE,
-        name: debouncedSearch || undefined,
-        muscle_group:
-          selectedMuscle === "all"
-            ? undefined
-            : (selectedMuscle as MuscleGroup),
-        equipment:
-          selectedEquipment === "all"
-            ? undefined
-            : (selectedEquipment as Equipment),
-      }),
+      getExercises({ ...exerciseParams, offset: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.length < PAGE_SIZE) return undefined;

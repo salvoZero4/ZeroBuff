@@ -1,3 +1,4 @@
+import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { useState } from "react";
 import {
   Modal,
@@ -73,7 +74,7 @@ export function CreateExerciseModal({
   const { mutate: handleCreate, isPending } = useMutation({
     mutationFn: (payload: ExerciseCreated) => createExercise(payload),
     onSuccess: (newExercise) => {
-      queryClient.invalidateQueries({ queryKey: ["exercises"] });
+      queryClient.invalidateQueries({ queryKey: exerciseKeys.infiniteLists() });
       setName("");
       setSecondaryMuscles([]);
       setErrorMessage(null);

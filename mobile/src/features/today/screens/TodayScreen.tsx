@@ -1,3 +1,7 @@
+import { routineKeys } from "@/features/routines/api/queryKeys";
+import { scheduleKeys } from "@/features/schedule/api/queryKeys";
+import { weightKeys } from "@/features/weight/api/queryKeys";
+import { sessionKeys } from "@/features/workout/api/queryKeys";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
   RoutineCardSkeleton,
@@ -76,7 +80,7 @@ export function TodayScreen() {
     error: errorTodaySchedule,
     refetch: refetchTodaySchedule,
   } = useQuery({
-    queryKey: ["schedule", "today"],
+    queryKey: scheduleKeys.today(),
     queryFn: getTodaySchedule,
   });
 
@@ -86,7 +90,7 @@ export function TodayScreen() {
     error: errorSessions,
     refetch: refetchSessions,
   } = useQuery({
-    queryKey: ["sessions"],
+    queryKey: sessionKeys.list({ limit: 64 }),
     queryFn: () => getSessions({ limit: 64 }),
   });
 
@@ -102,7 +106,7 @@ export function TodayScreen() {
     error: errorRoutines,
     refetch: refetchRoutines,
   } = useQuery({
-    queryKey: ["routines"],
+    queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
   });
 
@@ -112,8 +116,8 @@ export function TodayScreen() {
     error: errorWeight,
     refetch: refetchWeight,
   } = useQuery<WeightLogRead | null>({
-    queryKey: ["bodyWeight", "today"],
-    queryFn: () => getTodayWeight(),
+    queryKey: weightKeys.today(todayDateStr),
+    queryFn: () => getTodayWeight(todayDateStr),
   });
 
   const {
@@ -122,7 +126,7 @@ export function TodayScreen() {
     error: errorWeekSchedule,
     refetch: refetchWeekSchedule,
   } = useQuery({
-    queryKey: ["schedule"],
+    queryKey: scheduleKeys.list(),
     queryFn: getSchedule,
   });
 
