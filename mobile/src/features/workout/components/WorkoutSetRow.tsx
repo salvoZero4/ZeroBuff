@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 
-import type { ActiveSetLog } from "@/features/workout/store/activeWorkoutStore";
+import type { ActiveSetLog } from "@/features/workout/types/activeWorkout";
 
 export type PreviousSet = {
   weight: number;

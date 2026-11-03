@@ -1,3 +1,4 @@
+import { clearExercisePicker } from "@/features/exercises/store/exercisePickerStore";
 import {
   clearActiveWorkout,
   restoreActiveWorkout,
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setOnSessionExpired(() => {
       if (isSigningOut.current) return;
+      clearExercisePicker();
       clearActiveWorkout();
       queryClient.clear(); // don't leave this user's data visible to the next one
       setStatus((current) => (current === "signedOut" ? current : "signedOut"));
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (username: string, password: string) => {
+    clearExercisePicker();
     clearActiveWorkout();
     await authApi.login(username, password); // throws on failure: status stays signedOut
     setStatus("signedIn");
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = useCallback(
     async (username: string, email: string, password: string) => {
+      clearExercisePicker();
       clearActiveWorkout();
       await authApi.register(username, email, password); // register also returns tokens
       setStatus("signedIn");
@@ -79,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isSigningOut.current) return;
     isSigningOut.current = true;
     try {
+      clearExercisePicker();
       clearActiveWorkout();
       await flushWorkoutPersistence();
       await authApi.logout();

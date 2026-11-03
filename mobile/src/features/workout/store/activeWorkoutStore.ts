@@ -1,44 +1,47 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createStore } from "zustand/vanilla";
+import { useStore } from "zustand";
 import { tokenStore } from "@/features/auth/store/tokenStore";
 import { WorkoutDraftStorage } from "../storage/workoutDraftStorage";
-import { useSyncExternalStore } from "react";
-import { calculateWorkoutDurationSeconds } from "@/features/workout/utils/duration";
+import { calculateWorkoutDurationSeconds } from "../utils/duration";
+import type {
+  ActiveSetLog,
+  ActiveWorkoutSession,
+} from "../types/activeWorkout";
 
-export type ActiveSetLog = {
-  backendId?: string;
-  saveStatus?: "pending" | "saved" | "error" | "dirty";
-  saveError?: string;
-  retryAction?: "save" | "delete" | "remove";
-  needsReconcile?: boolean;
-  setNumber: number;
-  weight: string;
-  reps: string;
-  rir: string;
-  completed: boolean;
-  // Set to true as soon as the user edits the set: prefills must never
-  // overwrite a value the user cleared or changed.
-  touched?: boolean;
+type ActiveWorkoutActions = {
+  setActiveWorkout: (session: ActiveWorkoutSession | null) => void;
+  setSessionBackendId: (sessionId: string) => void;
+  toggleWorkoutPause: () => void;
+  setCurrentExerciseIndex: (index: number) => void;
+  updateLocalSetLog: (
+    exerciseId: string,
+    setIndex: number,
+    changes: Partial<ActiveSetLog>,
+  ) => void;
+  addLocalSetToExercise: (exerciseId: string, defaultReps: number) => void;
+  removeLocalSetFromExercise: (exerciseId: string, setIndex: number) => void;
+  clearActiveWorkout: () => void;
+  setWorkoutFinishing: (isFinishing: boolean) => void;
+  editSetLog: (
+    exerciseId: string,
+    setIndex: number,
+    changes: Partial<ActiveSetLog>,
+  ) => void;
+  setWorkoutRestEndTimestamp: (restEndTimestamp: number | null) => void;
+  toggleAutoRest: () => void;
+  pauseWorkout: () => void;
+  applyNativeRestTimer: (state: {
+    id: string;
+    workoutKey: string;
+    endAt: number;
+    status: string;
+  }) => void;
 };
-
-export type ActiveWorkoutSession = {
-  isFinishing?: boolean;
-  autoRestEnabled?: boolean;
-  restEndTimestamp?: number | null;
-  restTimerId?: string;
-  sessionId: string | null;
-  routineId: string;
-  routineName: string;
-  currentExerciseIndex: number;
-  startedAtTimestamp: number;
-  pausedAtTimestamp: number | null;
-  accumulatedPauseMs: number;
-  isPaused: boolean;
-  workoutLogs: Record<string, ActiveSetLog[]>;
+export type ActiveWorkoutState = ActiveWorkoutActions & {
+  session: ActiveWorkoutSession | null;
+  persistenceError: string | null;
 };
-
-// --- STATO IN MEMORIA ---
-let activeSession: ActiveWorkoutSession | null = null;
-const listeners = new Set<() => void>();
 
 const drafts = new WorkoutDraftStorage(AsyncStorage);
 let revision = 0;
@@ -48,12 +51,10 @@ let hydration: {
   scope: string;
   promise: Promise<ActiveWorkoutSession | null>;
 } | null = null;
-let persistenceError: string | null = null;
 
 function reportPersistenceError(message: string | null) {
-  if (persistenceError === message) return;
-  persistenceError = message;
-  listeners.forEach((listener) => listener());
+  if (activeWorkoutStore.getState().persistenceError !== message)
+    activeWorkoutStore.setState({ persistenceError: message });
 }
 
 function persist(scope: string, session: ActiveWorkoutSession | null) {
@@ -71,28 +72,18 @@ function persist(scope: string, session: ActiveWorkoutSession | null) {
   );
 }
 
-function notify() {
-  revision++;
-  const scope = tokenStore.getSessionScope();
-  if (scope) void persist(scope, activeSession);
-  listeners.forEach((listener) => listener());
-}
-
-export const getWorkoutPersistenceError = () => persistenceError;
+export const getWorkoutPersistenceError = () =>
+  activeWorkoutStore.getState().persistenceError;
 
 export function useWorkoutPersistenceError() {
-  return useSyncExternalStore(
-    subscribe,
-    getWorkoutPersistenceError,
-    () => null,
-  );
+  return useActiveWorkoutStore((state) => state.persistenceError);
 }
 
 /** Read disk before server recovery; late reads must never overwrite a newer edit. */
 export async function restoreActiveWorkout(): Promise<ActiveWorkoutSession | null> {
   const scope = tokenStore.getSessionScope();
   if (!scope) return null;
-  if (hydratedScope === scope) return activeSession;
+  if (hydratedScope === scope) return getActiveWorkout();
   if (hydration?.scope === scope) return hydration.promise;
   const before = revision;
   const promise = drafts
@@ -102,11 +93,10 @@ export async function restoreActiveWorkout(): Promise<ActiveWorkoutSession | nul
       hydratedScope = scope;
       storageScope = scope;
       if (revision === before) {
-        activeSession = saved;
-        // Persist normalized interrupted requests, too.
-        notify();
+        reportPersistenceError(null);
+        setActiveWorkout(saved);
       }
-      return activeSession;
+      return getActiveWorkout();
     })
     .catch((error: unknown) => {
       if (tokenStore.getSessionScope() === scope)
@@ -127,26 +117,257 @@ export async function restoreActiveWorkout(): Promise<ActiveWorkoutSession | nul
 export async function retryWorkoutPersistence() {
   await restoreActiveWorkout();
   const scope = tokenStore.getSessionScope();
-  if (scope) await persist(scope, activeSession);
+  if (scope) await persist(scope, getActiveWorkout());
 }
 
 export const flushWorkoutPersistence = () => drafts.flush();
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+let restSequence = 0;
+
+export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
+  (set, get) => ({
+    session: null,
+    persistenceError: null,
+    setActiveWorkout: (session: ActiveWorkoutSession | null) => {
+      set({ session });
+    },
+    setSessionBackendId: (sessionId: string) => {
+      const activeSession = get().session;
+      if (!activeSession) return;
+      set({ session: { ...activeSession, sessionId } });
+    },
+    toggleWorkoutPause: () => {
+      const session = get().session;
+      if (!session) return;
+      const now = Date.now();
+      set({
+        session: session.isPaused
+          ? {
+              ...session,
+              isPaused: false,
+              pausedAtTimestamp: null,
+              accumulatedPauseMs:
+                session.accumulatedPauseMs +
+                (session.pausedAtTimestamp
+                  ? now - session.pausedAtTimestamp
+                  : 0),
+            }
+          : {
+              ...session,
+              isPaused: true,
+              pausedAtTimestamp: now,
+            },
+      });
+    },
+    setCurrentExerciseIndex: (index: number) => {
+      const activeSession = get().session;
+      if (!activeSession) return;
+      set({ session: { ...activeSession, currentExerciseIndex: index } });
+    },
+    updateLocalSetLog: (
+      exerciseId: string,
+      setIndex: number,
+      changes: Partial<ActiveSetLog>,
+    ) => {
+      const activeSession = get().session;
+      if (!activeSession) return;
+      const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
+      const targetSet = currentSets[setIndex];
+      if (!targetSet) return;
+
+      const updatedSets = [...currentSets];
+      updatedSets[setIndex] = { ...targetSet, ...changes };
+
+      set({
+        session: {
+          ...activeSession,
+          workoutLogs: {
+            ...activeSession.workoutLogs,
+            [exerciseId]: updatedSets,
+          },
+        },
+      });
+    },
+    addLocalSetToExercise: (exerciseId: string, defaultReps: number) => {
+      const activeSession = get().session;
+      if (!activeSession) return;
+      const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
+      const newSet: ActiveSetLog = {
+        setNumber: currentSets.length + 1,
+        weight: currentSets[currentSets.length - 1]?.weight || "",
+        reps: String(defaultReps),
+        rir: "",
+        completed: false,
+      };
+
+      set({
+        session: {
+          ...activeSession,
+          workoutLogs: {
+            ...activeSession.workoutLogs,
+            [exerciseId]: [...currentSets, newSet],
+          },
+        },
+      });
+    },
+    removeLocalSetFromExercise: (exerciseId: string, setIndex: number) => {
+      const activeSession = get().session;
+      if (!activeSession) return;
+      const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
+      if (setIndex < 0 || setIndex >= currentSets.length) return;
+
+      // Contiguous renumbering: the backend works with set_number
+      const updatedSets = currentSets
+        .filter((_, idx) => idx !== setIndex)
+        .map((set, idx) => ({ ...set, setNumber: idx + 1 }));
+
+      set({
+        session: {
+          ...activeSession,
+          workoutLogs: {
+            ...activeSession.workoutLogs,
+            [exerciseId]: updatedSets,
+          },
+        },
+      });
+    },
+    clearActiveWorkout: () => {
+      const oldScope = storageScope;
+      const scope = tokenStore.getSessionScope();
+      const wasEmpty = get().session === null;
+      // A clear must cancel hydration even when memory was already empty.
+      revision++;
+      hydratedScope = scope;
+      set({ session: null, persistenceError: null });
+      if (wasEmpty && scope) void persist(scope, null);
+      // Session expiry clears tokens before its callback.
+      if (oldScope && oldScope !== scope)
+        void drafts.write(oldScope, null).catch(() => {});
+      storageScope = scope;
+    },
+    setWorkoutFinishing: (isFinishing: boolean) => {
+      const activeSession = get().session;
+      if (!activeSession) return;
+      set({ session: { ...activeSession, isFinishing } });
+    },
+    editSetLog: (
+      exerciseId: string,
+      setIndex: number,
+      changes: Partial<ActiveSetLog>,
+    ) => {
+      const activeSession = get().session;
+      const set = activeSession?.workoutLogs[exerciseId]?.[setIndex];
+      if (!set || activeSession?.isFinishing || set.saveStatus === "pending")
+        return;
+      get().updateLocalSetLog(exerciseId, setIndex, {
+        ...changes,
+        touched: true,
+        saveStatus:
+          set.backendId ||
+          set.saveStatus === "error" ||
+          set.saveStatus === "dirty"
+            ? "dirty"
+            : undefined,
+        saveError: undefined,
+      });
+    },
+    setWorkoutRestEndTimestamp: (restEndTimestamp: number | null) => {
+      const activeSession = get().session;
+      if (!activeSession) return;
+      const starting =
+        restEndTimestamp !== null &&
+        (!activeSession.restEndTimestamp ||
+          activeSession.restEndTimestamp <= Date.now());
+      set({
+        session: {
+          ...activeSession,
+          restEndTimestamp,
+          restTimerId: starting
+            ? `${activeSession.startedAtTimestamp}:${Date.now()}:${++restSequence}`
+            : activeSession.restTimerId,
+        },
+      });
+    },
+    toggleAutoRest: () => {
+      const activeSession = get().session;
+      if (!activeSession) return;
+      set({
+        session: {
+          ...activeSession,
+          autoRestEnabled: !(activeSession.autoRestEnabled ?? true),
+        },
+      });
+    },
+    pauseWorkout: () => {
+      const activeSession = get().session;
+      if (activeSession && !activeSession.isPaused) get().toggleWorkoutPause();
+    },
+    applyNativeRestTimer: (state: {
+      id: string;
+      workoutKey: string;
+      endAt: number;
+      status: string;
+    }) => {
+      const activeSession = get().session;
+      if (
+        !activeSession ||
+        state.workoutKey !==
+          `${activeSession.routineId}:${activeSession.startedAtTimestamp}`
+      )
+        return;
+      if (activeSession.restTimerId && activeSession.restTimerId !== state.id)
+        return;
+      const restEndTimestamp = state.status === "skipped" ? null : state.endAt;
+      if (
+        activeSession.restTimerId === state.id &&
+        activeSession.restEndTimestamp === restEndTimestamp
+      )
+        return;
+      set({
+        session: { ...activeSession, restTimerId: state.id, restEndTimestamp },
+      });
+    },
+  }),
+);
+
+// Persist only session changes: error feedback and stable actions never write to disk.
+activeWorkoutStore.subscribe((state, previous) => {
+  if (state.session === previous.session) return;
+  revision++;
+  const scope = tokenStore.getSessionScope();
+  if (scope) void persist(scope, state.session);
+});
+
+export function useActiveWorkoutStore<T>(
+  selector: (state: ActiveWorkoutState) => T,
+): T {
+  return useStore(activeWorkoutStore, selector);
 }
 
-// --- GETTER & HOOK ---
-export function getActiveWorkout() {
-  return activeSession;
-}
+export const getActiveWorkout = () => activeWorkoutStore.getState().session;
+export const useActiveWorkout = () =>
+  useActiveWorkoutStore((state) => state.session);
 
-export function useActiveWorkout() {
-  return useSyncExternalStore(subscribe, getActiveWorkout, getActiveWorkout);
-}
+// Stable actions preserve the imperative API used by async workout operations and native events.
+export const {
+  setActiveWorkout,
+  setSessionBackendId,
+  toggleWorkoutPause,
+  setCurrentExerciseIndex,
+  updateLocalSetLog,
+  addLocalSetToExercise,
+  removeLocalSetFromExercise,
+  clearActiveWorkout,
+  setWorkoutFinishing,
+  editSetLog,
+  setWorkoutRestEndTimestamp,
+  toggleAutoRest,
+  pauseWorkout,
+  applyNativeRestTimer,
+} = activeWorkoutStore.getState();
 
 export function getActiveWorkoutDurationSeconds(): number {
+  const activeSession = getActiveWorkout();
   if (!activeSession) return 0;
   return calculateWorkoutDurationSeconds(
     activeSession.startedAtTimestamp,
@@ -154,201 +375,4 @@ export function getActiveWorkoutDurationSeconds(): number {
     activeSession.accumulatedPauseMs,
     activeSession.isPaused,
   );
-}
-
-// --- MUTAZIONI PURE DELLO STATO (SINCRONE) ---
-export function setActiveWorkout(session: ActiveWorkoutSession | null) {
-  activeSession = session;
-  notify();
-}
-
-export function setSessionBackendId(sessionId: string) {
-  if (!activeSession) return;
-  activeSession = { ...activeSession, sessionId };
-  notify();
-}
-
-export function toggleWorkoutPause() {
-  if (!activeSession) return;
-  const now = Date.now();
-  if (activeSession.isPaused) {
-    const pauseDuration = activeSession.pausedAtTimestamp
-      ? now - activeSession.pausedAtTimestamp
-      : 0;
-    activeSession = {
-      ...activeSession,
-      isPaused: false,
-      pausedAtTimestamp: null,
-      accumulatedPauseMs: activeSession.accumulatedPauseMs + pauseDuration,
-    };
-  } else {
-    activeSession = {
-      ...activeSession,
-      isPaused: true,
-      pausedAtTimestamp: now,
-    };
-  }
-  notify();
-}
-
-export function setCurrentExerciseIndex(index: number) {
-  if (!activeSession) return;
-  activeSession = { ...activeSession, currentExerciseIndex: index };
-  notify();
-}
-
-export function updateLocalSetLog(
-  exerciseId: string,
-  setIndex: number,
-  changes: Partial<ActiveSetLog>,
-) {
-  if (!activeSession) return;
-  const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
-  const targetSet = currentSets[setIndex];
-  if (!targetSet) return;
-
-  const updatedSets = [...currentSets];
-  updatedSets[setIndex] = { ...targetSet, ...changes };
-
-  activeSession = {
-    ...activeSession,
-    workoutLogs: { ...activeSession.workoutLogs, [exerciseId]: updatedSets },
-  };
-  notify();
-}
-
-export function addLocalSetToExercise(exerciseId: string, defaultReps: number) {
-  if (!activeSession) return;
-  const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
-  const newSet: ActiveSetLog = {
-    setNumber: currentSets.length + 1,
-    weight: currentSets[currentSets.length - 1]?.weight || "",
-    reps: String(defaultReps),
-    rir: "",
-    completed: false,
-  };
-
-  activeSession = {
-    ...activeSession,
-    workoutLogs: {
-      ...activeSession.workoutLogs,
-      [exerciseId]: [...currentSets, newSet],
-    },
-  };
-  notify();
-}
-
-export function removeLocalSetFromExercise(
-  exerciseId: string,
-  setIndex: number,
-) {
-  if (!activeSession) return;
-  const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
-  if (setIndex < 0 || setIndex >= currentSets.length) return;
-
-  // Contiguous renumbering: the backend works with set_number
-  const updatedSets = currentSets
-    .filter((_, idx) => idx !== setIndex)
-    .map((set, idx) => ({ ...set, setNumber: idx + 1 }));
-
-  activeSession = {
-    ...activeSession,
-    workoutLogs: {
-      ...activeSession.workoutLogs,
-      [exerciseId]: updatedSets,
-    },
-  };
-  notify();
-}
-
-export function clearActiveWorkout() {
-  const oldScope = storageScope;
-  activeSession = null;
-  reportPersistenceError(null);
-  hydratedScope = tokenStore.getSessionScope();
-  notify();
-  // Session expiry clears tokens before its callback. Still remove the old draft.
-  if (oldScope && oldScope !== tokenStore.getSessionScope())
-    void drafts.write(oldScope, null).catch(() => {});
-  storageScope = tokenStore.getSessionScope();
-}
-
-export function setWorkoutFinishing(isFinishing: boolean) {
-  if (!activeSession) return;
-  activeSession = { ...activeSession, isFinishing };
-  notify();
-}
-
-export function editSetLog(
-  exerciseId: string,
-  setIndex: number,
-  changes: Partial<ActiveSetLog>,
-) {
-  const set = activeSession?.workoutLogs[exerciseId]?.[setIndex];
-  if (!set || activeSession?.isFinishing || set.saveStatus === "pending")
-    return;
-  updateLocalSetLog(exerciseId, setIndex, {
-    ...changes,
-    touched: true,
-    saveStatus:
-      set.backendId || set.saveStatus === "error" || set.saveStatus === "dirty"
-        ? "dirty"
-        : undefined,
-    saveError: undefined,
-  });
-}
-
-export function setWorkoutRestEndTimestamp(restEndTimestamp: number | null) {
-  if (!activeSession) return;
-  const starting =
-    restEndTimestamp !== null &&
-    (!activeSession.restEndTimestamp ||
-      activeSession.restEndTimestamp <= Date.now());
-  activeSession = {
-    ...activeSession,
-    restEndTimestamp,
-    restTimerId: starting
-      ? `${activeSession.startedAtTimestamp}:${Date.now()}:${++restSequence}`
-      : activeSession.restTimerId,
-  };
-  notify();
-}
-
-export function toggleAutoRest() {
-  if (!activeSession) return;
-  activeSession = {
-    ...activeSession,
-    autoRestEnabled: !(activeSession.autoRestEnabled ?? true),
-  };
-  notify();
-}
-
-export function pauseWorkout() {
-  if (activeSession && !activeSession.isPaused) toggleWorkoutPause();
-}
-
-let restSequence = 0;
-
-export function applyNativeRestTimer(state: {
-  id: string;
-  workoutKey: string;
-  endAt: number;
-  status: string;
-}) {
-  if (
-    !activeSession ||
-    state.workoutKey !==
-      `${activeSession.routineId}:${activeSession.startedAtTimestamp}`
-  )
-    return;
-  if (activeSession.restTimerId && activeSession.restTimerId !== state.id)
-    return;
-  const restEndTimestamp = state.status === "skipped" ? null : state.endAt;
-  if (
-    activeSession.restTimerId === state.id &&
-    activeSession.restEndTimestamp === restEndTimestamp
-  )
-    return;
-  activeSession = { ...activeSession, restTimerId: state.id, restEndTimestamp };
-  notify();
 }

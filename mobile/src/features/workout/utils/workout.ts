@@ -1,3 +1,7 @@
+import type {
+  ActiveSetLog,
+  ActiveWorkoutSession,
+} from "../types/activeWorkout";
 import { tokenStore } from "@/features/auth/store/tokenStore";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { sessionKeys } from "@/features/workout/api/queryKeys";
@@ -28,8 +32,6 @@ import {
   updateLocalSetLog,
   setWorkoutFinishing,
   setWorkoutRestEndTimestamp,
-  type ActiveSetLog,
-  type ActiveWorkoutSession,
 } from "@/features/workout/store/activeWorkoutStore";
 
 /**

@@ -1,5 +1,5 @@
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -16,9 +16,7 @@ import {
   SelectPickerModal,
   type PickerOption,
 } from "@/components/ui/SelectPickerModal";
-import {
-  getExercises,
-} from "@/features/exercises/api/exercise";
+import { getExercises } from "@/features/exercises/api/exercise";
 import {
   EQUIPMENT_LIST,
   MUSCLE_GROUPS,
@@ -26,7 +24,11 @@ import {
   type ExerciseRead,
   type MuscleGroup,
 } from "@/features/exercises/types/exercise";
-import { selectExercise } from "@/features/exercises/store/exercisePickerStore";
+import {
+  selectExercise,
+  clearExercisePicker,
+  exercisePickerStore,
+} from "@/features/exercises/store/exercisePickerStore";
 import { CreateExerciseModal } from "@/features/exercises/components/CreateExerciseModal";
 
 const PAGE_SIZE = 20;
@@ -55,6 +57,23 @@ const EQUIPMENT_OPTIONS: readonly PickerOption[] = [
 ];
 
 export function ExercisesScreen() {
+  const pickerMounted = useRef(false);
+  useEffect(() => {
+    pickerMounted.current = true;
+    const request = exercisePickerStore.getState().onSelect;
+    return () => {
+      pickerMounted.current = false;
+      // Allow React's development effect replay; never cancel a newer request.
+      queueMicrotask(() => {
+        if (
+          !pickerMounted.current &&
+          exercisePickerStore.getState().onSelect === request
+        )
+          clearExercisePicker();
+      });
+    };
+  }, []);
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedMuscle, setSelectedMuscle] = useState<string>("all");
@@ -76,7 +95,9 @@ export function ExercisesScreen() {
     muscle_group:
       selectedMuscle === "all" ? undefined : (selectedMuscle as MuscleGroup),
     equipment:
-      selectedEquipment === "all" ? undefined : (selectedEquipment as Equipment),
+      selectedEquipment === "all"
+        ? undefined
+        : (selectedEquipment as Equipment),
     limit: PAGE_SIZE,
   };
 

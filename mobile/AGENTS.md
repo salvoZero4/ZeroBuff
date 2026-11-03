@@ -128,7 +128,7 @@ export const weightKeys = {
 
 - After `POST`/`PATCH`/`DELETE` on weight, invalidate `weightKeys.all` (otherwise the Home banner will not reappear after a delete).
 - `GET /v1/weight/today` returns `200` with `null` when nothing is logged: that is the normal state that shows the banner, not an error.
-- Keep ephemeral UI state (selected exercise, rest timer) out of the query cache. If a store is needed, propose one (e.g. Zustand) and ask before adding it.
+- Keep client-only state (selected exercise, active-workout drafts and rest timer) out of the query cache. Zustand is approved for the existing activeWorkoutStore and exercisePickerStore (user request, 2026-11-03). Use feature-owned vanilla stores, stable actions and focused selectors. Keep API state in TanStack Query; request approval before adding other state-management dependencies.
 - Do not assume the sort order of list responses unless the contract says so: sort client-side.
 
 ### 3.4 Optimistic updates (set logging)

@@ -23,7 +23,7 @@ import { getRoutines } from "@/features/routines/api/routines";
 import type { RoutineListRead } from "@/features/routines/types/routine";
 import {
   clearActiveWorkout,
-  useActiveWorkout,
+  useActiveWorkoutStore,
 } from "@/features/workout/store/activeWorkoutStore";
 
 function formatDate(dateStr: string): string {
@@ -40,7 +40,9 @@ function formatDate(dateStr: string): string {
 
 export function AnalyticsScreen() {
   const queryClient = useQueryClient();
-  const activeSession = useActiveWorkout();
+  const activeSessionId = useActiveWorkoutStore(
+    (state) => state.session?.sessionId,
+  );
   const [sessionToDelete, setSessionToDelete] = useState<SessionRead | null>(
     null,
   );
@@ -79,7 +81,7 @@ export function AnalyticsScreen() {
     },
     onSuccess: (_, deletedSessionId) => {
       // Reset the local active workout when its server session is deleted.
-      if (activeSession?.sessionId === deletedSessionId) {
+      if (activeSessionId === deletedSessionId) {
         clearActiveWorkout();
       }
 

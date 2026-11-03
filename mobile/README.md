@@ -38,6 +38,26 @@ set changes also invalidate `exerciseKeys.stats(exerciseId)`. Weight mutations
 invalidate `weightKeys.all`, covering every date and range. Auth continues to
 clear the complete cache when the account changes.
 
+## Client state (Zustand)
+
+Feature-owned vanilla stores keep local interaction state separate from server data:
+
+- `features/workout/store/activeWorkoutStore.ts`: active session, persistence feedback
+  and synchronous actions. Use `useActiveWorkoutStore(selector)` in React; async
+  operations and native events use stable exported actions or `getActiveWorkout()`.
+- `features/exercises/store/exercisePickerStore.ts`: pending callback and open/select/clear
+  actions. Selection is consumed before calling the recipient; callbacks stay in memory.
+- `features/workout/types/activeWorkout.ts`: shared contracts for store, persistence and UI.
+
+Selectors should return a primitive or a stable object. For several fields use
+`useShallow`; the notification provider selects only timer metadata and Analytics
+selects only the active session ID. API reads/writes stay in feature APIs and TanStack Query.
+
+Workout snapshots retain the existing versioned storage format and serial writer.
+The Zustand subscription persists only a changed session reference, excluding actions
+and persistence feedback. Hydration stays explicit after authentication, with login/revision
+checks; do not replace this with unconditional automatic hydration or persist picker callbacks.
+
 ## Active workout recovery
 
 `features/workout/storage/workoutDraftStorage.ts` stores a versioned AsyncStorage

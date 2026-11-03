@@ -1,7 +1,7 @@
 import type {
   ActiveSetLog,
   ActiveWorkoutSession,
-} from "../store/activeWorkoutStore";
+} from "../types/activeWorkout";
 
 type Storage = {
   getItem(key: string): Promise<string | null>;

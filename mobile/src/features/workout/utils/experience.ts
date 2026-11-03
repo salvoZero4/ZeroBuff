@@ -1,7 +1,7 @@
 import type {
   ActiveSetLog,
   ActiveWorkoutSession,
-} from "@/features/workout/store/activeWorkoutStore";
+} from "@/features/workout/types/activeWorkout";
 
 export const WEIGHT_UNIT = "kg";
 

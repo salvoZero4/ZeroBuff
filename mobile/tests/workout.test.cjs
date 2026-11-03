@@ -45,6 +45,7 @@ function setup(overrides = {}) {
   };
   function load(name) {
     if (stubs[name]) return stubs[name];
+    if (name === "zustand" || name === "zustand/vanilla") return require(name);
     if (cache[name]) return cache[name].exports;
     const file = path.join(__dirname, "../src", name.replace("@/", "") + ".ts");
     const mod = { exports: {} };

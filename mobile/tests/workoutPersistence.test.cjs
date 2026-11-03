@@ -103,6 +103,7 @@ function runtime({
   const modules = {};
   function load(name) {
     if (stubs[name]) return stubs[name];
+    if (name === "zustand" || name === "zustand/vanilla") return require(name);
     if (modules[name]) return modules[name].exports;
     const file = path.join(__dirname, "../src", name.replace("@/", "") + ".ts");
     const mod = { exports: {} };
@@ -494,4 +495,86 @@ test("logout during reconciliation prevents a write under the next account", asy
     current.store.getActiveWorkout().workoutLogs.exercise[0].completed,
     false,
   );
+});
+
+test("Zustand actions keep prior snapshots immutable and blocked edits do not notify", async () => {
+  const current = runtime();
+  const session = fixture();
+  session.workoutLogs.other = [{ ...session.workoutLogs.exercise[0] }];
+  current.store.setActiveWorkout(session);
+  const actions = current.store.activeWorkoutStore.getState();
+  actions.editSetLog("exercise", 0, { reps: "15" });
+  assert.equal(session.workoutLogs.exercise[0].reps, "10");
+  assert.equal(
+    current.store.getActiveWorkout().workoutLogs.exercise[0].reps,
+    "15",
+  );
+  assert.equal(
+    current.store.getActiveWorkout().workoutLogs.other,
+    session.workoutLogs.other,
+  );
+  assert.equal(
+    current.store.activeWorkoutStore.getState().editSetLog,
+    actions.editSetLog,
+  );
+  actions.updateLocalSetLog("exercise", 0, { saveStatus: "pending" });
+  const before = current.store.activeWorkoutStore.getState();
+  let notifications = 0;
+  const unsubscribe = current.store.activeWorkoutStore.subscribe(() => {
+    notifications++;
+  });
+  actions.editSetLog("exercise", 0, { reps: "99" });
+  assert.equal(current.store.activeWorkoutStore.getState(), before);
+  assert.equal(notifications, 0);
+  unsubscribe();
+  await current.store.flushWorkoutPersistence();
+});
+
+test("persistence error updates do not schedule additional disk writes", async () => {
+  let writes = 0;
+  const current = runtime({
+    storage: {
+      setItem: async () => {
+        writes++;
+        throw new Error("Disk full");
+      },
+    },
+  });
+  current.store.setActiveWorkout(fixture());
+  await current.store.flushWorkoutPersistence();
+  assert.notEqual(
+    current.store.activeWorkoutStore.getState().persistenceError,
+    null,
+  );
+  assert.equal(writes, 1);
+});
+
+test("clearing an already empty Zustand session still cancels an in-flight disk restoration", async () => {
+  const read = deferred();
+  const current = runtime({ storage: { getItem: () => read.promise } });
+  const restoring = current.store.restoreActiveWorkout();
+  await new Promise(setImmediate);
+  current.store.clearActiveWorkout();
+  read.resolve(JSON.stringify({ version: 1, session: fixture() }));
+  await restoring;
+  assert.equal(current.store.getActiveWorkout(), null);
+  await current.store.flushWorkoutPersistence();
+  assert.equal(current.disk.size, 0);
+});
+
+test("successful retry of an empty snapshot clears the previous read error", async () => {
+  let fail = true;
+  const current = runtime({
+    storage: {
+      getItem: async () => {
+        if (fail) throw new Error("Disk unavailable");
+        return null;
+      },
+    },
+  });
+  await assert.rejects(current.store.restoreActiveWorkout());
+  assert.notEqual(current.store.getWorkoutPersistenceError(), null);
+  fail = false;
+  assert.equal(await current.store.restoreActiveWorkout(), null);
+  assert.equal(current.store.getWorkoutPersistenceError(), null);
 });

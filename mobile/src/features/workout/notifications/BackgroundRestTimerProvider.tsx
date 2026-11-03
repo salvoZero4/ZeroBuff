@@ -1,9 +1,10 @@
+import { useShallow } from "zustand/react/shallow";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Platform } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/features/auth/provider/AuthProvider";
 import {
-  useActiveWorkout,
+  useActiveWorkoutStore,
   getActiveWorkout,
   clearActiveWorkout,
   applyNativeRestTimer,
@@ -30,7 +31,19 @@ export function BackgroundRestTimerProvider({
   children: React.ReactNode;
 }) {
   const { status } = useAuth();
-  const session = useActiveWorkout();
+  const session = useActiveWorkoutStore(
+    useShallow((state) =>
+      state.session
+        ? {
+            routineId: state.session.routineId,
+            routineName: state.session.routineName,
+            startedAtTimestamp: state.session.startedAtTimestamp,
+            restTimerId: state.session.restTimerId,
+            restEndTimestamp: state.session.restEndTimestamp,
+          }
+        : null,
+    ),
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [exactPermission, setExactPermission] = useState(false);
   const [failed, setFailed] = useState(false);
