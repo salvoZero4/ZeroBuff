@@ -5,16 +5,6 @@ import type {
 
 export const WEIGHT_UNIT = "kg";
 
-export function adjustNumericInput(
-  input: string,
-  amount: number,
-  minimum: number,
-): string {
-  const value = Number(input.trim().replace(",", "."));
-  if (!Number.isFinite(value)) return input;
-  return String(Math.max(minimum, Math.round((value + amount) * 100) / 100));
-}
-
 export type WorkoutImprovement = {
   exerciseId: string;
   name: string;
@@ -33,7 +23,6 @@ export type WorkoutSummary = {
   exercises: number;
   sets: number;
   volume: number;
-  improvedExercises: number;
   comparedExercises: number;
 };
 
@@ -48,7 +37,6 @@ export function summarizeWorkout(
   let sets = 0,
     exercises = 0,
     volume = 0,
-    improvedExercises = 0,
     comparedExercises = 0;
   let reps = 0;
   let hasAddedLoad = false;
@@ -86,7 +74,6 @@ export function summarizeWorkout(
         ...values.map((set) => (bodyweight ? set.reps : set.weight * set.reps)),
       );
     if (best(current) > best(earlier)) {
-      improvedExercises++;
       improvements.push({
         exerciseId: id,
         name: exerciseNames[id] ?? "Exercise",
@@ -106,7 +93,6 @@ export function summarizeWorkout(
     exercises,
     sets,
     volume,
-    improvedExercises,
     comparedExercises,
   };
 }

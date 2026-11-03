@@ -311,13 +311,6 @@ test("loading errors provide actionable messages without exposing server details
   assert.match(loadErrorMessage(new Error("private")), /try again/);
 });
 
-test("quick increments support decimal comma and never go below limits", () => {
-  const { experience } = setup();
-  assert.equal(experience.adjustNumericInput("82,5", 1.25, 0), "83.75");
-  assert.equal(experience.adjustNumericInput("1", -1, 1), "1");
-  assert.equal(experience.adjustNumericInput("bad", 5, 0), "bad");
-});
-
 test("summary counts only confirmed sets and compares bodyweight by reps", () => {
   const { experience, store } = setup();
   const session = store.getActiveWorkout();
@@ -347,7 +340,7 @@ test("summary counts only confirmed sets and compares bodyweight by reps", () =>
   assert.equal(summary.sets, 1);
   assert.equal(summary.exercises, 1);
   assert.equal(summary.volume, 0);
-  assert.equal(summary.improvedExercises, 1);
+  assert.equal(summary.improvements.length, 1);
   assert.equal(summary.durationSeconds, 100);
   assert.equal(summary.hasAddedLoad, false);
   assert.equal(summary.reps, 12);
@@ -596,4 +589,24 @@ test("finish exposes the confirmed id even when the server session is created on
   );
   assert.equal(confirmedId, "new-session");
   assert.equal(t.store.getActiveWorkout(), null);
+});
+
+test("rest intervals keep identity for adjustments and reject old native actions", () => {
+  const { store } = setup();
+  store.setWorkoutRestEndTimestamp(Date.now() + 90_000);
+  const id = store.getActiveWorkout().restTimerId;
+  store.setWorkoutRestEndTimestamp(Date.now() + 120_000);
+  assert.equal(store.getActiveWorkout().restTimerId, id);
+  const workoutKey = "routine:1";
+  store.applyNativeRestTimer({
+    id: "obsolete",
+    workoutKey,
+    endAt: 0,
+    status: "skipped",
+  });
+  assert.ok(store.getActiveWorkout().restEndTimestamp > Date.now());
+  store.applyNativeRestTimer({ id, workoutKey, endAt: 0, status: "skipped" });
+  assert.equal(store.getActiveWorkout().restEndTimestamp, null);
+  store.setWorkoutRestEndTimestamp(Date.now() + 90_000);
+  assert.notEqual(store.getActiveWorkout().restTimerId, id);
 });

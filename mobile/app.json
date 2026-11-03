@@ -9,7 +9,8 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0B0B0B",
     "ios": {
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.zerobuff.mobile"
     },
     "android": {
       "package": "com.zerobuff.mobile",
@@ -39,7 +40,17 @@
       "expo-image",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-asset"
+      "expo-asset",
+      "./plugins/withRestTimer",
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.zerobuff.mobile.RestTimer",
+          "groupIdentifier": "group.com.zerobuff.mobile",
+          "enablePushNotifications": false,
+          "frequentUpdates": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

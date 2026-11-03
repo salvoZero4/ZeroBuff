@@ -21,6 +21,7 @@ export type ActiveWorkoutSession = {
   isFinishing?: boolean;
   autoRestEnabled?: boolean;
   restEndTimestamp?: number | null;
+  restTimerId?: string;
   sessionId: string | null;
   routineId: string;
   routineName: string;
@@ -201,7 +202,17 @@ export function editSetLog(
 
 export function setWorkoutRestEndTimestamp(restEndTimestamp: number | null) {
   if (!activeSession) return;
-  activeSession = { ...activeSession, restEndTimestamp };
+  const starting =
+    restEndTimestamp !== null &&
+    (!activeSession.restEndTimestamp ||
+      activeSession.restEndTimestamp <= Date.now());
+  activeSession = {
+    ...activeSession,
+    restEndTimestamp,
+    restTimerId: starting
+      ? `${activeSession.startedAtTimestamp}:${Date.now()}:${++restSequence}`
+      : activeSession.restTimerId,
+  };
   notify();
 }
 
@@ -216,4 +227,30 @@ export function toggleAutoRest() {
 
 export function pauseWorkout() {
   if (activeSession && !activeSession.isPaused) toggleWorkoutPause();
+}
+
+let restSequence = 0;
+
+export function applyNativeRestTimer(state: {
+  id: string;
+  workoutKey: string;
+  endAt: number;
+  status: string;
+}) {
+  if (
+    !activeSession ||
+    state.workoutKey !==
+      `${activeSession.routineId}:${activeSession.startedAtTimestamp}`
+  )
+    return;
+  if (activeSession.restTimerId && activeSession.restTimerId !== state.id)
+    return;
+  const restEndTimestamp = state.status === "skipped" ? null : state.endAt;
+  if (
+    activeSession.restTimerId === state.id &&
+    activeSession.restEndTimestamp === restEndTimestamp
+  )
+    return;
+  activeSession = { ...activeSession, restTimerId: state.id, restEndTimestamp };
+  notify();
 }

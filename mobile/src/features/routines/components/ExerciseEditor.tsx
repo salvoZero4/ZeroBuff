@@ -7,7 +7,6 @@ import { Icon } from "@/components/ui/Icon";
 
 type ExerciseEditorProps = {
   exercise: RoutineExerciseDraft;
-  index: number;
   onChange: (changes: Partial<RoutineExerciseDraft>) => void;
   onRemove: () => void;
   drag: () => void;
@@ -16,7 +15,6 @@ type ExerciseEditorProps = {
 
 export function ExerciseEditor({
   exercise,
-  index,
   onChange,
   onRemove,
   drag,

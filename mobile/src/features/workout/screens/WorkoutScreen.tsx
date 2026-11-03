@@ -1,3 +1,4 @@
+import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
 import { WorkoutSummaryScreen } from "@/features/workout/components/WorkoutSummaryScreen";
 import {
   summarizeWorkout,
@@ -10,6 +11,7 @@ import { ScreenError } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
+  AppState,
   Keyboard,
   Pressable,
   ScrollView,
@@ -137,17 +139,10 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
   useEffect(() => {
     if (!session) return;
-    const initialUpdate = setTimeout(() => {
+    return startForegroundTicker(AppState, () => {
       setDurationSeconds(getActiveWorkoutDurationSeconds());
-    }, 0);
-    if (session.isPaused) return () => clearTimeout(initialUpdate);
-    const interval = setInterval(() => {
-      setDurationSeconds(getActiveWorkoutDurationSeconds());
-    }, 1000);
-    return () => {
-      clearTimeout(initialUpdate);
-      clearInterval(interval);
-    };
+      return !session.isPaused;
+    });
   }, [session, session?.isPaused, session?.startedAtTimestamp]);
 
   useEffect(() => {

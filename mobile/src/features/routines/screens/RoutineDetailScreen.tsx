@@ -147,16 +147,13 @@ function RoutineEditorForm({
 
   function renderExerciseItem({
     item,
-    getIndex,
     drag,
     isActive,
   }: RenderItemParams<RoutineExerciseDraft>) {
-    const index = getIndex() ?? 0;
     return (
       <View className="pb-sm">
         <ExerciseEditor
           exercise={item}
-          index={index}
           onChange={(changes) => updateExercise(item.id, changes)}
           onRemove={() => removeExercise(item.id)}
           drag={drag}

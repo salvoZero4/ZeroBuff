@@ -25,6 +25,7 @@ import {
 } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/features/auth/provider/AuthProvider";
+import { BackgroundRestTimerProvider } from "@/features/workout/notifications/BackgroundRestTimerProvider";
 import { queryClient } from "@/shared/api/queryClient";
 
 SplashScreen.preventAutoHideAsync();
@@ -42,13 +43,15 @@ export default function RootLayout() {
     <SafeAreaProvider style={{ flex: 1, backgroundColor: "#0B0B0B" }}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <KeyboardProvider
-            statusBarTranslucent
-            navigationBarTranslucent
-            preserveEdgeToEdge
-          >
-            <RootNavigator />
-          </KeyboardProvider>
+          <BackgroundRestTimerProvider>
+            <KeyboardProvider
+              statusBarTranslucent
+              navigationBarTranslucent
+              preserveEdgeToEdge
+            >
+              <RootNavigator />
+            </KeyboardProvider>
+          </BackgroundRestTimerProvider>
         </AuthProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

@@ -5,7 +5,6 @@ type WeekDayTileProps = {
   number: number;
   isToday: boolean;
   hasRoutine?: boolean;
-  onPress?: () => void;
 };
 
 export function WeekDayTile({
@@ -13,7 +12,6 @@ export function WeekDayTile({
   number,
   isToday,
   hasRoutine = false,
-  onPress,
 }: WeekDayTileProps) {
   const containerStyle = isToday
     ? "border-accent bg-accent"

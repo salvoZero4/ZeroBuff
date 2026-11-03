@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppState, Pressable, Switch, Text, View } from "react-native";
+import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
+import { useBackgroundRestTimerFeedback } from "@/features/workout/notifications/BackgroundRestTimerProvider";
 import { Icon } from "@/components/ui/Icon";
 
 type RestTimerControlProps = {
@@ -17,6 +19,7 @@ export function RestTimerControl({
   autoRestEnabled,
   onToggleAutoRest,
 }: RestTimerControlProps) {
+  const background = useBackgroundRestTimerFeedback();
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
@@ -25,30 +28,14 @@ export function RestTimerControl({
       return () => clearTimeout(reset);
     }
 
-    const updateTimer = () => {
-      const now = Date.now();
-      const diff = Math.ceil((targetEndTimestamp - now) / 1000);
-
-      if (diff <= 0) {
-        setSecondsLeft(0);
-      } else {
-        setSecondsLeft(diff);
-      }
-    };
-
-    const initialUpdate = setTimeout(updateTimer, 0);
-    const interval = setInterval(updateTimer, 1000);
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active") {
-        updateTimer();
-      }
+    return startForegroundTicker(AppState, () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((targetEndTimestamp - Date.now()) / 1000),
+      );
+      setSecondsLeft(remaining);
+      return remaining > 0;
     });
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(initialUpdate);
-      subscription.remove();
-    };
   }, [targetEndTimestamp]);
 
   function startTimer(seconds?: number) {
@@ -143,6 +130,27 @@ export function RestTimerControl({
           />
         </View>
       </View>
+      {background.message ? (
+        <View className="items-center gap-xs">
+          <Text
+            accessibilityLiveRegion="polite"
+            className="text-center font-body text-caption text-text-secondary"
+          >
+            {background.message}
+          </Text>
+          {background.onAction ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={background.onAction}
+              className="min-h-12 justify-center px-md"
+            >
+              <Text className="font-body-semibold text-caption text-text-primary">
+                {background.actionLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
