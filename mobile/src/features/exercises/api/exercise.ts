@@ -35,6 +35,9 @@ export function createExercise(
 
 export function getExerciseStats(
   exerciseId: string,
+  params: { offset?: number; limit?: number } = {},
 ): Promise<ExerciseStatsResponse> {
-  return apiRequest<ExerciseStatsResponse>(`/exercises/${exerciseId}/stats`);
+  return apiRequest<ExerciseStatsResponse>(
+    `/exercises/${exerciseId}/stats?offset=${params.offset ?? 0}&limit=${params.limit ?? 10}`,
+  );
 }

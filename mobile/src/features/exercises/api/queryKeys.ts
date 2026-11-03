@@ -6,6 +6,7 @@ export const exerciseKeys = {
   infiniteLists: () => [...exerciseKeys.all, "infinite"] as const,
   infiniteList: (params: Omit<GetExercisesParams, "offset"> = {}) =>
     [...exerciseKeys.infiniteLists(), params] as const,
+  history: (id: string) => [...exerciseKeys.stats(id), "history"] as const,
   allStats: () => [...exerciseKeys.all, "stats"] as const,
   stats: (id: string | undefined) => [...exerciseKeys.allStats(), id] as const,
 };

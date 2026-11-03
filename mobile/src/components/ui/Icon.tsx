@@ -18,6 +18,8 @@ export type IconName =
   | "chevron-up"
   | "chevron-down"
   | "chevron-right"
+  | "chevron-left"
+  | "ellipsis"
   | "arrow-trend-up"
   | "arrow-trend-down"
   | "minus"

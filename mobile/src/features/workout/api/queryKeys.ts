@@ -2,6 +2,7 @@ import type { GetSessionsParams } from "../types/session";
 
 export const sessionKeys = {
   all: ["sessions"] as const,
+  history: () => [...sessionKeys.all, "history"] as const,
   lists: () => [...sessionKeys.all, "list"] as const,
   list: (params: GetSessionsParams = {}) =>
     [...sessionKeys.lists(), params] as const,

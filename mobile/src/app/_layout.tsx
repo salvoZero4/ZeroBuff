@@ -105,6 +105,10 @@ function RootNavigator() {
             <Stack.Protected guard={status === "signedIn"}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
+                name="analytics/exercise"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
                 name="workout"
                 options={{
                   headerShown: false,
