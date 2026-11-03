@@ -2,6 +2,9 @@
 .env
 *.env.*
 
+# Keep the local template tracked; real .env files stay ignored.
+!backend/.env.example
+
 # Python / Backend
 backend/.venv/
 backend/__pycache__/
@@ -19,7 +22,8 @@ mobile/eas.json
 .DS_Store
 *.pem
 
-./agents/*
+# Local agent files
+/agents/
 
 # Codex skills
 /.agents/skills/
