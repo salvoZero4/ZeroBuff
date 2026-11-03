@@ -349,6 +349,11 @@ test("summary counts only confirmed sets and compares bodyweight by reps", () =>
   assert.equal(summary.volume, 0);
   assert.equal(summary.improvedExercises, 1);
   assert.equal(summary.durationSeconds, 100);
+  assert.equal(summary.hasAddedLoad, false);
+  assert.equal(summary.reps, 12);
+  assert.equal(summary.improvements[0].metric, "reps");
+  assert.equal(summary.improvements[0].previous, 10);
+  assert.equal(summary.improvements[0].current, 12);
 });
 
 test("auto rest starts after confirmed save, can be disabled, and supports zero load", async () => {
@@ -526,4 +531,69 @@ test("failed deletion preserves the saved card and permits retry", async () => {
   );
   fail = false;
   assert.equal(await t.workout.removeSetFromExercise("exercise", 1), true);
+});
+
+test("summary exposes named volume improvements and total reps for mixed workouts", () => {
+  const { experience, store } = setup();
+  const session = store.getActiveWorkout();
+  const saved = (weight, reps, id) => ({
+    setNumber: 1,
+    weight,
+    reps,
+    rir: "",
+    completed: true,
+    backendId: id,
+    saveStatus: "saved",
+  });
+  session.workoutLogs = {
+    loaded: [saved("22,5", "10", "a")],
+    bodyweight: [saved("0", "12", "b")],
+    unchanged: [saved("10", "5", "c")],
+  };
+  const summary = experience.summarizeWorkout(
+    session,
+    100,
+    {
+      loaded: [{ weight: 20, reps: 10 }],
+      unchanged: [{ weight: 10, reps: 5 }],
+    },
+    { loaded: "Dumbbell row" },
+  );
+  assert.equal(summary.sessionId, session.sessionId);
+  assert.equal(summary.reps, 27);
+  assert.equal(summary.volume, 275);
+  assert.equal(summary.hasAddedLoad, true);
+  assert.equal(summary.comparedExercises, 2);
+  assert.equal(summary.exercises, 3);
+  assert.equal(summary.improvements.length, 1);
+  assert.equal(summary.improvements[0].name, "Dumbbell row");
+  assert.equal(summary.improvements[0].metric, "volume");
+  assert.equal(summary.improvements[0].previous, 200);
+  assert.equal(summary.improvements[0].current, 225);
+});
+
+test("empty summary does not treat drafts as performed work", () => {
+  const { experience, store } = setup();
+  const session = store.getActiveWorkout();
+  const summary = experience.summarizeWorkout(session, 65);
+  assert.equal(summary.sets, 0);
+  assert.equal(summary.exercises, 0);
+  assert.equal(summary.reps, 0);
+  assert.equal(summary.hasAddedLoad, false);
+  assert.equal(summary.comparedExercises, 0);
+  assert.equal(summary.improvements.length, 0);
+});
+
+test("finish exposes the confirmed id even when the server session is created on finish", async () => {
+  const t = setup({ createSession: async () => ({ id: "new-session" }) });
+  t.store.setSessionBackendId(null);
+  let confirmedId;
+  assert.equal(
+    await t.workout.finishWorkoutSession((id) => {
+      confirmedId = id;
+    }),
+    true,
+  );
+  assert.equal(confirmedId, "new-session");
+  assert.equal(t.store.getActiveWorkout(), null);
 });

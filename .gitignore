@@ -23,3 +23,5 @@ mobile/eas.json
 
 # Codex skills
 /.agents/skills/
+/context
+/.impeccable

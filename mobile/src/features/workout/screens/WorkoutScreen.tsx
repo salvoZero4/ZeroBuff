@@ -225,6 +225,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       <WorkoutSummaryScreen
         summary={summary}
         onDone={() => router.replace("/(tabs)")}
+        onViewWorkout={() => {
+          if (summary.sessionId)
+            router.push({
+              pathname: "/session/[sessionId]",
+              params: { sessionId: summary.sessionId },
+            });
+        }}
       />
     );
 
@@ -359,10 +366,25 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     try {
       const snapshot = getActiveWorkout();
       const duration = getActiveWorkoutDurationSeconds();
-      if (await finishWorkoutSession()) {
+      let confirmedSessionId = snapshot?.sessionId ?? null;
+      if (
+        await finishWorkoutSession((id) => {
+          confirmedSessionId = id;
+        })
+      ) {
         if (snapshot)
           setSummary(
-            summarizeWorkout(snapshot, duration, previousSetsRef.current),
+            summarizeWorkout(
+              { ...snapshot, sessionId: confirmedSessionId },
+              duration,
+              previousSetsRef.current,
+              Object.fromEntries(
+                (routine?.exercises ?? []).map((exercise) => [
+                  exercise.exercise_id,
+                  exercise.name,
+                ]),
+              ),
+            ),
           );
         setShowFinishModal(false);
       }

@@ -15,7 +15,19 @@ export function adjustNumericInput(
   return String(Math.max(minimum, Math.round((value + amount) * 100) / 100));
 }
 
+export type WorkoutImprovement = {
+  exerciseId: string;
+  name: string;
+  metric: "reps" | "volume";
+  previous: number;
+  current: number;
+};
+
 export type WorkoutSummary = {
+  sessionId: string | null;
+  reps: number;
+  hasAddedLoad: boolean;
+  improvements: WorkoutImprovement[];
   routineName: string;
   durationSeconds: number;
   exercises: number;
@@ -31,12 +43,16 @@ export function summarizeWorkout(
   session: ActiveWorkoutSession,
   durationSeconds: number,
   previous: PreviousSets = {},
+  exerciseNames: Record<string, string> = {},
 ): WorkoutSummary {
   let sets = 0,
     exercises = 0,
     volume = 0,
     improvedExercises = 0,
     comparedExercises = 0;
+  let reps = 0;
+  let hasAddedLoad = false;
+  const improvements: WorkoutImprovement[] = [];
   for (const [id, logs] of Object.entries(session.workoutLogs)) {
     const saved = logs.filter(
       (set) =>
@@ -57,6 +73,8 @@ export function summarizeWorkout(
       0,
     );
     volume += currentVolume;
+    reps += current.reduce((total, set) => total + set.reps, 0);
+    hasAddedLoad ||= current.some((set) => set.weight > 0);
     const earlier = previous[id];
     if (!earlier?.length) continue;
     comparedExercises++;
@@ -67,9 +85,22 @@ export function summarizeWorkout(
       Math.max(
         ...values.map((set) => (bodyweight ? set.reps : set.weight * set.reps)),
       );
-    if (best(current) > best(earlier)) improvedExercises++;
+    if (best(current) > best(earlier)) {
+      improvedExercises++;
+      improvements.push({
+        exerciseId: id,
+        name: exerciseNames[id] ?? "Exercise",
+        metric: bodyweight ? "reps" : "volume",
+        previous: best(earlier),
+        current: best(current),
+      });
+    }
   }
   return {
+    sessionId: session.sessionId,
+    reps,
+    hasAddedLoad,
+    improvements,
     routineName: session.routineName,
     durationSeconds,
     exercises,

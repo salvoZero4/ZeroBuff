@@ -116,6 +116,10 @@ function RootNavigator() {
                   animation: "slide_from_right",
                 }}
               />
+              <Stack.Screen
+                name="session/[sessionId]"
+                options={{ headerShown: false }}
+              />
             </Stack.Protected>
             <Stack.Protected guard={status === "signedOut"}>
               <Stack.Screen name="(auth)" />

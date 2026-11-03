@@ -477,7 +477,9 @@ export async function removeSetFromExercise(
   return true;
 }
 
-export async function finishWorkoutSession(): Promise<boolean> {
+export async function finishWorkoutSession(
+  onConfirmed?: (sessionId: string) => void,
+): Promise<boolean> {
   const session = getActiveWorkout();
   if (!session || session.isFinishing) return false;
   const sets = Object.values(session.workoutLogs).flat();
@@ -517,6 +519,7 @@ export async function finishWorkoutSession(): Promise<boolean> {
     );
     if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
       clearActiveWorkout();
+    onConfirmed?.(sessionId);
     return true;
   } finally {
     if (getActiveWorkout()?.startedAtTimestamp === session.startedAtTimestamp)
