@@ -207,6 +207,42 @@ test("expiry reconciliation does not cancel the completed notification in the ba
   assert.equal(t.native().status, "complete");
 });
 
+test("retry republishes notifications after native state was saved but publishing failed", async () => {
+  const t = setup();
+  const set = t.adapter.setTimer;
+  let fail = true;
+  t.adapter.setTimer = async (...args) => {
+    const result = await set(...args);
+    if (fail) throw Error("notification publishing failed");
+    return result;
+  };
+  await t.sync.update(snapshot());
+  assert.equal(t.failures.length, 1);
+  assert.equal(t.native().id, "rest-1");
+  fail = false;
+  await t.sync.retry();
+  assert.equal(t.calls.length, 2);
+});
+
+test("retry adopts a newer native action before republishing", async () => {
+  const t = setup();
+  await t.sync.update(snapshot());
+  t.change(nativeState({ version: 2, endAt: 130_000 }));
+  await t.sync.retry();
+  assert.equal(t.calls.length, 2);
+  assert.equal(t.native().endAt, 130_000);
+});
+
+test("retry preserves a completed alert instead of clearing or restarting it", async () => {
+  const t = setup();
+  await t.sync.update(snapshot());
+  t.change(nativeState({ status: "complete", version: 2 }));
+  await t.sync.refresh();
+  await t.sync.retry();
+  assert.equal(t.calls.length, 1);
+  assert.equal(t.native().status, "complete");
+});
+
 test("invalid native payloads are rejected", () => {
   assert.equal(parseNativeTimer(null), null);
   assert.equal(parseNativeTimer("malformed"), null);

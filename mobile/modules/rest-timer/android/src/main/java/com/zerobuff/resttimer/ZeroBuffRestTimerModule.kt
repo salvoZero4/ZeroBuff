@@ -14,7 +14,8 @@ class ZeroBuffRestTimerModule : Module() {
     AsyncFunction("setTimer") { json: String, expectedVersion: Int -> RestTimerEngine.set(context, json, expectedVersion) }
     AsyncFunction("clear") { RestTimerEngine.clear(context) }
     AsyncFunction("performAction") { action: String, id: String, version: Int -> RestTimerEngine.action(context, action, id, version) }
-    AsyncFunction("promoteNotification") { id: String -> RestTimerEngine.promote(context, id) }
+    AsyncFunction("canScheduleExactAlarms") { RestTimerEngine.canScheduleExactAlarms(context) }
+    AsyncFunction("openAlarmSettings") { RestTimerEngine.openAlarmSettings(context) }
     Function("canShowLiveActivity") { true }
   }
 }

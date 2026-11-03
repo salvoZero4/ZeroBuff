@@ -13,7 +13,7 @@ Install dependencies with `npm install`. Configure the backend URL in a local `.
 - `index.js`: registers Notifee background handlers before Expo Router.
 - `src/app/`: route adapters and navigation layouts.
 - `src/features/`: feature-owned UI, APIs, contracts and state.
-- `src/features/workout/notifications/`: Notifee adapters, permissions and timer synchronization.
+- `src/features/workout/notifications/`: Expo notification integration, permissions and native timer synchronization.
 - `src/components/ui/`: shared UI primitives.
 - `src/shared/`: API transport, query cache, errors and utilities.
 - `modules/rest-timer/`: Swift/Kotlin timer integration discovered by autolinking.

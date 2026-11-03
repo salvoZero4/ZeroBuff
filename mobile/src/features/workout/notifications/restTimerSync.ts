@@ -68,18 +68,26 @@ export class RestTimerSync {
   constructor(
     private adapter: RestTimerAdapter,
     private apply: (state: NativeRestTimer) => void,
-    private failed: () => void,
+    private failed: (error: unknown) => void,
   ) {}
 
   private enqueue(operation: () => Promise<void>): Promise<void> {
-    this.tail = this.tail.then(operation).catch(() => {
-      this.failed();
+    this.tail = this.tail.then(operation).catch((error: unknown) => {
+      this.failed(error);
     });
     return this.tail;
   }
 
   update(snapshot: RestTimerSnapshot | null): Promise<void> {
+    return this.synchronize(snapshot, false);
+  }
+
+  private synchronize(
+    snapshot: RestTimerSnapshot | null,
+    republish: boolean,
+  ): Promise<void> {
     if (
+      !republish &&
       this.initialized &&
       JSON.stringify(this.desired) === JSON.stringify(snapshot)
     )
@@ -99,11 +107,16 @@ export class RestTimerSync {
       if (
         current?.workoutKey === snapshot.workoutKey &&
         (snapshot.id === null || snapshot.id === current.id) &&
-        (!this.versions.has(current.id) ||
+        (republish ||
+          !this.versions.has(current.id) ||
           current.version > this.versions.get(current.id)!)
       ) {
         this.accept(current);
-        return;
+        // A saved timer does not prove that its notifications were published.
+        // Retry active timers using the latest native deadline, never revive a
+        // completed/skipped timer or remove its completion alert.
+        if (!republish || current.status !== "active") return;
+        snapshot = timerSnapshot(current);
       }
       if (!snapshot.id || snapshot.endAt === null) {
         await this.adapter.clear();
@@ -153,8 +166,6 @@ export class RestTimerSync {
 
   // Allows a failed native operation to be retried on the next foreground event.
   retry(): Promise<void> {
-    const desired = this.desired;
-    this.initialized = false;
-    return this.update(desired);
+    return this.synchronize(this.desired, true);
   }
 }

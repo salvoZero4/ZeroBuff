@@ -9,9 +9,14 @@ import {
   clearActiveWorkout,
   applyNativeRestTimer,
 } from "@/features/workout/store/activeWorkoutStore";
-import type { Notification } from "@notifee/react-native";
-import { getRestTimerRuntime } from "./notifeeRuntime";
-import { matchesRestNotification } from "./notifeeRestTimer";
+import { getRestTimerRuntime } from "./restNotificationsRuntime";
+import {
+  matchesRestNotification,
+  hasNotificationPermission,
+  REST_COMPLETE_CHANNEL,
+  REST_RUNNING_CHANNEL,
+  type RestNotificationData,
+} from "./expoRestNotifications";
 import { nativeRestTimer } from "@/features/workout/notifications/nativeRestTimer";
 import {
   parseNativeTimer,
@@ -57,41 +62,53 @@ export function BackgroundRestTimerProvider({
         ...runtime.adapter,
         authorize: async () => {
           setFailed(false);
-          let permissions = await runtime.api.getNotificationSettings();
+          await runtime.prepare();
+          let permissions = await runtime.api.getPermissionsAsync();
           if (
-            permissions.authorizationStatus <
-              runtime.constants.AuthorizationStatus.AUTHORIZED &&
+            !hasNotificationPermission(permissions) &&
+            permissions.canAskAgain &&
             !askedPermission &&
             AppState.currentState === "active"
           ) {
             askedPermission = true;
-            permissions = await runtime.api.requestPermission({
-              alert: true,
-              sound: true,
-              badge: false,
+            permissions = await runtime.api.requestPermissionsAsync({
+              ios: { allowAlert: true, allowSound: true, allowBadge: false },
             });
           }
-          const granted =
-            permissions.authorizationStatus >=
-            runtime.constants.AuthorizationStatus.AUTHORIZED;
+          const granted = hasNotificationPermission(permissions);
           const exact =
             Platform.OS === "android" &&
-            permissions.android.alarm !==
-              runtime.constants.AndroidNotificationSetting.ENABLED;
-          setExactPermission(granted && exact);
+            !(await bridge.canScheduleExactAlarms?.());
+          const blockedChannel =
+            Platform.OS === "android" &&
+            granted &&
+            (
+              await Promise.all(
+                [REST_RUNNING_CHANNEL, REST_COMPLETE_CHANNEL].map((id) =>
+                  runtime.api.getNotificationChannelAsync(id),
+                ),
+              )
+            ).some(
+              (channel) =>
+                channel?.importance === runtime.api.AndroidImportance.NONE,
+            );
+          setExactPermission(granted && exact && !blockedChannel);
           setMessage(
             !granted
               ? "Allow notifications for rest alerts outside the app."
-              : Platform.OS === "ios" && !bridge.canShowLiveActivity()
-                ? "Enable Live Activities in Settings to see your rest countdown outside the app."
-                : exact
-                  ? "Allow Alarms & reminders for more precise rest alerts. Battery saving may still delay them."
-                  : null,
+              : blockedChannel
+                ? "Enable Rest countdown and Rest complete in notification settings."
+                : Platform.OS === "ios" && !bridge.canShowLiveActivity()
+                  ? "Enable Live Activities in Settings to see your rest countdown outside the app."
+                  : exact
+                    ? "Allow Alarms & reminders for more precise rest alerts. Battery saving may still delay them."
+                    : null,
           );
         },
       },
       applyNativeRestTimer,
-      () => {
+      (error) => {
+        console.error("[RestTimer] Notification update failed", error);
         setFailed(true);
         setMessage("Rest alerts couldn’t update. The timer still works here.");
       },
@@ -148,7 +165,7 @@ export function BackgroundRestTimerProvider({
       }
     });
     let disposed = false;
-    const open = async (notification: Notification) => {
+    const open = async (notification: RestNotificationData) => {
       if (disposed) return;
       const current = parseNativeTimer(await bridge.getState());
       if (
@@ -172,14 +189,6 @@ export function BackgroundRestTimerProvider({
     const removePress = runtime?.subscribePress((notification) => {
       void open(notification).catch(() => {});
     });
-    if (runtime && Platform.OS === "android") {
-      void runtime.api
-        .getInitialNotification()
-        .then((initial) => {
-          if (initial) return open(initial.notification);
-        })
-        .catch(() => {});
-    }
     return () => {
       disposed = true;
       changed.remove();
@@ -203,8 +212,7 @@ export function BackgroundRestTimerProvider({
               }
             : bridge
               ? () => {
-                  if (exactPermission)
-                    void runtime?.api.openAlarmPermissionSettings();
+                  if (exactPermission) void bridge.openAlarmSettings?.();
                   else void Linking.openSettings();
                 }
               : undefined,

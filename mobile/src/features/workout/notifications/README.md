@@ -1,18 +1,13 @@
 # Workout notifications
 
-This folder owns the app-side rest notification integration.
-
-- `BackgroundRestTimerProvider.tsx`: session/auth lifecycle, Notifee permission feedback, foreground reconciliation and opening workouts.
-- `restTimerSync.ts`: platform-independent identity/version checks and serialized synchronization.
+- `BackgroundRestTimerProvider.tsx`: session/auth lifecycle, Expo permissions, blocked-channel feedback, foreground reconciliation and completion-notification navigation.
+- `restTimerSync.ts`: identity/version checks and serialized synchronization. Explicit retries republish active timers, including when metadata was saved before notification delivery failed. Completed alerts are preserved.
 - `nativeRestTimer.ts`: optional native bridge; Expo Go/web degrade safely.
-- `notifeeRestTimer.ts`: Notifee countdown, scoped trigger cleanup, native-action dispatch and a shared foreground/background operation queue.
-- `notifeeRuntime.ts`: one-time Notifee event registration and deferred notification presses before auth is restored.
-- `mobile/index.js` registers the runtime before `expo-router/entry`, so Android Headless JS can process actions without React being mounted.
+- `expoRestNotifications.ts`: Expo channels, permission interpretation and deduplicated cold/live response subscriptions. Taps are matched to the current timer and deadline.
+- `restNotificationsRuntime.ts`: guarded Expo loading and presentation handler, registered before Expo Router in `index.js`.
 
-`components/RestTimerControl.tsx` owns the visible timer. `utils/foregroundTicker.ts` serves both rest and total workout time and stays independent of notifications.
+`components/RestTimerControl.tsx` owns the visible timer. `utils/foregroundTicker.ts` keeps in-app counters independent of background notifications.
 
-Android Notifee notifications use the system chronometer, one timestamp trigger, and +30s/Skip actions without a foreground service. Native Kotlin stores one timer's metadata, rejects obsolete actions and requests promoted ongoing visibility on API 36+. iOS ActivityKit/LiveActivityIntent remain native; their standard completion alert uses Notifee's native core directly to avoid starting JS for a Live Activity button.
+Expo Notifications owns standard notification permissions, presentation and response events. The local native module owns timer metadata, countdown surfaces and +30s/Skip so actions do not require JavaScript. Android's completion adapter uses Expo's native scheduler; iOS uses the same UNUserNotificationCenter queue as Expo. There is one completion request, replaced by identifier on changes. JS never schedules a competing timer alert.
 
-Native code remains in `mobile/modules/rest-timer/` for autolinking. `mobile/plugins/withRestTimer.js` configures the iOS extension and modular Notifee headers. Notifee 9.1.8 does not ship the app.plugin.js described in its online installation guide: use autolinking and the local plugin, not a nonexistent @notifee/react-native config-plugin entry.
-
-See the native module README for build instructions, energy behavior and unverified device scenarios.
+See `modules/rest-timer/README.md` for native integration details, build instructions and device checks.

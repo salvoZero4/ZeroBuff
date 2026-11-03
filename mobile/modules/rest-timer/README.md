@@ -1,49 +1,55 @@
-# Background rest timer with Notifee and native Live Activities
+# Native rest timer with Expo Notifications
 
-The app integration is grouped in `src/features/workout/notifications/`. Standard notifications are owned by `@notifee/react-native`; `expo-notifications` is removed.
+## Ownership
 
-## Responsibilities
+- `expo-notifications` owns permissions, Android channel setup, foreground presentation and completion-notification response events. No push token registration or remote notification service is required for local rest alerts.
+- Android Kotlin owns the system chronometer and explicit, non-exported +30s/Skip/dismiss receivers. `RestTimerTransitions` validates timer IDs, deadlines and versions. `RestCompletionAlerts` calls the installed Expo native scheduler synchronously so actions work without JS and scheduling errors reach the caller. This narrow integration uses `ExpoSchedulingDelegate`, `NotificationContent`, `NotificationRequest`, and `DateTrigger`: verify their signatures and notification `(tag, id)` mapping when upgrading Expo.
+- iOS ActivityKit/SwiftUI and LiveActivityIntent remain native. `RestCompletionAlerts.swift` replaces the single UNUserNotificationCenter request using the same notification queue and data format as Expo. Expo receives taps and controls foreground presentation. No library-specific native headers or extension stub are required.
+- `expo-widgets` configures the extension and App Group. `plugins/withRestTimer.js` supplies the native layout; keep it before expo-widgets because dangerous mods execute in reverse registration order. It removes the previous generated Notifee Podfile entry on incremental prebuilds.
 
-- **Android:** Notifee owns channels, the system chronometer, timestamp trigger, notification actions and press events. Kotlin only retains timer metadata/version checks and promotes the Notifee notification on API 36+. No custom native notification builder, alarm receiver or alarm scheduling remains.
-- **iOS:** ActivityKit and SwiftUI remain native. LiveActivityIntent updates/cancels the completion alert through Notifee's native core, without starting JS. `ios/NotifeeRestAlerts.swift` uses the public native headers shipped in Notifee 9.1.8. The extension contains a rendering-only stub: LiveActivityIntent executes in the app process where the real core adapter is linked.
-- `expo-widgets` configures the extension target and App Group. `plugins/withRestTimer.js` supplies the native layout and enables modular Notifee headers for Swift. Keep it **before** expo-widgets: dangerous mods execute in reverse registration order.
-- `index.js` registers Notifee events before Expo Router. Expo Go and web do not load the native Notifee emitter.
+Only one pending completion request exists: `zerobuff.rest.complete`. A time adjustment replaces it, while Skip/finish/logout cancel it. Dismissing the countdown preserves the final alert. Cleanup only touches rest notifications. Completed alerts are not removed by foreground reconciliation. Native storage contains timer metadata, not credentials or workout writes.
 
-Notifee 9.1.8's package does not contain the config plugin described in its online guide. Native modules are autolinked; no @notifee/react-native entry belongs in app.json's plugins array for this version. The local module manifest supplies notification/exact-alarm/promoted permissions.
+## Background behavior
 
-## Energy model
+No foreground service, app-held wake lock, JS background task or polling. The OS renders countdowns from a deadline. Android actions run briefly in a receiver; iOS actions run in the app process via LiveActivityIntent.
 
-- No permanent foreground service, app-held wake lock, background polling, background fetch or remote push subscription.
-- The OS renders countdowns from the deadline; app counters stop in inactive/background states and at expiry/pause.
-- Only one expiry trigger. Changes replace it, and Skip/finish/logout cancel it. Notification cleanup is scoped to rest alerts, preserving other features' notifications.
-- Android Headless JS runs briefly on an action/completion event, with no network calls or periodic scheduling. iOS Live Activity actions remain entirely native.
-- Exact-alarm access is optional. Without it, Notifee uses SET_AND_ALLOW_WHILE_IDLE rather than exact alarms or repeating WorkManager jobs. Battery restrictions may delay the alert; the in-app timer remains available. Never request battery-optimization exemptions.
-- Native storage holds a single timer's metadata only, not credentials or workout mutation queues.
+On Android 12+, exact-alarm access is optional. Expo's scheduler uses an inexact idle-aware alarm when permission is unavailable; it may arrive late. The UI links to Alarms & reminders and separately identifies blocked notification channels. Battery restrictions still apply. Never request battery-optimization exemptions automatically.
 
-## Behavior and platform limits
+Android 8+ removes the countdown at its deadline with the platform timeout. Android 7 lacks that API: the expired countdown is removed on reconciliation/clear. Android 16+ requests promoted ongoing visibility, but OEM/user settings decide presentation; Samsung Now Bar eligibility is not guaranteed.
 
-Rest IDs and versions reject obsolete actions; foreground and background Notifee operations share a queue. Native iOS mutations are serialized separately. Reconcile on foreground and after the server restores the same workout.
+On iOS 16.4–16.x the Live Activity displays the countdown and opens the workout; buttons require iOS 17+. At expiry it becomes stale. The system may retain it until the workout clears it; no process is kept alive solely to end an activity at expiry.
 
-On iOS 16.4–16.x the Live Activity displays a countdown and opens the workout; buttons require iOS 17+. At expiry the countdown reaches zero and the stale presentation says Rest complete. The app ends the activity on return, Skip or workout completion; no process is kept alive solely to close it at expiry.
+Force-stop, reboot, user dismissal and energy restrictions must be tested on real devices. Expo restores supported pending alarms on boot; the countdown is reconstructed when the workout is reconciled. Neither platform guarantees delivery after force-stop.
 
-On Android API 36+, the small native promotion adapter recovers the Notifee notification and requests promoted ongoing visibility. The id/hash mapping was checked against the Android core bundled with Notifee 9.1.8; reverify it on library upgrades. System/OEM/user settings still control actual promotion and Samsung Now Bar eligibility.
+## Build and tests
 
-Force-stop, reboot, dismissal and power restrictions differ by OS. Do not promise identical behavior or universal Now Bar support.
+A new native build is required; this migration cannot be installed by reloading an existing APK. Expo Go does not include the local timer module.
 
-## Build and verify
+From `mobile`:
 
-Expo Go cannot load the integration. Regenerate the native project and rebuild with the project's local or development build workflow:
+```sh
+npx expo prebuild --platform android --no-install
+npx expo prebuild --platform ios --no-install
+npx expo run:android
+npx expo run:ios
+node --test tests/*.test.cjs
+npx tsc --noEmit
+npx expo lint
+```
 
-- `npx expo prebuild --platform ios --no-install`
-- `npx expo prebuild --platform android --no-install`
-- `npx expo run:ios` (CocoaPods/Xcode required)
-- `npx expo run:android` (Android SDK required)
-- `node --test tests/workout.test.cjs tests/restTimerSync.test.cjs tests/notifeeRestTimer.test.cjs`
-- `npx tsc --noEmit` and `npx expo lint`
-- Swift JSON contract: compile `ios/RestTimerState.swift` with `tests/main.swift` using swiftc.
+Android state tests are in `tests/RestTimerTransitionsTest.kt` (relative to this module). Run with `kotlinc`, the production `RestTimerTransitions.kt`, and a JVM `org.json` jar on the classpath; run `com.zerobuff.resttimer.RestTimerTransitionsTestKt`. They cover +30, Skip, dismissal, stale/duplicate actions, expiration, replacement and same-state retry.
 
-Device checks: permission refusal, disabled Live Activities, background/lock countdown, +30 replacing the old deadline, Skip preventing a late alert, confirmed finish/logout cleanup, restore, stale/repeated actions, notification taps and user dismissal. Test Dynamic Island/non-Island iPhones and a real Galaxy/One UI version. Measure power with native profiling tools before making quantitative battery claims.
+Swift bridge contract:
 
-## Verification on 2026-11-03
+```sh
+swiftc modules/rest-timer/ios/RestTimerState.swift modules/rest-timer/tests/main.swift -o /tmp/rest-timer-contract
+/tmp/rest-timer-contract
+```
 
-51 current Node tests (the retired increment-helper test was removed during cleanup), TypeScript and lint; iOS JS bundle export; native Swift Notifee adapter type-check against the installed public ObjC header; and the arm64 simulator Live Activity extension build passed. Native app integration remains unverified on-device. Android compilation is blocked by the missing Android SDK in this environment; actual Galaxy Now Bar behavior and power consumption remain unmeasured.
+Device checks: permit/deny notifications, disable individual channels, deny/grant exact alarms, lock the screen, +30 replacing the previous deadline, Skip preventing a late alert, finish/logout cleanup, app restart, notification taps, and dismissal. Check both Android and iOS, including a real Galaxy for promoted presentation.
+
+## Verification for this migration
+
+Passed: 96 Node tests, TypeScript, Swift bridge test, Swift type-check of ActivityKit/widget/notification sources, 17 Android state assertions on the JVM, Android JS bundle export, both native prebuilds and Expo module discovery.
+
+Full Android Gradle compilation is blocked by the missing configured Android SDK. A full iOS app build and real-device notification delivery remain unverified. These checks do not establish lock-screen behavior or energy usage on a phone.

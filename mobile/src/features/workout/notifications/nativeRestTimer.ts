@@ -11,7 +11,8 @@ export interface NativeRestTimerModule {
     id: string,
     version: number,
   ): Promise<string | null>;
-  promoteNotification?(id: string): Promise<void>;
+  canScheduleExactAlarms?(): Promise<boolean>;
+  openAlarmSettings?(): Promise<void>;
   addListener(
     name: "onRestTimerChanged",
     callback: () => void,

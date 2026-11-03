@@ -79,3 +79,68 @@ The product name is ZeroBuff. Preserve its established name and existing assets.
 - Priority and adaptation requirements for tablets and web are not yet confirmed.
 - Pricing, monetization, and distribution strategy are not established here.
 - A proprietary training method or additional differentiating claim has not been supplied.
+
+## UI Review — Problems and Recommended Improvements
+
+Recorded on 2026-11-03. This is a design backlog, not an implementation or test report. Findings came from the current screen/component source and four existing iOS Analytics captures in `.impeccable/review/`. Other surfaces were reviewed in source only; the simulator was unavailable. Revalidate findings before implementation. P1 means major usability work; P2 means a subsequent refinement. Recommendations below are proposals unless explicitly marked as owner-confirmed.
+
+### Owner-confirmed constraint: keep the set card lean
+
+- The owner explicitly wants the set card as lean as possible: adding information and controls can create confusion. This overrides the earlier review's suggestion to enlarge or add a dominant completion action inside the card.
+- Preserve the card carousel, free exercise switching, and ability to add sets. Keep weight, reps, and one clear completion control as the card's visual focus. A larger card or an additional CTA is not the default solution.
+- Keep optional RIR, previous-performance context, removal, and other adjustments visually secondary. Evaluate placing secondary actions outside the card or behind a clearly discoverable contextual control; preserve their functionality and accessible alternatives.
+- Avoid permanent explanatory copy, repeated save summaries, multiple competing buttons, and rows of quick-increment controls inside the card. If quick increments are introduced, evaluate a contextual input accessory rather than expanding the default card.
+- Keep saving, unsaved changes, and failures truthful and understandable. Use concise status feedback; expose recovery when needed and preserve entered values. Simplification must not hide a failed save.
+- Keep the rest timer prominent outside the card. Clarify the difference between completing a set and changing exercise through hierarchy and labels, without adding competing primary actions.
+- Lean means fewer competing elements, not smaller touch targets or less readable numbers. Validate the result with the keyboard open and with large text on both platforms.
+
+### P1 — Reliability feedback and recovery
+
+- **Today:** a failure in any queried section, including body weight, replaces the whole screen with an error. Prefer section-level failures and retries while preserving available content and a safe start/resume path.
+- **Profile and Schedule:** initial query failures are not explicitly distinguished from missing data in some paths. Provide a clear failed-load state and retry instead of presenting unavailable information as empty or unset.
+- **Mutations:** routine deletion and sex updates lack explicit local error feedback in their screen handlers. Show pending, success, and actionable failure consistently; do not let a closed picker imply a successful save.
+- Preserve the active workout's existing distinction between pending and confirmed saves. Apply the same clarity to other surfaces without filling them with persistent status text.
+
+### P1 — Accessible exercise reordering
+
+- Routine reordering relies on long press and drag. Add an accessible alternative such as “Move up” / “Move down”, with position announcements. Retain drag for users who prefer it.
+- Check the drag handle's effective touch area and spacing; its visual box is 40 × 40 with hit slop. Validate that neighboring targets do not overlap.
+
+### P2 — Today and workout flow
+
+- Weekday tiles are currently static views although the project directives call for tappable days. Make day selection meaningful and expose the selected date and scheduled routine clearly.
+- Today's routine card uses generic motivational text. Prefer useful planning information already available, such as exercise and planned-set counts, without turning the home into another routine editor.
+- Prefer an explicit “Start workout” label to “Start”. After a completed session, show a clear completion state and evaluate a secondary path to start another workout rather than simply losing the CTA.
+- During a workout, reduce the prominence of secondary adjustments such as auto-rest settings and removal. Preserve timer and active-set priority, subject to the lean-card constraint above.
+
+### P2 — Routines and exercise selection
+
+- Routine and movement totals occupy space before the actionable routine list. Compact them or remove their prominence; prioritize finding and opening a routine.
+- Put a visible “Create routine” action in the empty state instead of relying only on the header plus icon.
+- The shared header-button variant has a 40 pt minimum height. Bring its effective target to the project's 48 × 48 requirement, including routine saving.
+- Make the outcome of leaving a routine with unsaved changes explicit; verify existing draft preservation before choosing a warning or recovery design.
+- “Create exercise” appears ahead of catalog results. Make it secondary during normal selection and more useful after an unsuccessful search.
+- Provide “Clear filters” for an empty filtered catalog and “Try again” for catalog load failures.
+
+### P2 — Analytics hierarchy and sparse data
+
+- Captures show substantial space devoted to titles, descriptions, category tabs, period selection, and filters before the useful data. Compact the upper area and distinguish category navigation from filters while preserving adequate targets.
+- A single body-weight measurement still occupies a full chart. Prefer a compact measurement summary and explain that a trend needs more data; do not imply an established trend from sparse history.
+- Show measurement count and a clear, factual change summary where supported. Keep chart values, dates, units, and selected-point feedback readable.
+- Explain “Est. 1RM” and “RIR” on demand rather than through a mandatory tutorial or permanent paragraphs.
+- One weight capture shows a partially clipped “Latest” line beneath the fixed header while scrolled. Reproduce before treating it as a layout bug; verify header/content separation and scroll behavior.
+
+### P2 — Profile and authentication
+
+- Make username editing discoverable with an explicit edit affordance rather than relying only on tapping the profile card.
+- Use “Not set” for genuinely missing optional information; keep this distinct from a failed load.
+- Align “Your account and preferences” with the settings actually offered. Do not add unconfirmed unit or theme preferences solely to match the subtitle.
+- The sign-in screen has no visible password-recovery path. Verify the backend contract before implementing one. Evaluate a show/hide password control with an accessible name and state.
+
+### Cross-screen visual consistency and verification
+
+- Preserve the existing palette and Work Sans / Oswald pairing. Differentiate primary actions, selection, and completion through shape, border, icon, and text as well as brightness; adding colors is not required.
+- Secondary outline buttons can compete with white primary buttons. Reduce their visual emphasis while keeping contrast and clear pressed/disabled states.
+- Validate iOS and Android with large text, long names, small screens, keyboard visibility, screen readers, and gesture/navigation insets. The fixed-height bottom bar needs device validation, not an assumed defect label.
+- Verify error-text contrast and non-color state cues. The blue gear visible in saved captures was excluded from the critique because its ownership was not established.
+- For implementation work, run the required lint/type checks and relevant behavioral tests, then visually verify affected states on both platforms. No UI behavior or accessibility fix is certified by this review.

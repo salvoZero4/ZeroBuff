@@ -10,7 +10,6 @@ Pod::Spec.new do |s|
   s.source = { :path => '.' }
   s.static_framework = true
   s.dependency 'ExpoModulesCore'
-  s.dependency 'RNNotifee'
   s.source_files = '*.swift'
   s.frameworks = 'ActivityKit', 'AppIntents', 'UserNotifications', 'SwiftUI'
   s.swift_version = '5.9'

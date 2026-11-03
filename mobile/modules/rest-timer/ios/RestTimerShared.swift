@@ -26,7 +26,13 @@ actor RestTimerEngine {
 
   func read() -> RestTimerState? {
     guard let data = defaults.data(forKey: key) else { return nil }
-    return try? JSONDecoder().decode(RestTimerState.self, from: data)
+    guard var state = try? JSONDecoder().decode(RestTimerState.self, from: data) else { return nil }
+    if state.status == "active", state.endDate <= Date() {
+      state.status = "complete"
+      state.version += 1
+      save(state)
+    }
+    return state
   }
 
   private func save(_ state: RestTimerState) {
@@ -86,7 +92,7 @@ actor RestTimerEngine {
 
   private func performClear() async {
     defaults.removeObject(forKey: key)
-    try? await NotifeeRestAlerts.clear()
+    await RestCompletionAlerts.clear()
     await endActivities()
   }
 
@@ -97,14 +103,16 @@ actor RestTimerEngine {
   }
 
   private func present(_ state: RestTimerState) async throws {
-    try await NotifeeRestAlerts.clear()
     guard state.status == "active", state.endDate > Date() else {
+      if state.status == "skipped" { await RestCompletionAlerts.clear() }
       await endActivities()
       return
     }
     let permissions = await UNUserNotificationCenter.current().notificationSettings()
     if permissions.authorizationStatus == .authorized || permissions.authorizationStatus == .provisional {
-      try await NotifeeRestAlerts.schedule(state)
+      try await RestCompletionAlerts.schedule(state)
+    } else {
+      await RestCompletionAlerts.clear()
     }
 
     guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }

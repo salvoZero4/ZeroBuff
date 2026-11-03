@@ -23,7 +23,7 @@ module.exports = function withRestTimer(config) {
         "utf8",
       );
       const alerts = await fs.readFile(
-        path.join(root, "modules/rest-timer/widget/NotifeeRestAlerts.swift"),
+        path.join(root, "modules/rest-timer/ios/RestCompletionAlerts.swift"),
         "utf8",
       );
       const widget = await fs.readFile(
@@ -34,21 +34,19 @@ module.exports = function withRestTimer(config) {
         target,
         `${state}\n${alerts}\n${shared}\n${widget}\n@main\nstruct RestTimerBundle: WidgetBundle { var body: some Widget { RestTimerWidget() } }\n`,
       );
-      // Swift AppIntents call Notifee's ObjC core directly. Expose its headers as
-      // a module without enabling frameworks globally for every dependency.
+      // Remove the old generated Notifee declaration on incremental prebuilds.
       const podfilePath = path.join(
         mod.modRequest.platformProjectRoot,
         "Podfile",
       );
       const podfile = await fs.readFile(podfilePath, "utf8");
-      if (!podfile.includes("# ZeroBuff Notifee modular headers")) {
-        const declaration =
-          "# ZeroBuff Notifee modular headers\npod 'RNNotifee', :path => File.join(__dir__, '..', 'node_modules', '@notifee', 'react-native'), :modular_headers => true\n\n";
-        await fs.writeFile(
-          podfilePath,
-          podfile.replace(/^target /m, declaration + "target "),
-        );
-      }
+      await fs.writeFile(
+        podfilePath,
+        podfile.replace(
+          /# ZeroBuff Notifee modular headers\npod 'RNNotifee'[^\n]*\n\n?/g,
+          "",
+        ),
+      );
       return mod;
     },
   ]);

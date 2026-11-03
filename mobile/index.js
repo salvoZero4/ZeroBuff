@@ -1,4 +1,4 @@
-// Register notification actions before React mounts, including Headless JS launches.
-import { registerRestTimerNotifications } from "./src/features/workout/notifications/notifeeRuntime";
+// Register Expo's presentation handler before React mounts.
+import { registerRestTimerNotifications } from "./src/features/workout/notifications/restNotificationsRuntime";
 registerRestTimerNotifications();
 require("expo-router/entry");
