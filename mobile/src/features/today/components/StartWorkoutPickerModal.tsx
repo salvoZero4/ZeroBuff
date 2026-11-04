@@ -1,17 +1,14 @@
 import { routineKeys } from "@/features/routines/api/queryKeys";
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { getRoutines } from "@/features/routines/api/routines";
 import { Icon } from "@/components/ui/Icon";
+import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
+import { LoadingNotice } from "@/components/ui/ScreenState";
+import { loadErrorMessage } from "@/shared/api/loadError";
 
 type StartWorkoutPickerModalProps = {
   visible: boolean;
@@ -24,7 +21,14 @@ export function StartWorkoutPickerModal({
   onClose,
   onSelectRoutine,
 }: StartWorkoutPickerModalProps) {
-  const { data: routines = [], isLoading } = useQuery({
+  const insets = useSafeAreaInsets();
+  const {
+    data: routines = [],
+    isPending,
+    error,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
     enabled: visible,
@@ -48,136 +52,105 @@ export function StartWorkoutPickerModal({
       <View className="flex-1 justify-end bg-black/75">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close modal"
+          accessibilityLabel="Close workout picker"
           className="absolute inset-0"
           onPress={onClose}
         />
-
         <View
-          onStartShouldSetResponder={() => true}
-          className="max-h-[85%] gap-lg rounded-t-lg border border-border bg-surface p-xl"
+          accessibilityViewIsModal
+          className="max-h-[85%] gap-md rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
-          <View className="flex-row items-center justify-between">
-            <View className="gap-xs">
-              <Text className="font-body-bold text-xl text-text-primary">
+          <View className="flex-row items-center gap-md">
+            <View className="flex-1 gap-xs">
+              <Text
+                accessibilityRole="header"
+                className="font-body-bold text-xl text-text-primary"
+              >
                 Select workout
               </Text>
               <Text className="font-body text-caption text-text-secondary">
-                Choose a routine to start training right now
+                Choose a routine to start training
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
+            <IconButton
+              icon="xmark"
+              label="Close workout picker"
+              variant="bare"
               onPress={onClose}
-              className="h-9 w-9 items-center justify-center rounded-full bg-surface-raised active:bg-surface"
-            >
-              <Icon name="xmark" size={14} className="text-text-secondary" />
-            </Pressable>
+            />
           </View>
-
-          {isLoading ? (
-            <View className="items-center justify-center py-xl">
-              <ActivityIndicator color="#f5f5f5" size="small" />
+          {error ? (
+            <View className="gap-md">
+              <Text className="font-body text-caption text-text-secondary">
+                {loadErrorMessage(error)}
+              </Text>
+              <Button
+                variant="outline"
+                label={isFetching ? "Retrying…" : "Try again"}
+                disabled={isFetching}
+                onPress={() => void refetch()}
+              />
             </View>
+          ) : isPending ? (
+            <LoadingNotice label="Loading routines…" />
           ) : (
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerClassName="gap-sm pb-xs"
-            >
+            <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
               {routines.length > 0 ? (
-                <View className="gap-xs">
-                  {routines.map((routine) => {
-                    const isEmpty = routine.exercises_count === 0;
-                    return (
-                      <Pressable
-                        key={routine.id}
-                        accessibilityRole="button"
-                        disabled={isEmpty}
-                        onPress={() => {
-                          onClose();
-                          onSelectRoutine(routine.id);
-                        }}
-                        className={`flex-row items-center justify-between rounded-md border p-lg ${
-                          isEmpty
-                            ? "border-border/40 bg-surface/50 opacity-60"
-                            : "border-border bg-surface-raised active:bg-surface"
-                        }`}
-                      >
-                        <View className="flex-1 gap-xs pr-md">
-                          <Text
-                            className={`font-body-bold text-body ${
-                              !isEmpty
-                                ? "text-text-primary"
-                                : "text-text-disabled"
-                            }`}
-                          >
-                            {routine.name}
-                          </Text>
-
-                          {!isEmpty ? (
-                            <Text
-                              className="font-body text-caption text-text-secondary"
-                              numberOfLines={1}
-                            >
-                              {routine.muscle_groups
-                                .map((m) => m.replace(/_/g, " "))
-                                .join(" • ")}
-                            </Text>
-                          ) : (
-                            <Text className="font-body text-[11px] italic text-text-disabled">
-                              Add exercises to start this workout
-                            </Text>
-                          )}
-                        </View>
-
-                        <View className="items-end gap-2xs">
-                          <Text
-                            className={`font-numeric-bold text-lg ${
-                              !isEmpty ? "text-accent" : "text-text-disabled"
-                            }`}
-                          >
-                            {routine.exercises_count}
-                          </Text>
-                          <Text
-                            className={`font-body text-[10px] ${
-                              !isEmpty
-                                ? "text-text-secondary"
-                                : "text-text-disabled"
-                            }`}
-                          >
-                            {routine.exercises_count === 1
-                              ? "exercise"
-                              : "exercises"}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                routines.map((routine, index) => {
+                  const isEmpty = routine.exercises_count === 0;
+                  return (
+                    <Pressable
+                      key={routine.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isEmpty }}
+                      disabled={isEmpty}
+                      onPress={() => {
+                        onClose();
+                        onSelectRoutine(routine.id);
+                      }}
+                      className={`min-h-14 flex-row items-center gap-md py-lg active:bg-surface ${index < routines.length - 1 ? "border-b border-border" : ""} ${isEmpty ? "opacity-50" : ""}`}
+                    >
+                      <View className="flex-1 gap-xs">
+                        <Text className="font-body-semibold text-body text-text-primary">
+                          {routine.name}
+                        </Text>
+                        <Text className="font-body text-caption text-text-secondary">
+                          {isEmpty
+                            ? "Add exercises to start this workout"
+                            : `${routine.exercises_count} ${routine.exercises_count === 1 ? "exercise" : "exercises"}`}
+                        </Text>
+                      </View>
+                      {!isEmpty && (
+                        <Icon
+                          name="chevron-right"
+                          size={14}
+                          className="text-text-secondary"
+                        />
+                      )}
+                    </Pressable>
+                  );
+                })
               ) : (
-                <View className="items-center gap-md rounded-md border border-border bg-surface-raised px-lg py-xl">
-                  <Text className="text-center font-body-bold text-body text-text-primary">
-                    No routines found
+                <View className="gap-sm py-lg">
+                  <Text className="font-body-semibold text-body text-text-primary">
+                    No routines yet
                   </Text>
-                  <Text className="text-center font-body text-caption leading-5 text-text-secondary">
-                    You haven&apos;t created any routines yet. Let&apos;s build your first
-                    workout routine to get started.
+                  <Text className="font-body text-caption text-text-secondary">
+                    Create a routine to start your first workout.
                   </Text>
-                  <Button label="Create routine" onPress={handleCreateNew} />
                 </View>
               )}
             </ScrollView>
           )}
-
-          {!isLoading && routines.length > 0 ? (
+          {!isPending && !error && (
             <Button
-              variant="outline"
+              variant={routines.length ? "ghost" : "primary"}
               icon="plus"
-              label="Create new routine"
+              label="Create routine"
               onPress={handleCreateNew}
             />
-          ) : null}
+          )}
         </View>
       </View>
     </Modal>

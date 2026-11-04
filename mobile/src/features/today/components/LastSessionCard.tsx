@@ -5,7 +5,7 @@ import { SessionStatsSkeleton } from "./TodaySkeletons";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/Card";
+import { WEIGHT_UNIT } from "@/features/workout/utils/experience";
 import { Icon } from "@/components/ui/Icon";
 import { getSessionDetails } from "@/features/workout/api/session";
 import type { SessionRead } from "@/features/workout/types/session";
@@ -84,7 +84,7 @@ export function LastSessionCard({
   }
 
   return (
-    <Card className="gap-md">
+    <View className="gap-lg py-sm">
       {/* Intestazione: Nome Routine + Data */}
       <View className="flex-row items-start justify-between gap-md">
         <View className="flex-1 gap-xs">
@@ -96,7 +96,7 @@ export function LastSessionCard({
           </Text>
         </View>
 
-        <View className="flex-row items-center gap-xs rounded-sm border border-border bg-surface-raised px-sm py-xs">
+        <View className="flex-row items-center gap-xs py-xs">
           <Icon name="stopwatch" size={12} className="text-accent" />
           <Text className="font-numeric-bold text-caption text-text-primary">
             {stats.duration}
@@ -123,8 +123,8 @@ export function LastSessionCard({
         <SessionStatsSkeleton />
       ) : (
         <View className="flex-row gap-sm pt-xs">
-          <View className="flex-1 gap-xs rounded-sm border border-border bg-surface-raised p-md">
-            <Text className="font-numeric-bold text-xl text-accent">
+          <View className="flex-1 gap-xs">
+            <Text className="font-numeric-bold text-xl text-text-primary">
               {stats.uniqueExercises}
             </Text>
             <Text className="font-body text-caption text-text-secondary">
@@ -132,7 +132,7 @@ export function LastSessionCard({
             </Text>
           </View>
 
-          <View className="flex-1 gap-xs rounded-sm border border-border bg-surface-raised p-md">
+          <View className="flex-1 gap-xs">
             <Text className="font-numeric-bold text-xl text-text-primary">
               {stats.totalSets}
             </Text>
@@ -141,12 +141,12 @@ export function LastSessionCard({
             </Text>
           </View>
 
-          <View className="flex-1 gap-xs rounded-sm border border-border bg-surface-raised p-md">
+          <View className="flex-1 gap-xs">
             <Text className="font-numeric-bold text-xl text-text-primary">
               {stats.totalVolume.toLocaleString()}
               <Text className="font-body text-caption text-text-secondary">
                 {" "}
-                kg
+                {WEIGHT_UNIT}
               </Text>
             </Text>
             <Text className="font-body text-caption text-text-secondary">
@@ -155,6 +155,6 @@ export function LastSessionCard({
           </View>
         </View>
       )}
-    </Card>
+    </View>
   );
 }

@@ -1,4 +1,6 @@
-import { Modal, Pressable, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { IconButton } from "./IconButton";
 import { Button, type ButtonVariant } from "./Button";
 
 type ConfirmModalProps = {
@@ -26,6 +28,7 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const insets = useSafeAreaInsets();
   const resolvedVariant = isDestructive ? "danger" : confirmVariant;
 
   return (
@@ -37,7 +40,7 @@ export function ConfirmModal({
       transparent
       visible={visible}
     >
-      <View className="flex-1 justify-center bg-black/75 px-lg">
+      <View className="flex-1 justify-end bg-black/75">
         <Pressable
           accessibilityLabel="Dismiss confirmation"
           accessibilityRole="button"
@@ -47,17 +50,30 @@ export function ConfirmModal({
         />
 
         <View
-          onStartShouldSetResponder={() => true}
-          className="gap-lg rounded-md border border-border bg-surface p-xl"
+          accessibilityViewIsModal
+          className="max-h-[85%] gap-lg rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
-          <View className="gap-xs">
-            <Text className="font-body-bold text-xl text-text-primary">
-              {title}
-            </Text>
+          <ScrollView bounces={false} contentContainerClassName="gap-sm">
+            <View className="flex-row items-center gap-md">
+              <Text
+                accessibilityRole="header"
+                className="flex-1 font-body-bold text-xl text-text-primary"
+              >
+                {title}
+              </Text>
+              <IconButton
+                icon="xmark"
+                label="Close confirmation"
+                variant="bare"
+                disabled={isPending}
+                onPress={onCancel}
+              />
+            </View>
             <Text className="font-body text-body leading-6 text-text-secondary">
               {description}
             </Text>
-          </View>
+          </ScrollView>
 
           <View className="gap-sm">
             <Button
@@ -69,7 +85,7 @@ export function ConfirmModal({
 
             <Button
               disabled={isPending}
-              variant="outline"
+              variant="ghost"
               label={cancelLabel}
               onPress={onCancel}
             />

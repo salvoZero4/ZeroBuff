@@ -22,36 +22,22 @@ export function ScheduleDayRow({
     <Pressable
       accessibilityLabel={`${dayLabel}: ${assignment ?? "Rest"}`}
       accessibilityRole="button"
-      className={`gap-md px-lg py-lg active:bg-surface-raised ${
-        !isLast ? "border-b border-border" : ""
-      }`}
+      accessibilityState={{ disabled }}
+      className={`min-h-14 flex-row items-center gap-md py-lg active:bg-surface ${!isLast ? "border-b border-border" : ""}`}
       disabled={disabled}
       onPress={onPress}
     >
-      <View className="flex-row items-center justify-between gap-md">
+      <View className="flex-1 gap-xs">
         <Text className="font-body-semibold text-body text-text-primary">
           {dayLabel}
         </Text>
-        <View className="flex-row items-center gap-md">
-          <View
-            className={`h-3 w-3 rounded-full ${
-              isTrainingDay ? "bg-accent" : "bg-surface-raised"
-            }`}
-          />
-          <Text
-            className={`font-body text-caption ${
-              isTrainingDay ? "text-accent" : "text-text-secondary"
-            }`}
-          >
-            {assignment ?? "Rest"}
-          </Text>
-          <Icon
-            name="chevron-right"
-            size={14}
-            className="text-text-secondary"
-          />
-        </View>
+        <Text
+          className={`font-body text-caption ${isTrainingDay ? "text-text-primary" : "text-text-secondary"}`}
+        >
+          {assignment ?? "Rest"}
+        </Text>
       </View>
+      <Icon name="chevron-right" size={14} className="text-text-secondary" />
     </Pressable>
   );
 }

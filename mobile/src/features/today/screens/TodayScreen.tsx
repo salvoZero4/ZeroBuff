@@ -49,15 +49,6 @@ const DAY_KEYS: readonly DayOfWeek[] = [
   "sunday",
 ];
 
-const TRAINING_MOTIVATIONS = [
-  "Time to put in the work. Let's get it.",
-  "Lock in. Every single rep counts today.",
-  "No excuses. Push your limits now.",
-  "Bring the focus. Leave nothing in the tank.",
-  "Time to build. Execute with intent.",
-  "Show up, put the work in, and conquer.",
-] as const;
-
 export function TodayScreen() {
   const [startButtonHeight, setStartButtonHeight] = useState(0);
   const [isRefetching, setIsRefetching] = useState(false);
@@ -141,13 +132,9 @@ export function TodayScreen() {
     Boolean(activeSession) ||
     Boolean(ongoingSession);
 
-  const motivationalDescription = useMemo(() => {
-    const seed = [...todayDateStr].reduce(
-      (total, character) => total + character.charCodeAt(0),
-      0,
-    );
-    return TRAINING_MOTIVATIONS[seed % TRAINING_MOTIVATIONS.length];
-  }, [todayDateStr]);
+  const scheduledRoutine = routines.find(
+    (routine) => routine.id === todaySchedule?.routine_id,
+  );
 
   async function handleRefetch() {
     setIsRefetching(true);
@@ -277,7 +264,11 @@ export function TodayScreen() {
           ) : todaySchedule ? (
             <InfoCard
               title={todaySchedule.routine_name}
-              description={motivationalDescription}
+              description={
+                scheduledRoutine
+                  ? `${scheduledRoutine.exercises_count} ${scheduledRoutine.exercises_count === 1 ? "exercise" : "exercises"}`
+                  : "Your scheduled workout for today"
+              }
             />
           ) : (
             <InfoCard
@@ -291,7 +282,7 @@ export function TodayScreen() {
           <WeightBannerSkeleton />
         ) : (
           !todayWeight && (
-            <View className="flex-row items-center gap-md rounded-md border border-accent/30 bg-surface-raised p-lg">
+            <View className="flex-row items-center gap-md border-y border-border py-md">
               <View className="flex-1 gap-xs">
                 <Text className="font-body-semibold text-body text-text-primary">
                   Track body weight
@@ -301,6 +292,7 @@ export function TodayScreen() {
                 </Text>
               </View>
               <IconButton
+                variant="bare"
                 icon="plus"
                 iconSize={16}
                 label="Log body weight"
@@ -313,7 +305,7 @@ export function TodayScreen() {
         {pendingSessions ? (
           <ConsistencySkeleton />
         ) : (
-          <ConsistencyGrid sessions={sessions} mode="recent" />
+          <ConsistencyGrid sessions={sessions} mode="recent" framed={false} />
         )}
 
         <Section title="Last session">
@@ -328,7 +320,7 @@ export function TodayScreen() {
         </Section>
 
         <Button
-          variant="outline"
+          variant="ghost"
           icon="pen-to-square"
           label="Edit your schedule"
           onPress={() => router.push("/schedule")}
@@ -367,7 +359,7 @@ export function TodayScreen() {
                   : ongoingSession
                     ? `Resume ${ongoingRoutineName ?? "workout"}`
                     : todaySchedule
-                      ? `Start`
+                      ? "Start workout"
                       : "Choose a workout"
               }
               onPress={handleStartWorkout}

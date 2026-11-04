@@ -1,6 +1,4 @@
-import { Text } from "react-native";
-
-import { Card } from "@/components/ui/Card";
+import { Text, View } from "react-native";
 
 type InfoCardProps = {
   title: string;
@@ -9,11 +7,11 @@ type InfoCardProps = {
 
 export function InfoCard({ title, description }: InfoCardProps) {
   return (
-    <Card className="gap-xs">
+    <View className="gap-sm py-sm">
       <Text className="font-body-bold text-xl text-text-primary">{title}</Text>
       <Text className="font-body text-caption leading-5 text-text-secondary">
         {description}
       </Text>
-    </Card>
+    </View>
   );
 }

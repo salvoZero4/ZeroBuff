@@ -2,8 +2,10 @@ import { routineKeys } from "@/features/routines/api/queryKeys";
 import { scheduleKeys } from "@/features/schedule/api/queryKeys";
 import { router } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ScreenError } from "@/components/ui/ScreenState";
+import { loadErrorMessage } from "@/shared/api/loadError";
 import { IconButton } from "@/components/ui/IconButton";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Button } from "@/components/ui/Button";
@@ -14,7 +16,10 @@ import {
   getSchedule,
   updateSchedule,
 } from "@/features/schedule/api/schedule";
-import type { DayOfWeek, ScheduleRead } from "@/features/schedule/types/schedule";
+import type {
+  DayOfWeek,
+  ScheduleRead,
+} from "@/features/schedule/types/schedule";
 import { ScheduleDayRow } from "@/features/schedule/components/ScheduleDayRow";
 import { RoutineSelectorModal } from "@/features/schedule/components/RoutineSelectorModal";
 
@@ -30,14 +35,27 @@ export const DAYS: readonly { key: DayOfWeek; label: string }[] = [
 
 export function ScheduleScreen() {
   const queryClient = useQueryClient();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedDayKey, setSelectedDayKey] = useState<DayOfWeek | null>(null);
 
-  const { data: routines = [], isLoading: isRoutinesLoading } = useQuery({
+  const {
+    data: routines = [],
+    isLoading: isRoutinesLoading,
+    error: routinesError,
+    refetch: refetchRoutines,
+    isRefetching: refreshingRoutines,
+  } = useQuery({
     queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
   });
 
-  const { data: schedule = [], isLoading: isScheduleLoading } = useQuery({
+  const {
+    data: schedule = [],
+    isLoading: isScheduleLoading,
+    error: scheduleError,
+    refetch: refetchSchedule,
+    isRefetching: refreshingSchedule,
+  } = useQuery({
     queryKey: scheduleKeys.list(),
     queryFn: getSchedule,
   });
@@ -74,12 +92,15 @@ export function ScheduleScreen() {
         await createSchedule({ day_of_week: dayKey, routine_id: newRoutineId });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
+    onMutate: () => setSaveError(null),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
       setSelectedDayKey(null);
     },
     onError: () => {
-      Alert.alert("Error", "Could not update the schedule. Try again.");
+      setSaveError(
+        "Could not save this change. Select the routine again to retry.",
+      );
     },
   });
 
@@ -90,24 +111,42 @@ export function ScheduleScreen() {
 
   const isLoading = isRoutinesLoading || isScheduleLoading;
 
+  if (routinesError || scheduleError)
+    return (
+      <ScreenError
+        title="Schedule couldn’t load"
+        message={loadErrorMessage(routinesError || scheduleError)}
+        busy={refreshingRoutines || refreshingSchedule}
+        onRetry={() => {
+          void refetchRoutines();
+          void refetchSchedule();
+        }}
+        onBack={() => router.back()}
+      />
+    );
+
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-lg p-lg pb-32"
+        contentContainerClassName="gap-lg p-lg pb-xl"
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-row items-center gap-md">
           <IconButton
+            variant="bare"
+            disabled={isAssigning}
             label="Go Back"
             icon="arrow-left"
             iconSize={20}
             onPress={() => router.back()}
           />
-          <ScreenHeader
-            title="Plan your week"
-            subtitle="Assign one routine to each training day"
-          />
+          <View className="flex-1">
+            <ScreenHeader
+              title="Schedule"
+              subtitle="Plan your week · Changes save automatically"
+            />
+          </View>
         </View>
 
         {isLoading ? (
@@ -115,7 +154,7 @@ export function ScheduleScreen() {
             <ActivityIndicator color="#f5f5f5" />
           </View>
         ) : (
-          <View className="overflow-hidden rounded-md border border-border bg-surface">
+          <View>
             {DAYS.map((day, index) => {
               const item = scheduleByDay[day.key];
               return (
@@ -125,7 +164,10 @@ export function ScheduleScreen() {
                   assignment={item ? item.routine_name : null}
                   isLast={index === DAYS.length - 1}
                   disabled={routines.length === 0 || isAssigning}
-                  onPress={() => setSelectedDayKey(day.key)}
+                  onPress={() => {
+                    setSaveError(null);
+                    setSelectedDayKey(day.key);
+                  }}
                 />
               );
             })}
@@ -133,32 +175,42 @@ export function ScheduleScreen() {
         )}
 
         {routines.length === 0 && !isLoading && (
-          <View className="rounded-md border border-border bg-surface p-lg">
-            <Text className="text-center font-body text-caption text-text-secondary">
-              You haven&apos;t created any routines yet. Create a routine first to
-              assign it to your week.
+          <View className="gap-md py-lg">
+            <Text className="font-body text-caption text-text-secondary">
+              You haven&apos;t created any routines yet. Create a routine first
+              to assign it to your week.
             </Text>
+            <Button
+              label="Create routine"
+              variant="outline"
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/routines/[routineId]",
+                  params: { routineId: "new" },
+                })
+              }
+            />
           </View>
         )}
       </ScrollView>
 
-      <View className="absolute bottom-16 left-lg right-lg">
-        <Button label="Done" variant="primary" onPress={() => router.back()} />
-      </View>
-
       <RoutineSelectorModal
         visible={selectedDayKey !== null}
         dayLabel={selectedDay?.label}
+        isPending={isAssigning}
+        error={saveError}
         routines={routines}
         selectedRoutineId={
           currentAssignment ? currentAssignment.routine_id : null
         }
         onSelect={(newRoutineId) => {
-          if (selectedDayKey) {
+          if (selectedDayKey && !isAssigning) {
             handleAssignRoutine({ dayKey: selectedDayKey, newRoutineId });
           }
         }}
-        onClose={() => setSelectedDayKey(null)}
+        onClose={() => {
+          if (!isAssigning) setSelectedDayKey(null);
+        }}
       />
     </View>
   );

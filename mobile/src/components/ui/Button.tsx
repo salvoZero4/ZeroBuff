@@ -4,18 +4,23 @@ import { Icon, type IconName } from "./Icon";
 const VARIANTS = {
   primary: {
     box: "min-h-14 rounded-md bg-accent active:bg-accent-pressed",
-    label: "font-body-bold text-xl text-on-accent",
+    label: "font-body-semibold text-body text-on-accent",
     icon: "text-on-accent",
   },
   outline: {
-    box: "min-h-14 rounded-md border border-accent bg-bg active:bg-surface-raised",
+    box: "min-h-14 rounded-md border border-border bg-bg active:bg-surface-raised",
     label: "font-body-semibold text-body text-text-primary",
     icon: "text-accent",
   },
+  ghost: {
+    box: "min-h-12 rounded-sm active:bg-surface",
+    label: "font-body-semibold text-body text-text-primary",
+    icon: "text-text-secondary",
+  },
   danger: {
-    box: "min-h-14 rounded-md bg-danger active:bg-danger/80",
-    label: "font-body-bold text-xl text-white",
-    icon: "text-white",
+    box: "min-h-14 rounded-md border border-danger bg-bg active:bg-surface",
+    label: "font-body-semibold text-body text-danger",
+    icon: "text-danger",
   },
   header: {
     box: "min-h-12 min-w-12 justify-center rounded-sm bg-accent px-md active:bg-accent-pressed",
@@ -36,18 +41,25 @@ export function Button({
   label,
   variant = "primary",
   icon,
+  disabled,
+  accessibilityState,
   ...props
 }: ButtonProps) {
   const v = VARIANTS[variant];
   return (
     <Pressable
       {...props}
+      disabled={disabled}
+      accessibilityState={{
+        ...accessibilityState,
+        disabled: Boolean(disabled),
+      }}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className={`flex-row items-center justify-center gap-sm px-lg ${v.box}`}
+      className={`flex-row items-center justify-center gap-sm px-lg py-sm ${v.box} ${disabled ? "opacity-50" : ""}`}
     >
       {icon && <Icon name={icon} className={v.icon} />}
-      <Text className={v.label}>{label}</Text>
+      <Text className={`shrink text-center ${v.label}`}>{label}</Text>
     </Pressable>
   );
 }

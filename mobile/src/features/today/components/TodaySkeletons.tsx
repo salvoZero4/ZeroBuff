@@ -1,14 +1,13 @@
 import { View } from "react-native";
-import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 export function RoutineCardSkeleton() {
   return (
-    <Card className="gap-xs">
+    <View className="gap-sm py-sm">
       <Skeleton className="h-7 w-48" />
       <Skeleton className="h-5 w-full" />
       <Skeleton className="h-5 w-40" />
-    </Card>
+    </View>
   );
 }
 export function WeekStripSkeleton() {
@@ -30,10 +29,7 @@ export function SessionStatsSkeleton() {
   return (
     <View className="flex-row gap-sm pt-xs">
       {[0, 1, 2].map((i) => (
-        <View
-          key={i}
-          className="flex-1 gap-xs rounded-sm border border-border bg-surface-raised p-md"
-        >
+        <View key={i} className="flex-1 gap-xs">
           <Skeleton className="h-7 w-10 bg-border" />
           <Skeleton className="h-4 w-full bg-border" />
         </View>
@@ -43,7 +39,7 @@ export function SessionStatsSkeleton() {
 }
 export function LastSessionSkeleton() {
   return (
-    <Card className="gap-md">
+    <View className="gap-lg py-sm">
       <View className="flex-row justify-between">
         <View className="gap-xs">
           <Skeleton className="h-7 w-40" />
@@ -52,12 +48,12 @@ export function LastSessionSkeleton() {
         <Skeleton className="h-7 w-16" />
       </View>
       <SessionStatsSkeleton />
-    </Card>
+    </View>
   );
 }
 export function WeightBannerSkeleton() {
   return (
-    <View className="flex-row items-center gap-md rounded-md border border-border bg-surface p-lg">
+    <View className="flex-row items-center gap-md border-y border-border py-md">
       <View className="flex-1 gap-xs">
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-5 w-full" />
@@ -70,7 +66,7 @@ export function ConsistencySkeleton() {
   return (
     <View className="gap-sm">
       <Skeleton className="h-6 w-32" />
-      <View className="flex-row gap-xs rounded-md border border-border bg-surface p-lg">
+      <View className="flex-row gap-xs py-sm">
         {Array.from({ length: 8 }, (_, col) => (
           <View key={col} className="flex-1 gap-xs">
             {Array.from({ length: 7 }, (_, row) => (
