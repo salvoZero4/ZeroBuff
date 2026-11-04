@@ -1,8 +1,24 @@
+import Animated, {
+  Easing,
+  FadeInDown,
+  ReduceMotion,
+  ZoomIn,
+} from "react-native-reanimated";
+import { Icon } from "@/components/ui/Icon";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/Button";
 import type { WorkoutSummary } from "@/features/workout/utils/experience";
 import { WEIGHT_UNIT } from "@/features/workout/utils/experience";
+
+const summaryEntrance = FadeInDown.duration(280)
+  .withInitialValues({ opacity: 0, transform: [{ translateY: 8 }] })
+  .easing(Easing.out(Easing.cubic))
+  .reduceMotion(ReduceMotion.System);
+const savedEntrance = ZoomIn.duration(220)
+  .withInitialValues({ transform: [{ scale: 0.6 }] })
+  .easing(Easing.out(Easing.cubic))
+  .reduceMotion(ReduceMotion.System);
 
 const formatNumber = (value: number) =>
   value.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -30,20 +46,30 @@ export function WorkoutSummaryScreen({
   return (
     <View className="flex-1 bg-bg">
       <ScrollView contentContainerClassName="gap-xl p-lg pb-xl">
-        <View className="gap-sm">
+        <Animated.View
+          className="gap-sm"
+          entering={empty ? undefined : summaryEntrance}
+        >
           <Text
             accessibilityRole="header"
             className="font-body-bold text-title text-text-primary"
           >
             {summary.routineName}
           </Text>
-          <Text
-            accessibilityLiveRegion="polite"
-            className="font-body text-body text-text-secondary"
-          >
-            {empty ? "Workout ended · No sets recorded" : "Workout saved"}
-          </Text>
-        </View>
+          <View className="flex-row items-center gap-sm">
+            {!empty ? (
+              <Animated.View entering={savedEntrance}>
+                <Icon name="check" size={16} className="text-accent" />
+              </Animated.View>
+            ) : null}
+            <Text
+              accessibilityLiveRegion="polite"
+              className="font-body text-body text-text-secondary"
+            >
+              {empty ? "Workout ended · No sets recorded" : "Workout saved"}
+            </Text>
+          </View>
+        </Animated.View>
         <View className="flex-row flex-wrap gap-lg">
           {stats.map(([label, value]) => (
             <View key={label} className="min-w-32 flex-1 gap-xs">
