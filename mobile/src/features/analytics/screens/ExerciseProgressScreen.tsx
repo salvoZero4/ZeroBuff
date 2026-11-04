@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { WEIGHT_UNIT } from "@/features/workout/utils/experience";
 import { Icon } from "@/components/ui/Icon";
+import { IconButton } from "@/components/ui/IconButton";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { getExerciseHistory } from "../api/analytics";
 import {
   Choices,
@@ -72,24 +74,23 @@ export function ExerciseProgressScreen({
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
         ListHeaderComponent={
           <View className="gap-md">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Back to Analytics"
-              onPress={() =>
-                router.canGoBack()
-                  ? router.back()
-                  : router.replace("/(tabs)/analytics")
-              }
-              className="min-h-12 min-w-12 justify-center"
-            >
-              <Icon name="arrow-left" size={20} className="text-text-primary" />
-            </Pressable>
-            <Text className="font-body-bold text-title text-text-primary">
-              {name || "Exercise progress"}
-            </Text>
-            <Text className="font-body text-sm text-text-secondary">
-              Completed sessions. Every recorded rep.
-            </Text>
+            <View className="flex-row items-center gap-md">
+              <IconButton
+                icon="arrow-left"
+                label="Back to Analytics"
+                onPress={() =>
+                  router.canGoBack()
+                    ? router.back()
+                    : router.replace("/(tabs)/analytics")
+                }
+              />
+              <View className="flex-1">
+                <ScreenHeader
+                  title={name || "Exercise progress"}
+                  subtitle="Completed sessions. Every recorded rep."
+                />
+              </View>
+            </View>
             <QueryNotice
               pending={query.isPending}
               error={query.error}

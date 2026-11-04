@@ -7,6 +7,8 @@ import { sessionKeys } from "@/features/workout/api/queryKeys";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Icon } from "@/components/ui/Icon";
+import { IconButton } from "@/components/ui/IconButton";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import {
   getSessionDetails,
   deleteSetLogApi,
@@ -59,36 +61,24 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
         contentContainerClassName="gap-xl p-lg"
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
       >
-        <View className="flex-row items-center justify-between">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            onPress={back}
-            className="min-h-12 min-w-12 justify-center"
-          >
-            <Icon name="arrow-left" size={20} className="text-text-primary" />
-          </Pressable>
+        <View className="flex-row items-center gap-md">
+          <IconButton icon="arrow-left" label="Back" onPress={back} />
+          <View className="flex-1">
+            <ScreenHeader
+              title="Session details"
+              subtitle={
+                data
+                  ? `${dateLabel(data.date)} · ${exerciseIds.length} exercises · ${data.sets.length} sets`
+                  : ""
+              }
+            />
+          </View>
           {data?.status === "completed" && (
-            <Pressable
-              accessibilityRole="button"
+            <IconButton
+              icon={editing ? "check" : "pen-to-square"}
+              label={editing ? "Done editing session" : "Edit session"}
               onPress={() => setEditing(!editing)}
-              className="min-h-12 justify-center px-md"
-            >
-              <Text className="font-body-semibold text-body text-text-primary">
-                {editing ? "Done" : "Edit session"}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-        <View className="gap-sm">
-          <Text className="font-body-bold text-title text-text-primary">
-            Session details
-          </Text>
-          {data && (
-            <Text className="font-body text-sm text-text-secondary">
-              {dateLabel(data.date)} · {exerciseIds.length} exercises ·{" "}
-              {data.sets.length} sets
-            </Text>
+            />
           )}
         </View>
         <QueryNotice

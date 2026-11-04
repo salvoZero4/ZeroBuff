@@ -45,11 +45,11 @@ export function ExerciseList({
           />
         </View>
       }
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
         <Pressable
           accessibilityRole="button"
           onPress={() => onSelect(item)}
-          className="min-h-14 flex-row items-center gap-md border-b border-border py-lg"
+          className={`min-h-14 flex-row items-center gap-md py-lg ${index < exercises.length - 1 ? "border-b border-border" : ""}`}
         >
           <View className="flex-1 gap-xs">
             <Text className="font-body-semibold text-body text-text-primary">

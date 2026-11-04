@@ -40,10 +40,9 @@ export function BodyWeightHistory() {
   const visible = (query.data ?? [])
     .filter((log) => log.date >= periodStart(period))
     .sort((a, b) => b.date.localeCompare(a.date));
-  const chartPoints = (average ? rollingWeight(points) : points).filter(
-    (p) => p.date >= periodStart(period),
-  );
-  const latest = points.at(-1);
+  const chartPoints = (
+    average && visible.length > 1 ? rollingWeight(points) : points
+  ).filter((p) => p.date >= periodStart(period));
   const change =
     visible.length > 1
       ? visible[0].weight - visible[visible.length - 1].weight
@@ -75,26 +74,22 @@ export function BodyWeightHistory() {
               error={query.error}
               retry={() => void query.refetch()}
             />
-            {latest && (
-              <Text className="font-body text-sm text-text-secondary">
-                Latest: {numberLabel(latest.value)} {WEIGHT_UNIT} ·{" "}
-                {dateLabel(latest.date)}
-              </Text>
-            )}
-            {query.data && (
+            {query.data && visible.length > 0 && (
               <>
                 <ProgressChart points={chartPoints} unit={WEIGHT_UNIT} />
-                <View className="min-h-12 flex-row items-center justify-between gap-lg">
-                  <Text className="flex-1 font-body text-sm text-text-primary">
-                    7-day moving average
-                  </Text>
-                  <Switch
-                    accessibilityLabel="Show 7-day moving average"
-                    value={average}
-                    onValueChange={setAverage}
-                  />
-                </View>
-                {average && (
+                {visible.length > 1 && (
+                  <View className="min-h-12 flex-row items-center justify-between gap-lg">
+                    <Text className="flex-1 font-body text-sm text-text-primary">
+                      7-day moving average
+                    </Text>
+                    <Switch
+                      accessibilityLabel="Show 7-day moving average"
+                      value={average}
+                      onValueChange={setAverage}
+                    />
+                  </View>
+                )}
+                {average && visible.length > 1 && (
                   <Text className="font-body text-caption text-text-secondary">
                     Average of recorded measurements in the preceding 7 days.
                     Missing days are not filled in.
@@ -114,9 +109,16 @@ export function BodyWeightHistory() {
               icon="plus"
               onPress={() => setEditor({ log: null })}
             />
-            <Text className="pt-lg font-body-semibold text-xl text-text-primary">
-              Measurements
-            </Text>
+            <View className="flex-row flex-wrap items-center justify-between gap-sm pb-sm pt-lg">
+              <Text className="font-body-semibold text-xl text-text-primary">
+                Measurements
+              </Text>
+              {query.data && !query.error && (
+                <Text className="font-body text-caption text-text-secondary">
+                  {visible.length} in this period
+                </Text>
+              )}
+            </View>
           </View>
         }
         renderItem={({ item }) => (

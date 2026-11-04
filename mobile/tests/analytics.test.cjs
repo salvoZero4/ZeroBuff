@@ -103,3 +103,43 @@ test("exercise analytics excludes ongoing sessions and attaches exact timestamps
   const result = await api.getExerciseHistory("exercise");
   assert.equal(result.length, 1); assert.equal(result[0].session_id, "done"); assert.equal(result[0].started_at, "2026-11-03T09:00:00Z");
 });
+
+test("logged exercises include only saved sets in completed sessions, deduplicate and sort", async () => {
+  const visited = [];
+  const load = setup({
+    "@/features/workout/api/session": {
+      getSessions: async () => [{ id: "a", status: "completed" }, { id: "b", status: "ongoing" }, { id: "c", status: "completed" }],
+      getSessionDetails: async id => {
+        visited.push(id);
+        return { sets: id === "a" ? [{ exercise_id: "2", exercise_name: "Squat" }, { exercise_id: "1", exercise_name: "Bench" }] : [{ exercise_id: "2", exercise_name: "Squat" }] };
+      },
+    },
+    "@/features/routines/api/routines": {},
+    "@/features/exercises/api/exercise": {},
+    "@/shared/api/client": {},
+  });
+  const result = await load("@/features/analytics/api/analytics").getLoggedExercises();
+  assert.deepEqual(result, [{ id: "1", name: "Bench" }, { id: "2", name: "Squat" }]);
+  assert.deepEqual(visited, ["a", "c"]);
+});
+
+test("logged exercises fail on missing history details rather than showing a partial list", async () => {
+  const load = setup({
+    "@/features/workout/api/session": {
+      getSessions: async () => [{ id: "a", status: "completed" }],
+      getSessionDetails: async () => { throw new Error("Unavailable"); },
+    },
+    "@/features/routines/api/routines": {},
+    "@/features/exercises/api/exercise": {},
+    "@/shared/api/client": {},
+  });
+  await assert.rejects(load("@/features/analytics/api/analytics").getLoggedExercises(), /Unavailable/);
+});
+
+test("date selection clamps short months, leap years and future dates", () => {
+  const { changeDatePart } = setup()("@/shared/utils/dates");
+  assert.equal(changeDatePart("2026-01-31", "month", 2, "2026-11-04"), "2026-02-28");
+  assert.equal(changeDatePart("2024-02-29", "year", 2025, "2026-11-04"), "2025-02-28");
+  assert.equal(changeDatePart("2026-10-31", "month", 11, "2026-11-04"), "2026-11-04");
+  assert.equal(changeDatePart("2024-01-31", "month", 2, "2026-11-04"), "2024-02-29");
+});

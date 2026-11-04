@@ -40,7 +40,32 @@ export function PeriodControl({
   value: Period;
   onChange: (period: Period) => void;
 }) {
-  return <Choices values={PERIODS} value={value} onChange={onChange} />;
+  return (
+    <View className="flex-row flex-wrap gap-xs border-b border-border pb-sm">
+      {PERIODS.map((period) => (
+        <Pressable
+          key={period}
+          accessibilityRole="button"
+          accessibilityLabel={
+            period === "All"
+              ? "All time"
+              : period === "1M"
+                ? "Last month"
+                : `Last ${period.slice(0, -1)} months`
+          }
+          accessibilityState={{ selected: period === value }}
+          onPress={() => onChange(period)}
+          className={`min-h-12 min-w-12 items-center justify-center rounded-sm px-md ${period === value ? "bg-surface-raised" : "bg-bg"}`}
+        >
+          <Text
+            className={`font-body-semibold text-sm ${period === value ? "text-text-primary" : "text-text-secondary"}`}
+          >
+            {period === "All" ? "All time" : period}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
 }
 export function Empty({ title, message }: { title: string; message: string }) {
   return (

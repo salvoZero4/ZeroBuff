@@ -4,6 +4,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
+import { DateField } from "@/components/ui/DateField";
 import { TextField } from "@/components/ui/TextField";
 import {
   createWeight,
@@ -90,15 +91,15 @@ export function WeightEntryEditor({
               {dateLabel(log.date)}
             </Text>
           ) : (
-            <TextField
-              label="Date (YYYY-MM-DD)"
+            <DateField
               value={date}
-              onChangeText={(text) => {
-                setDate(text);
+              maxDate={toLocalDateString()}
+              disabled={busy}
+              onChange={(next) => {
+                setDate(next);
                 setConflict(false);
+                setError(null);
               }}
-              editable={!busy}
-              autoCapitalize="none"
             />
           )}
           <TextField

@@ -26,6 +26,8 @@ import {
   type Period,
 } from "../utils/progress";
 import { Empty, PeriodControl, QueryNotice } from "./AnalyticsControls";
+import { SessionActionsModal } from "./SessionActionsModal";
+
 function RoutineComparison({ id }: { id: string }) {
   const query = useQuery({
     queryKey: routineKeys.stats(id),
@@ -81,7 +83,9 @@ export function SessionHistory() {
   const activeId = useActiveWorkoutStore((state) => state.session?.sessionId);
   const [period, setPeriod] = useState<Period>("All");
   const [routine, setRoutine] = useState("all");
+  const [showComparison, setShowComparison] = useState(false);
   const [picker, setPicker] = useState(false);
+  const [actions, setActions] = useState<SessionRead | null>(null);
   const [removing, setRemoving] = useState<SessionRead | null>(null);
   const remove = useMutation({
     mutationFn: deleteSessionApi,
@@ -125,14 +129,16 @@ export function SessionHistory() {
         }}
         contentContainerClassName="pb-xl"
         ListHeaderComponent={
-          <View className="gap-md pb-lg">
+          <View className="gap-md pb-sm">
             <PeriodControl value={period} onChange={setPeriod} />
             <Pressable
               accessibilityRole="button"
               onPress={() => setPicker(true)}
-              className="min-h-12 flex-row items-center justify-between rounded-sm border border-border px-lg"
+              accessibilityLabel="Filter sessions by routine"
+              accessibilityState={{ expanded: picker }}
+              className="min-h-12 flex-row items-center justify-between gap-md rounded-sm bg-surface px-md"
             >
-              <Text className="font-body text-sm text-text-primary">
+              <Text className="flex-1 font-body text-sm text-text-primary">
                 {routine === "all"
                   ? "All routines"
                   : routine === "custom"
@@ -154,7 +160,24 @@ export function SessionHistory() {
               }}
             />
             {routine !== "all" && routine !== "custom" && (
-              <RoutineComparison id={routine} />
+              <View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showComparison }}
+                  onPress={() => setShowComparison(!showComparison)}
+                  className="min-h-12 flex-row items-center justify-between gap-md"
+                >
+                  <Text className="flex-1 font-body-semibold text-sm text-text-primary">
+                    Latest routine comparison
+                  </Text>
+                  <Icon
+                    name={showComparison ? "chevron-up" : "chevron-down"}
+                    size={14}
+                    className="text-text-secondary"
+                  />
+                </Pressable>
+                {showComparison && <RoutineComparison id={routine} />}
+              </View>
             )}
             {sessions.data && (
               <Text className="font-body text-caption text-text-secondary">
@@ -179,20 +202,22 @@ export function SessionHistory() {
           return (
             <View>
               {month !== previousMonth && (
-                <Text className="pb-sm pt-lg font-body-semibold text-sm text-text-secondary">
+                <Text className="pb-sm font-body-semibold text-sm text-text-secondary">
                   {new Date(`${month}-01T12:00:00`).toLocaleDateString(
                     "en-GB",
                     { month: "long", year: "numeric" },
                   )}
                 </Text>
               )}
-              <View className="flex-row items-center border-b border-border">
+              <View
+                className={`flex-row items-center ${data[index + 1]?.date.slice(0, 7) === month ? "border-b border-border" : ""}`}
+              >
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => openSession(item.id)}
                   className="min-h-14 flex-1 gap-xs py-lg pr-md"
                 >
-                  <Text className="font-body-semibold text-xl text-text-primary">
+                  <Text className="font-body-semibold text-body text-text-primary">
                     {item.routine_id
                       ? (names.get(item.routine_id) ?? "Workout")
                       : "Custom workout"}
@@ -208,20 +233,7 @@ export function SessionHistory() {
                   accessibilityRole="button"
                   accessibilityLabel={`Session actions for ${dateLabel(item.date)}`}
                   className="min-h-12 min-w-12 items-center justify-center"
-                  onPress={() =>
-                    Alert.alert("Session actions", dateLabel(item.date), [
-                      {
-                        text: "View / edit session",
-                        onPress: () => openSession(item.id),
-                      },
-                      {
-                        text: "Delete session",
-                        style: "destructive",
-                        onPress: () => setRemoving(item),
-                      },
-                      { text: "Cancel", style: "cancel" },
-                    ])
-                  }
+                  onPress={() => setActions(item)}
                 >
                   <Icon
                     name="ellipsis"
@@ -255,8 +267,24 @@ export function SessionHistory() {
           ...(routines.data ?? []).map((r) => ({ label: r.name, value: r.id })),
         ]}
         selectedValues={[routine]}
-        onConfirm={(values) => setRoutine(values[0] ?? "all")}
+        onConfirm={(values) => {
+          setRoutine(values[0] ?? "all");
+          setShowComparison(false);
+        }}
         onClose={() => setPicker(false)}
+      />
+      <SessionActionsModal
+        visible={actions !== null}
+        date={actions ? dateLabel(actions.date) : ""}
+        onClose={() => setActions(null)}
+        onView={() => {
+          if (actions) openSession(actions.id);
+          setActions(null);
+        }}
+        onDelete={() => {
+          setRemoving(actions);
+          setActions(null);
+        }}
       />
       <ConfirmModal
         visible={!!removing}

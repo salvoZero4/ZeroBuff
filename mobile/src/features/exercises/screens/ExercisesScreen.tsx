@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { router } from "expo-router";
@@ -30,6 +29,9 @@ import {
   exercisePickerStore,
 } from "@/features/exercises/store/exercisePickerStore";
 import { CreateExerciseModal } from "@/features/exercises/components/CreateExerciseModal";
+
+import { TextField } from "@/components/ui/TextField";
+import { ExerciseListRow } from "../components/ExerciseListRow";
 
 const PAGE_SIZE = 20;
 
@@ -163,13 +165,11 @@ export function ExercisesScreen() {
 
       {/* Input di ricerca */}
       <View className="mb-sm">
-        <TextInput
-          accessibilityLabel="Search exercises"
-          placeholder="Search by exercise name..."
-          placeholderTextColor="#737373"
+        <TextField
+          label="Find an exercise"
+          placeholder="Search by name"
           value={search}
           onChangeText={setSearch}
-          className="min-h-12 rounded-sm border border-border bg-surface px-md font-body text-body text-text-primary"
         />
       </View>
 
@@ -241,7 +241,7 @@ export function ExercisesScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={() => setIsCreateModalOpen(true)}
-              className="mb-md flex-row items-center justify-between rounded-md border border-dashed border-accent/60 bg-surface p-lg active:bg-surface-raised"
+              className="mb-md min-h-12 flex-row items-center justify-between border-b border-border py-md active:bg-surface"
             >
               <View className="gap-xs">
                 <Text className="font-body-bold text-body text-accent">
@@ -254,28 +254,13 @@ export function ExercisesScreen() {
             </Pressable>
           }
           renderItem={({ item, index }) => (
-            <Pressable
-              accessibilityRole="button"
+            <ExerciseListRow
+              name={item.name}
+              detail={`${item.muscle_group.replaceAll("_", " ")} · ${item.equipment.replaceAll("_", " ")}`}
+              isLast={index === exercises.length - 1}
+              action="add"
               onPress={() => handleSelect(item)}
-              className={`flex-row items-center justify-between border-x border-border bg-surface p-lg active:bg-surface-raised ${
-                index === 0 ? "rounded-t-md border-t" : ""
-              } ${
-                index === exercises.length - 1
-                  ? "rounded-b-md border-b"
-                  : "border-b"
-              }`}
-            >
-              <View className="flex-1 gap-xs pr-sm">
-                <Text className="font-body-bold text-body text-text-primary">
-                  {item.name}
-                </Text>
-                <Text className="font-body text-caption capitalize text-text-secondary">
-                  {item.muscle_group.replace(/_/g, " ")} •{" "}
-                  {item.equipment.replace(/_/g, " ")}
-                </Text>
-              </View>
-              <Icon name="plus" size={14} className="text-accent" />
-            </Pressable>
+            />
           )}
           ListFooterComponent={
             isFetchingNextPage ? (

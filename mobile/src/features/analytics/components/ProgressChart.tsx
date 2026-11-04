@@ -25,6 +25,36 @@ export function ProgressChart({
         No measurements in this period.
       </Text>
     );
+  if (points.length === 1) {
+    const point = points[0];
+    return (
+      <View className="gap-sm border-b border-border py-lg">
+        <Text className="font-numeric text-title text-text-primary">
+          {numberLabel(point.value)}{" "}
+          <Text className="font-body text-body text-text-secondary">
+            {unit}
+          </Text>
+        </Text>
+        <Text className="font-body text-sm text-text-secondary">
+          {dateLabel(point.date)}
+        </Text>
+        <Text className="font-body text-caption text-text-secondary">
+          One measurement. A trend will appear after more records are added.
+        </Text>
+        {onOpen && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onOpen(point.id)}
+            className="min-h-12 justify-center"
+          >
+            <Text className="font-body-semibold text-sm text-text-primary">
+              Open selected session
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
   const selected = Math.max(
     0,
     selectedId

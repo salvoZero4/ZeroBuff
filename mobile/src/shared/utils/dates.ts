@@ -25,3 +25,21 @@ export function getWeekDays(date: Date = new Date()) {
     };
   });
 }
+
+export type DatePart = "day" | "month" | "year";
+
+// Preserve a valid calendar day across shorter months and leap years.
+export function changeDatePart(
+  value: string,
+  part: DatePart,
+  next: number,
+  maxDate: string,
+): string {
+  let [year, month, day] = value.split("-").map(Number);
+  if (part === "year") year = next;
+  if (part === "month") month = next;
+  if (part === "day") day = next;
+  day = Math.min(day, new Date(year, month, 0).getDate());
+  const result = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return result > maxDate ? maxDate : result;
+}

@@ -3,6 +3,7 @@ import { getExerciseStats } from "@/features/exercises/api/exercise";
 import { apiRequest } from "@/shared/api/client";
 import {
   getSessions,
+  getSessionDetails,
   createSetLogApi,
   updateSetLogApi,
 } from "@/features/workout/api/session";
@@ -76,4 +77,26 @@ export async function saveSessionSet(
   return setId
     ? updateSetLogApi(sessionId, setId, payload)
     : createSetLogApi(sessionId, exerciseId, payload);
+}
+
+export type LoggedExercise = { id: string; name: string };
+export async function getLoggedExercises(): Promise<LoggedExercise[]> {
+  const sessions = (await getSessionHistory()).filter(
+    (s) => s.status === "completed",
+  );
+  const exercises = new Map<string, LoggedExercise>();
+  // Bound concurrent requests; only saved sets establish exercise membership.
+  for (let offset = 0; offset < sessions.length; offset += 4) {
+    const details = await Promise.all(
+      sessions.slice(offset, offset + 4).map((s) => getSessionDetails(s.id)),
+    );
+    for (const session of details)
+      for (const set of session.sets) {
+        exercises.set(set.exercise_id, {
+          id: set.exercise_id,
+          name: set.exercise_name,
+        });
+      }
+  }
+  return [...exercises.values()].sort((a, b) => a.name.localeCompare(b.name));
 }

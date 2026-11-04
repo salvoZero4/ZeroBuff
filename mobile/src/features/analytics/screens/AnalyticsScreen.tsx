@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Choices } from "../components/AnalyticsControls";
 import { SessionHistory } from "../components/SessionHistory";
-import { ExerciseList } from "../components/ExercisePicker";
+import { LoggedExerciseList } from "../components/LoggedExerciseList";
 import { BodyWeightHistory } from "../components/BodyWeightHistory";
 const TABS = ["Sessions", "Exercises", "Body weight"] as const;
 export function AnalyticsScreen() {
@@ -21,7 +21,7 @@ export function AnalyticsScreen() {
       {tab === "Sessions" ? (
         <SessionHistory />
       ) : tab === "Exercises" ? (
-        <ExerciseList
+        <LoggedExerciseList
           onSelect={(exercise) =>
             router.push({
               pathname: "/analytics/exercise",
