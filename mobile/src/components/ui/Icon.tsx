@@ -15,6 +15,7 @@ export type IconName =
   | "plus"
   | "pen-to-square"
   | "arrow-left"
+  | "right-from-bracket"
   | "chevron-up"
   | "chevron-down"
   | "chevron-right"

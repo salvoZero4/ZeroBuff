@@ -10,14 +10,11 @@ import {
   View,
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  deleteRoutine,
-  getRoutines,
-} from "@/features/routines/api/routines";
+import { deleteRoutine, getRoutines } from "@/features/routines/api/routines";
 import type { RoutineListRead } from "@/features/routines/types/routine";
 import { RoutineCard } from "@/features/routines/components/RoutineCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
-import { Section } from "@/components/ui/Section";
+import { ActionSheet } from "@/components/ui/ActionSheet";
 import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -31,6 +28,9 @@ function openRoutine(routineId: string) {
 
 export function RoutinesScreen() {
   const queryClient = useQueryClient();
+  const [selectedRoutine, setSelectedRoutine] =
+    useState<RoutineListRead | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [routineToDelete, setRoutineToDelete] =
     useState<RoutineListRead | null>(null);
 
@@ -51,7 +51,10 @@ export function RoutinesScreen() {
       queryClient.invalidateQueries({ queryKey: routineKeys.all });
       queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
       setRoutineToDelete(null);
+      setDeleteError(null);
     },
+    onError: () =>
+      setDeleteError("Could not delete this routine. Please try again."),
   });
 
   if (isLoading) {
@@ -76,11 +79,6 @@ export function RoutinesScreen() {
     );
   }
 
-  const totalMovements = routines.reduce(
-    (total, routine) => total + routine.exercises_count,
-    0,
-  );
-
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -97,8 +95,10 @@ export function RoutinesScreen() {
           />
         }
       >
-        <View className="flex-row items-end justify-between gap-md">
-          <ScreenHeader title="Your routines" subtitle="Plan your workouts" />
+        <View className="flex-row items-center justify-between gap-md">
+          <View className="flex-1">
+            <ScreenHeader title="Your routines" subtitle="Plan your workouts" />
+          </View>
           <IconButton
             variant="accent"
             icon="plus"
@@ -108,29 +108,14 @@ export function RoutinesScreen() {
           />
         </View>
 
-        <View className="flex-row gap-sm">
-          <View className="flex-1 gap-xs rounded-sm border border-border bg-surface p-md">
-            <Text className="font-numeric-bold text-title text-accent">
-              {routines.length}
-            </Text>
-            <Text className="font-body text-caption text-text-secondary">
-              {routines.length === 1 ? "routine" : "routines"}
-            </Text>
-          </View>
-          <View className="flex-1 gap-xs rounded-sm border border-border bg-surface p-md">
-            <Text className="font-numeric-bold text-title text-text-primary">
-              {totalMovements}
-            </Text>
-            <Text className="font-body text-caption text-text-secondary">
-              movements
-            </Text>
-          </View>
-        </View>
+        <Text className="font-body text-caption text-text-secondary">
+          {routines.length} {routines.length === 1 ? "routine" : "routines"}
+        </Text>
 
         {/* Lista Routine */}
         {routines.length > 0 ? (
-          <Section title="All routines">
-            {routines.map((routine) => (
+          <View>
+            {routines.map((routine, index) => (
               <RoutineCard
                 key={routine.id}
                 name={routine.name}
@@ -139,33 +124,73 @@ export function RoutinesScreen() {
                 )}
                 exerciseCount={routine.exercises_count}
                 onPress={() => openRoutine(routine.id)}
-                onDelete={() => setRoutineToDelete(routine)}
+                isLast={index === routines.length - 1}
+                onActions={() => setSelectedRoutine(routine)}
+                onDelete={() => {
+                  setDeleteError(null);
+                  setRoutineToDelete(routine);
+                }}
               />
             ))}
-          </Section>
+          </View>
         ) : (
-          <View className="gap-md rounded-md border border-border bg-surface p-xl">
-            <View className="items-center gap-xs">
+          <View className="gap-lg py-xl">
+            <View className="gap-xs">
               <Text className="font-body-bold text-xl text-text-primary">
                 No routines yet
               </Text>
-              <Text className="text-center font-body text-caption leading-5 text-text-secondary">
+              <Text className="font-body text-body leading-6 text-text-secondary">
                 Create a routine to keep your next workout ready.
               </Text>
             </View>
+            <Button
+              label="Create routine"
+              icon="plus"
+              onPress={() => openRoutine("new")}
+            />
           </View>
         )}
       </ScrollView>
 
+      <ActionSheet
+        visible={selectedRoutine !== null}
+        title="Routine actions"
+        subtitle={selectedRoutine?.name ?? ""}
+        onClose={() => setSelectedRoutine(null)}
+        actions={[
+          {
+            label: "Edit routine",
+            icon: "pen-to-square",
+            onPress: () => {
+              if (selectedRoutine) openRoutine(selectedRoutine.id);
+              setSelectedRoutine(null);
+            },
+          },
+          {
+            label: "Delete routine",
+            icon: "trash",
+            destructive: true,
+            onPress: () => {
+              setDeleteError(null);
+              setRoutineToDelete(selectedRoutine);
+              setSelectedRoutine(null);
+            },
+          },
+        ]}
+      />
       <ConfirmModal
         visible={routineToDelete !== null}
         title="Delete routine"
-        description={`Are you sure you want to delete "${routineToDelete?.name}"? This action cannot be undone.`}
+        isPending={isDeleting}
+        description={
+          deleteError ??
+          `Are you sure you want to delete "${routineToDelete?.name}"? This action cannot be undone.`
+        }
         confirmLabel={isDeleting ? "Deleting..." : "Delete"}
         cancelLabel="Cancel"
         isDestructive
         onConfirm={() => {
-          if (routineToDelete) {
+          if (routineToDelete && !isDeleting) {
             handleDeleteRoutine(routineToDelete.id);
           }
         }}

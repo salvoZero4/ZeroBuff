@@ -1,14 +1,21 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { RoutineRead } from "@/features/routines/types";
 import type { ExerciseRead } from "@/features/exercises/types";
 import {
   toDraft,
+  withRestForAll,
   type RoutineDraft,
   type RoutineExerciseDraft,
 } from "@/features/routines/utils/routineDraft";
 
 export function useRoutineDraft(routine: RoutineRead | undefined) {
   const [draft, setDraft] = useState<RoutineDraft>(() => toDraft(routine));
+
+  const defaultRest = useRef("90");
+  function setRestForAll(seconds: number) {
+    defaultRest.current = String(seconds);
+    setDraft((current) => withRestForAll(current, seconds));
+  }
 
   function setName(name: string) {
     setDraft((current) => ({ ...current, name }));
@@ -28,6 +35,7 @@ export function useRoutineDraft(routine: RoutineRead | undefined) {
 
   function addExercise(exercise: ExerciseRead) {
     const draftId = `draft-${Date.now()}`;
+    const restSeconds = defaultRest.current;
     setDraft((current) => ({
       ...current,
       exercises: [
@@ -38,7 +46,7 @@ export function useRoutineDraft(routine: RoutineRead | undefined) {
           name: exercise.name,
           sets: "3",
           reps: "10",
-          restSeconds: "90",
+          restSeconds,
         },
       ],
     }));
@@ -83,6 +91,7 @@ export function useRoutineDraft(routine: RoutineRead | undefined) {
   return {
     draft,
     setName,
+    setRestForAll,
     updateExercise,
     addExercise,
     removeExercise,

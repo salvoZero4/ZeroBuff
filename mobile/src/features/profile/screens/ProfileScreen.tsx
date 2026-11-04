@@ -9,6 +9,9 @@ import {
   View,
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Icon } from "@/components/ui/Icon";
+import { ScreenError } from "@/components/ui/ScreenState";
+import { loadErrorMessage } from "@/shared/api/loadError";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Section } from "@/components/ui/Section";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -39,6 +42,7 @@ export function ProfileScreen() {
   const { signOut } = useAuth();
   const queryClient = useQueryClient();
 
+  const [sexError, setSexError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<EditableProfileField>(null);
   const [showSexPicker, setShowSexPicker] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -47,6 +51,7 @@ export function ProfileScreen() {
   const {
     data: user,
     isLoading,
+    error,
     refetch,
     isRefetching,
   } = useQuery({
@@ -54,11 +59,14 @@ export function ProfileScreen() {
     queryFn: getCurrentUser,
   });
 
-  const { mutate: updateSex } = useMutation({
+  const { mutate: updateSex, isPending: isUpdatingSex } = useMutation({
     mutationFn: (selectedSex: Sex) => updateCurrentUser({ sex: selectedSex }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userKeys.me() });
+      setSexError(null);
     },
+    onError: () =>
+      setSexError("Could not update this field. Select it again to retry."),
   });
 
   if (isLoading) {
@@ -68,6 +76,16 @@ export function ProfileScreen() {
       </View>
     );
   }
+
+  if (error && !user)
+    return (
+      <ScreenError
+        title="Profile couldn’t load"
+        message={loadErrorMessage(error)}
+        onRetry={() => void refetch()}
+        busy={isRefetching}
+      />
+    );
 
   const formattedSex = user?.sex
     ? user.sex.charAt(0).toUpperCase() + user.sex.slice(1)
@@ -89,7 +107,10 @@ export function ProfileScreen() {
           />
         }
       >
-        <ScreenHeader title="Profile" subtitle="Your account and preferences" />
+        <ScreenHeader
+          title="Profile"
+          subtitle="Your account and personal details"
+        />
 
         {/* Toccando la card si modifica solo lo username */}
         <ProfileHeaderCard
@@ -99,7 +120,7 @@ export function ProfileScreen() {
         />
 
         <Section title="Personal info">
-          <View className="overflow-hidden rounded-md border border-border bg-surface">
+          <View>
             <SettingRow
               title="Height"
               detail={formatHeightDetail(user?.height_cm)}
@@ -107,21 +128,47 @@ export function ProfileScreen() {
             />
             <SettingRow
               title="Sex"
-              detail={formattedSex}
-              onPress={() => setShowSexPicker(true)}
+              detail={isUpdatingSex ? "Saving…" : formattedSex}
+              onPress={
+                isUpdatingSex
+                  ? undefined
+                  : () => {
+                      setSexError(null);
+                      setShowSexPicker(true);
+                    }
+              }
             />
             <SettingRow
               title="Date of birth"
-              detail={user?.date_of_birth ?? ""}
+              detail={
+                user?.date_of_birth
+                  ? new Date(
+                      `${user.date_of_birth}T12:00:00`,
+                    ).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : ""
+              }
               isLast
               onPress={() => setEditingField("dob")}
             />
           </View>
         </Section>
 
+        {sexError && (
+          <Text
+            accessibilityRole="alert"
+            className="font-body text-caption text-danger"
+          >
+            {sexError}
+          </Text>
+        )}
         <Section title="Account">
-          <View className="overflow-hidden rounded-md border border-border bg-surface">
+          <View>
             <SettingRow
+              isLast
               title="Change password"
               detail="Update your account password"
               onPress={() => setShowPasswordModal(true)}
@@ -131,9 +178,10 @@ export function ProfileScreen() {
         <Pressable
           accessibilityLabel="Sign out"
           accessibilityRole="button"
-          className="min-h-14 items-center justify-center rounded-sm border border-border bg-surface active:bg-surface-raised"
+          className="min-h-14 flex-row items-center gap-md rounded-sm py-lg active:bg-surface"
           onPress={() => setShowSignOutModal(true)}
         >
+          <Icon name="right-from-bracket" size={18} className="text-danger" />
           <Text className="font-body-semibold text-body text-danger">
             Sign out
           </Text>

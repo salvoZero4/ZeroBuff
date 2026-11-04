@@ -1,5 +1,5 @@
-import { Pressable, Text, View } from "react-native";
-import { Icon } from "@/components/ui/Icon";
+import { Text, View } from "react-native";
+import { IconButton } from "@/components/ui/IconButton";
 
 type ProfileHeaderCardProps = {
   username?: string;
@@ -13,12 +13,7 @@ export function ProfileHeaderCard({
   onPress,
 }: ProfileHeaderCardProps) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Edit username and profile information"
-      onPress={onPress}
-      className="flex-row items-center justify-between gap-md rounded-md border border-border bg-surface p-lg active:bg-surface-raised"
-    >
+    <View className="min-h-14 flex-row items-center gap-md py-lg">
       <View className="flex-1 gap-xs">
         <Text className="font-body-bold text-xl text-text-primary">
           {username || "ZeroBuff Athlete"}
@@ -28,9 +23,12 @@ export function ProfileHeaderCard({
         </Text>
       </View>
 
-      <View className="h-10 w-10 items-center justify-center rounded-sm bg-surface-raised">
-        <Icon name="pen-to-square" size={16} className="text-accent" />
-      </View>
-    </Pressable>
+      <IconButton
+        icon="pen-to-square"
+        label="Edit username"
+        variant="bare"
+        onPress={onPress}
+      />
+    </View>
   );
 }

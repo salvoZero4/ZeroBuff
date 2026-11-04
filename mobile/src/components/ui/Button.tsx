@@ -18,7 +18,7 @@ const VARIANTS = {
     icon: "text-white",
   },
   header: {
-    box: "min-h-10 justify-center rounded-sm bg-accent px-md active:bg-accent-pressed",
+    box: "min-h-12 min-w-12 justify-center rounded-sm bg-accent px-md active:bg-accent-pressed",
     label: "font-body-bold text-caption text-on-accent",
     icon: "",
   },

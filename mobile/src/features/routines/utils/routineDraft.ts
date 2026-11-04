@@ -59,3 +59,31 @@ export function toRoutinePayload(draft: RoutineDraft): RoutineCreate {
     exercises,
   };
 }
+
+// Compare editable values and exercise order without depending on transient row IDs.
+export function routineDraftSignature(draft: RoutineDraft): string {
+  return JSON.stringify({
+    name: draft.name,
+    exercises: draft.exercises.map(
+      ({ exercise_id, sets, reps, restSeconds }) => ({
+        exercise_id,
+        sets,
+        reps,
+        restSeconds,
+      }),
+    ),
+  });
+}
+
+export function withRestForAll(
+  draft: RoutineDraft,
+  seconds: number,
+): RoutineDraft {
+  return {
+    ...draft,
+    exercises: draft.exercises.map((exercise) => ({
+      ...exercise,
+      restSeconds: String(seconds),
+    })),
+  };
+}

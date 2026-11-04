@@ -19,11 +19,11 @@ export function SettingRow({
 }: SettingRowProps) {
   return (
     <Pressable
-      accessibilityLabel={`${title}: ${detail}`}
+      accessibilityLabel={`${title}: ${detail || "Not set"}`}
       accessibilityRole="button"
       disabled={!onPress}
       onPress={onPress}
-      className={`min-h-18 flex-row items-center gap-md px-lg py-md active:bg-surface-raised ${
+      className={`min-h-14 flex-row items-center gap-md py-lg active:bg-surface ${
         !isLast ? "border-b border-border" : ""
       }`}
     >
@@ -32,7 +32,7 @@ export function SettingRow({
           {title}
         </Text>
         <Text className="font-body text-caption text-text-secondary">
-          {detail}
+          {detail || "Not set"}
         </Text>
       </View>
 

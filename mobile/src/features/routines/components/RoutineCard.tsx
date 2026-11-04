@@ -17,6 +17,8 @@ type RoutineCardProps = {
   exerciseCount: number;
   onPress: () => void;
   onDelete: () => void;
+  onActions: () => void;
+  isLast: boolean;
 };
 
 function RightActionIndicator({ drag }: { drag: SharedValue<number> }) {
@@ -56,6 +58,8 @@ export function RoutineCard({
   exerciseCount,
   onPress,
   onDelete,
+  onActions,
+  isLast,
 }: RoutineCardProps) {
   const swipeableRef = useRef<SwipeableMethods>(null);
   const muscleGroupsPreview = muscleGroups.join("   ");
@@ -77,35 +81,32 @@ export function RoutineCard({
         <RightActionIndicator drag={drag} />
       )}
     >
-      <Pressable
-        accessibilityLabel={`Open ${name} routine`}
-        accessibilityRole="button"
-        className="flex-row items-center gap-md rounded-md border border-border bg-surface p-lg active:bg-surface-raised"
-        onPress={onPress}
+      <View
+        className={`flex-row items-center bg-bg ${isLast ? "" : "border-b border-border"}`}
       >
-        <View className="flex-1 gap-xs">
-          <Text className="font-body-bold text-xl text-text-primary">
+        <Pressable
+          accessibilityLabel={`Open ${name} routine`}
+          accessibilityRole="button"
+          onPress={onPress}
+          className="min-h-14 flex-1 gap-xs py-lg pr-md active:bg-surface"
+        >
+          <Text className="font-body-semibold text-body text-text-primary">
             {name}
           </Text>
-          <Text
-            className="font-body text-caption text-text-secondary"
-            numberOfLines={1}
-          >
-            {muscleGroupsPreview || "No muscle groups"}
-          </Text>
-        </View>
-
-        <View className="items-end gap-xs">
-          <Text className="font-numeric-bold text-xl text-accent">
-            {exerciseCount}
-          </Text>
           <Text className="font-body text-caption text-text-secondary">
-            {exerciseCount === 1 ? "exercise" : "exercises"}
+            {exerciseCount} {exerciseCount === 1 ? "exercise" : "exercises"}
+            {muscleGroupsPreview ? ` · ${muscleGroups.join(" · ")}` : ""}
           </Text>
-        </View>
-
-        <Icon name="chevron-right" size={20} className="text-text-secondary" />
-      </Pressable>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Actions for ${name}`}
+          onPress={onActions}
+          className="min-h-12 min-w-12 items-center justify-center rounded-sm active:bg-surface"
+        >
+          <Icon name="ellipsis" size={20} className="text-text-secondary" />
+        </Pressable>
+      </View>
     </ReanimatedSwipeable>
   );
 }

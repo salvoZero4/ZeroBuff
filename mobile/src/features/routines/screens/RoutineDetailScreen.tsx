@@ -1,10 +1,11 @@
 import { routineKeys } from "@/features/routines/api/queryKeys";
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, usePreventRemove } from "expo-router";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
+  Pressable,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -21,15 +22,20 @@ import {
 import type { RoutineRead } from "@/features/routines/types/routine";
 import {
   toRoutinePayload,
+  routineDraftSignature,
   type RoutineExerciseDraft,
 } from "@/features/routines/utils/routineDraft";
 import { openExercisePicker } from "@/features/exercises/store/exercisePickerStore";
 import { ApiError } from "@/shared/api/errors";
+import { RestDurationModal } from "@/features/routines/components/RestDurationModal";
+import { formatRestDuration } from "@/features/routines/utils/restDuration";
+import { Icon } from "@/components/ui/Icon";
 import { ExerciseEditor } from "@/features/routines/components/ExerciseEditor";
 import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { TextField } from "@/components/ui/TextField";
 import { Section } from "@/components/ui/Section";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 
 export function RoutineDetailScreen({ routineId }: { routineId: string }) {
@@ -89,11 +95,28 @@ function RoutineEditorForm({
   const {
     draft,
     setName,
+    setRestForAll,
     updateExercise,
     addExercise,
     removeExercise,
     reorderExercises,
   } = useRoutineDraft(initialRoutine);
+
+  const [restTarget, setRestTarget] = useState<string | null>(null);
+  const uniformRest =
+    draft.exercises.length > 0 &&
+    draft.exercises.every(
+      (exercise) => exercise.restSeconds === draft.exercises[0].restSeconds,
+    );
+  const [baseline] = useState(() => routineDraftSignature(draft));
+  const [leaving, setLeaving] = useState(false);
+  const [pendingExit, setPendingExit] = useState<(() => void) | null>(null);
+  const saveInFlight = useRef(false);
+  const dragInFlight = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const scrollOffset = useRef(0);
+  const [listLayout, setListLayout] = useState({ revision: 0, offset: 0 });
+  const hasChanges = routineDraftSignature(draft) !== baseline;
 
   const [nameError, setNameError] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -110,6 +133,8 @@ function RoutineEditorForm({
       }
     },
     onSuccess: () => {
+      setLeaving(true);
+      disableExitProtection();
       queryClient.invalidateQueries({ queryKey: routineKeys.all });
       router.back();
     },
@@ -120,9 +145,21 @@ function RoutineEditorForm({
         setGeneralError("Network error. Please try again.");
       }
     },
+    onSettled: () => {
+      saveInFlight.current = false;
+    },
   });
 
+  const disableExitProtection = usePreventRemove(
+    !leaving && (hasChanges || isSaving || isDragging),
+    ({ repeat }) => {
+      if (!saveInFlight.current && !dragInFlight.current)
+        setPendingExit(() => repeat);
+    },
+  );
+
   function save() {
+    if (saveInFlight.current || dragInFlight.current) return;
     const name = draft.name.trim();
     if (!name) {
       setNameError("Add a name before saving this routine.");
@@ -133,10 +170,12 @@ function RoutineEditorForm({
       return;
     }
     setGeneralError(null);
+    saveInFlight.current = true;
     handleSave();
   }
 
   function handleOpenExercisePicker() {
+    if (saveInFlight.current || dragInFlight.current) return;
     openExercisePicker((selectedExercise) => {
       addExercise(selectedExercise);
     });
@@ -147,14 +186,35 @@ function RoutineEditorForm({
     item,
     drag,
     isActive,
+    getIndex,
   }: RenderItemParams<RoutineExerciseDraft>) {
     return (
-      <View className="pb-sm">
+      <View>
         <ExerciseEditor
+          disabled={isSaving || (isDragging && !isActive)}
+          isLast={
+            (getIndex() ??
+              draft.exercises.findIndex(
+                (exercise) => exercise.id === item.id,
+              )) ===
+            draft.exercises.length - 1
+          }
           exercise={item}
-          onChange={(changes) => updateExercise(item.id, changes)}
-          onRemove={() => removeExercise(item.id)}
-          drag={drag}
+          onEditRest={() => {
+            if (!saveInFlight.current && !dragInFlight.current) {
+              Keyboard.dismiss();
+              setRestTarget(item.id);
+            }
+          }}
+          onChange={(changes) => {
+            if (!saveInFlight.current) updateExercise(item.id, changes);
+          }}
+          onRemove={() => {
+            if (!saveInFlight.current) removeExercise(item.id);
+          }}
+          drag={() => {
+            if (!saveInFlight.current) drag();
+          }}
           isActive={isActive}
         />
       </View>
@@ -173,18 +233,22 @@ function RoutineEditorForm({
             icon="arrow-left"
             label="Go back to routines"
             onPress={() => router.back()}
+            disabled={isSaving || isDragging}
           />
           <View className="flex-1">
             <ScreenHeader
               title={isNewRoutine ? "New routine" : "Edit routine"}
-              subtitle="Shape this workout around how you train."
+              subtitle="Hold and drag exercises to reorder."
             />
           </View>
 
-          <Button
-            label={isSaving ? "Saving..." : "Save"}
-            variant="header"
+          <IconButton
+            icon="check"
+            label={isSaving ? "Saving routine" : "Save routine"}
+            variant="accent"
             onPress={save}
+            disabled={isSaving || isDragging}
+            busy={isSaving}
           />
         </View>
 
@@ -196,35 +260,88 @@ function RoutineEditorForm({
           </View>
         ) : null}
 
-        <Section title="Routine name">
-          <TextInput
-            accessibilityLabel="Routine name"
-            className="min-h-14 rounded-sm border border-border bg-surface px-lg font-body-medium text-body text-text-primary placeholder:text-text-secondary"
-            onChangeText={(name) => {
-              setName(name);
-              if (name.trim()) setNameError(null);
-            }}
-            placeholder="e.g. Push Day"
-            value={draft.name}
-          />
-          {nameError ? (
-            <Text className="font-body text-caption text-danger">
-              {nameError}
+        <TextField
+          label="Routine name"
+          error={nameError}
+          editable={!isSaving}
+          onChangeText={(name) => {
+            if (saveInFlight.current || dragInFlight.current) return;
+            setName(name);
+            if (name.trim()) setNameError(null);
+          }}
+          placeholder="e.g. Push Day"
+          value={draft.name}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Set rest for all exercises"
+          disabled={isSaving || isDragging}
+          onPress={() => {
+            Keyboard.dismiss();
+            setRestTarget("all");
+          }}
+          className="min-h-12 flex-row items-center justify-between gap-md"
+        >
+          <Text className="font-body-semibold text-sm text-text-primary">
+            Rest for all
+          </Text>
+          <View className="flex-row items-center gap-sm">
+            <Text className="font-numeric text-body text-text-secondary">
+              {uniformRest
+                ? formatRestDuration(Number(draft.exercises[0].restSeconds))
+                : draft.exercises.length
+                  ? "Mixed"
+                  : "Set"}
             </Text>
-          ) : null}
-        </Section>
+            <Icon
+              name="chevron-down"
+              size={12}
+              className="text-text-secondary"
+            />
+          </View>
+        </Pressable>
       </View>
 
       <View className="flex-1 px-lg pt-sm">
-        <Section title="Exercises" className="flex-1">
+        <Section
+          title={`Exercises (${draft.exercises.length})`}
+          className="flex-1"
+        >
           {draft.exercises.length > 0 ? (
             <DraggableFlatList
-              data={draft.exercises}
-              onDragEnd={({ data }) => {
-                setTimeout(() => {
-                  reorderExercises(data);
-                }, 0);
+              key={listLayout.revision}
+              contentOffset={{ x: 0, y: listLayout.offset }}
+              onScrollOffsetChange={(offset) => {
+                scrollOffset.current = offset;
               }}
+              data={draft.exercises}
+              onDragBegin={() => {
+                Keyboard.dismiss();
+                dragInFlight.current = true;
+                setIsDragging(true);
+              }}
+              onDragEnd={({ data }) => {
+                if (!saveInFlight.current) reorderExercises(data);
+                dragInFlight.current = false;
+                setIsDragging(false);
+                // The library retains native cell transforms until onLayout fires.
+                // Reordering equal-sized rows can skip that event on Fabric.
+                // Recreate the list after drop, preserving its scroll position.
+                const offset = scrollOffset.current;
+                setListLayout((current) => ({
+                  revision: current.revision + 1,
+                  offset,
+                }));
+              }}
+              renderPlaceholder={() => (
+                <View
+                  pointerEvents="none"
+                  className="flex-1 rounded-md border border-dashed border-border bg-surface"
+                />
+              )}
+              autoscrollThreshold={64}
+              autoscrollSpeed={120}
+              animationConfig={{ overshootClamping: true }}
               keyExtractor={(item) => item.id}
               renderItem={renderExerciseItem}
               showsVerticalScrollIndicator={false}
@@ -232,12 +349,12 @@ function RoutineEditorForm({
               keyboardShouldPersistTaps="handled"
             />
           ) : (
-            <Card>
+            <View className="py-lg">
               <Text className="font-body text-body leading-6 text-text-secondary">
                 This routine is empty. Add exercises to create a complete
                 workout.
               </Text>
-            </Card>
+            </View>
           )}
         </Section>
       </View>
@@ -247,9 +364,43 @@ function RoutineEditorForm({
           variant="outline"
           icon="plus"
           label="Add exercise"
+          disabled={isSaving || isDragging}
           onPress={handleOpenExercisePicker}
         />
       </View>
+      {restTarget !== null && (
+        <RestDurationModal
+          initialSeconds={Number(
+            (restTarget === "all"
+              ? draft.exercises[0]
+              : draft.exercises.find((exercise) => exercise.id === restTarget)
+            )?.restSeconds ?? "90",
+          )}
+          all={restTarget === "all"}
+          onClose={() => setRestTarget(null)}
+          onApply={(seconds) => {
+            if (saveInFlight.current || dragInFlight.current) return;
+            if (restTarget === "all") setRestForAll(seconds);
+            else updateExercise(restTarget, { restSeconds: String(seconds) });
+            setRestTarget(null);
+          }}
+        />
+      )}
+      <ConfirmModal
+        visible={pendingExit !== null}
+        title="Discard changes?"
+        description="Your changes to this routine have not been saved."
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        isDestructive
+        onConfirm={() => {
+          const resume = pendingExit;
+          setPendingExit(null);
+          setLeaving(true);
+          resume?.();
+        }}
+        onCancel={() => setPendingExit(null)}
+      />
     </KeyboardAvoidingView>
   );
 }

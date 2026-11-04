@@ -1,78 +1,119 @@
 import { type RoutineExerciseDraft } from "@/features/routines/utils/routineDraft";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { TargetInput } from "@/features/routines/components/TargetInput";
-import { IconButton } from "@/components/ui/IconButton";
-import { Card } from "@/components/ui/Card";
+import { formatRestDuration } from "../utils/restDuration";
 import { Icon } from "@/components/ui/Icon";
 
 type ExerciseEditorProps = {
   exercise: RoutineExerciseDraft;
   onChange: (changes: Partial<RoutineExerciseDraft>) => void;
   onRemove: () => void;
+  onEditRest: () => void;
   drag: () => void;
   isActive: boolean;
+  disabled?: boolean;
+  isLast: boolean;
 };
 
 export function ExerciseEditor({
   exercise,
   onChange,
   onRemove,
+  onEditRest,
   drag,
   isActive,
+  disabled = false,
+  isLast,
 }: ExerciseEditorProps) {
+  const { fontScale } = useWindowDimensions();
+  // Both native inputs and the rest selector share an explicit, text-scaled height.
+  const fieldHeight = Math.max(48, Math.ceil(32 * fontScale));
   return (
-    <Card
-      className={`gap-md ${
-        isActive ? "border-surface bg-surface-raised shadow-md" : ""
-      }`}
+    <View
+      className={`relative gap-sm px-sm py-lg ${isLast ? "" : "border-b border-border"} ${isActive ? "rounded-md bg-surface-raised" : "bg-bg"}`}
     >
-      <View className="flex-row items-center gap-md">
+      {isActive && (
+        <View
+          pointerEvents="none"
+          className="absolute inset-0 rounded-md border border-text-secondary"
+        />
+      )}
+      <View className="flex-row items-center gap-sm">
         <Pressable
           accessibilityLabel={`Drag to reorder ${exercise.name}`}
+          accessibilityHint="Touch and hold, then drag to change exercise order"
           accessibilityRole="button"
-          hitSlop={8}
+          disabled={disabled}
           onLongPress={drag}
-          className={`h-10 w-10 items-center justify-center rounded-full ${
-            isActive ? "bg-accent" : "bg-surface-raised"
-          }`}
+          delayLongPress={300}
+          className={`min-h-12 flex-1 flex-row items-center gap-md rounded-sm ${isActive ? "" : "active:bg-surface"}`}
         >
-          <Icon
-            name="grip-vertical"
-            size={16}
-            className={isActive ? "text-on-accent" : "text-text-secondary"}
-          />
+          <View className="min-h-12 w-12 items-center justify-center">
+            <View
+              className={`h-8 w-8 items-center justify-center rounded-sm ${isActive ? "bg-accent" : ""}`}
+            >
+              <Icon
+                name="grip-vertical"
+                size={16}
+                className={isActive ? "text-on-accent" : "text-text-secondary"}
+              />
+            </View>
+          </View>
+          <Text className="flex-1 font-body-semibold text-body text-text-primary">
+            {exercise.name}
+          </Text>
         </Pressable>
-
-        <Text className="flex-1 border-border px-xs font-body-semibold text-lg text-text-primary">
-          {exercise.name}
-        </Text>
-
-        <IconButton
-          variant="bare"
-          icon="trash"
-          iconClassName="text-danger"
-          label={`Remove ${exercise.name}`}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${exercise.name}`}
+          disabled={disabled || isActive}
+          accessibilityState={{ disabled: disabled || isActive }}
           onPress={onRemove}
-        />
+          className={`min-h-12 min-w-12 items-center justify-center rounded-sm active:bg-surface ${isActive ? "opacity-0" : ""}`}
+        >
+          <Icon name="xmark" size={18} className="text-text-secondary" />
+        </Pressable>
       </View>
-
-      <View className="flex-row gap-sm">
+      <View className={`flex-row gap-sm ${isActive ? "opacity-70" : ""}`}>
         <TargetInput
+          height={fieldHeight}
+          disabled={disabled || isActive}
           label="Sets"
+          accessibilityLabel={`${exercise.name} sets`}
           value={exercise.sets}
           onChangeText={(sets) => onChange({ sets })}
         />
         <TargetInput
+          height={fieldHeight}
+          disabled={disabled || isActive}
           label="Reps"
+          accessibilityLabel={`${exercise.name} reps`}
           value={exercise.reps}
           onChangeText={(reps) => onChange({ reps })}
         />
-        <TargetInput
-          label="Rest (sec)"
-          value={exercise.restSeconds}
-          onChangeText={(restSeconds) => onChange({ restSeconds })}
-        />
+        <View className="flex-1 gap-xs">
+          <Text className="font-body text-caption text-text-secondary">
+            Rest
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${exercise.name} rest: ${formatRestDuration(Number(exercise.restSeconds))}, minutes and seconds`}
+            disabled={disabled || isActive}
+            onPress={onEditRest}
+            style={{ height: fieldHeight }}
+            className="min-h-12 flex-row items-center justify-center gap-xs rounded-sm border border-border bg-surface px-sm"
+          >
+            <Text className="font-numeric text-xl text-text-primary">
+              {formatRestDuration(Number(exercise.restSeconds))}
+            </Text>
+            <Icon
+              name="chevron-down"
+              size={10}
+              className="text-text-secondary"
+            />
+          </Pressable>
+        </View>
       </View>
-    </Card>
+    </View>
   );
 }

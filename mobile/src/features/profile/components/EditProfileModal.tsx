@@ -1,20 +1,15 @@
 import { userKeys } from "@/features/profile/api/queryKeys";
 import { useMemo, useState } from "react";
-import {
-  Modal,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { Modal, Pressable, Text, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { IconButton } from "@/components/ui/IconButton";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError } from "@/shared/api/errors";
-import {
-  updateCurrentUser,
-} from "@/features/profile/api/user";
+import { updateCurrentUser } from "@/features/profile/api/user";
 import type { UserNewInfo, UserResponse } from "@/features/profile/types/user";
 import {
   SelectPickerModal,
@@ -74,6 +69,7 @@ export function EditProfileFieldModal({
   user,
   onClose,
 }: EditProfileFieldModalProps) {
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [username, setUsername] = useState(
     field === "username" ? (user?.username ?? "") : "",
@@ -228,26 +224,30 @@ export function EditProfileFieldModal({
       animationType="slide"
       transparent
       visible={field !== null}
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (!isPending) onClose();
+      }}
     >
       <KeyboardAvoidingView
         behavior="padding"
         automaticOffset
-        className="flex-1 justify-end bg-black/65"
+        className="flex-1 justify-end bg-black/75"
       >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close modal"
           className="absolute inset-0"
+          disabled={isPending}
           onPress={onClose}
         />
         <View
           onStartShouldSetResponder={() => true}
-          className="gap-lg rounded-t-lg border border-border bg-surface p-xl"
+          className="gap-lg rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
           {/* Header */}
-          <View className="flex-row items-center justify-between">
-            <View className="gap-xs">
+          <View className="flex-row items-center gap-md">
+            <View className="flex-1 gap-xs">
               <Text className="font-body-bold text-xl text-text-primary">
                 {modalTitle}
               </Text>
@@ -255,14 +255,13 @@ export function EditProfileFieldModal({
                 {modalSubtitle}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
+            <IconButton
+              icon="xmark"
+              label="Close"
+              variant="bare"
+              disabled={isPending}
               onPress={onClose}
-              className="h-9 w-9 items-center justify-center rounded-full bg-surface-raised active:bg-surface"
-            >
-              <Icon name="xmark" size={14} className="text-text-secondary" />
-            </Pressable>
+            />
           </View>
 
           {/* Username Input */}
