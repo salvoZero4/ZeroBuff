@@ -30,6 +30,7 @@ type ConsistencyGridProps = {
   year?: number;
   title?: string;
   showWeekdayLabels?: boolean;
+  framed?: boolean;
 };
 
 const LABEL_WIDTH = 16;
@@ -47,6 +48,7 @@ export function ConsistencyGrid({
   year,
   title = "Consistency",
   showWeekdayLabels = false,
+  framed = true,
 }: ConsistencyGridProps) {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(year ?? currentYear);
@@ -81,8 +83,8 @@ export function ConsistencyGrid({
   const period =
     mode === "recent" ? `last ${RECENT_WEEKS} weeks` : String(selectedYear);
   const accessibilityLabel = `${sessionCount} ${
-    sessionCount === 1 ? "workout" : "workouts"
-  }, ${period}`;
+    sessionCount === 1 ? "day" : "days"
+  } trained, ${period}`;
 
   return (
     <View className="gap-sm">
@@ -105,7 +107,9 @@ export function ConsistencyGrid({
       <View
         accessible
         accessibilityLabel={accessibilityLabel}
-        className="rounded-md border border-border bg-surface p-lg"
+        className={
+          framed ? "rounded-md border border-border bg-surface p-lg" : "py-sm"
+        }
       >
         {mode === "recent" ? (
           <RecentGrid weeks={weeks} showWeekdayLabels={showWeekdayLabels} />
@@ -118,6 +122,17 @@ export function ConsistencyGrid({
           />
         )}
       </View>
+      {mode === "year" && (
+        <View className="gap-xs">
+          <Text className="font-body text-caption text-text-secondary">
+            {sessionCount} {sessionCount === 1 ? "day" : "days"} trained in{" "}
+            {selectedYear}
+          </Text>
+          <Text className="font-body text-caption text-text-secondary">
+            Swipe to explore the year
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -185,7 +200,8 @@ function YearGrid({
         ? 0
         : Math.max(
             0,
-            (todayWeekIndex + 1) * stride - YEAR_GAP - viewportWidth.current,
+            // Leave upcoming weeks visible so the current month label fits.
+            (todayWeekIndex + 4) * stride - YEAR_GAP - viewportWidth.current,
           );
     scrollRef.current?.scrollTo({ x, animated: false });
   }, [todayWeekIndex, stride]);
@@ -364,7 +380,7 @@ function YearPicker({
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
             hitSlop={12}
-            className={`rounded-sm px-sm py-xs ${isSelected ? "bg-accent" : "bg-surface-raised"}`}
+            className={`min-h-12 min-w-12 items-center justify-center rounded-sm px-sm py-xs ${isSelected ? "bg-accent" : "bg-surface-raised"}`}
             onPress={() => onSelect(year)}
           >
             <Text

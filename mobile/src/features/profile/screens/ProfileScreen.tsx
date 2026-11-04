@@ -9,6 +9,8 @@ import {
   View,
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ProfileConsistency } from "@/features/profile/components/ProfileConsistency";
+import { useHistory } from "@/features/analytics/hooks/useAnalytics";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenError } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
@@ -41,6 +43,7 @@ const SEX_OPTIONS: readonly PickerOption[] = [
 export function ProfileScreen() {
   const { signOut } = useAuth();
   const queryClient = useQueryClient();
+  const history = useHistory();
 
   const [sexError, setSexError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<EditableProfileField>(null);
@@ -99,9 +102,10 @@ export function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
+            refreshing={isRefetching || history.isRefetching}
             onRefresh={() => {
               void refetch();
+              void history.refetch();
             }}
             tintColor="#f5f5f5"
           />
@@ -112,12 +116,13 @@ export function ProfileScreen() {
           subtitle="Your account and personal details"
         />
 
-        {/* Toccando la card si modifica solo lo username */}
         <ProfileHeaderCard
           username={user?.username}
           email={user?.email}
           onPress={() => setEditingField("username")}
         />
+
+        <ProfileConsistency history={history} />
 
         <Section title="Personal info">
           <View>
