@@ -263,7 +263,6 @@ export function SessionHistory() {
         title="Filter by routine"
         options={[
           { label: "All routines", value: "all" },
-          { label: "Custom workouts", value: "custom" },
           ...(routines.data ?? []).map((r) => ({ label: r.name, value: r.id })),
         ]}
         selectedValues={[routine]}
