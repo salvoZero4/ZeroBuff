@@ -2,8 +2,9 @@
 .env
 *.env.*
 
-# Keep the local template tracked; real .env files stay ignored.
+# Keep the local templates tracked; real .env files stay ignored.
 !backend/.env.example
+!mobile/.env.example
 
 # Python / Backend
 backend/.venv/
