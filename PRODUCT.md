@@ -56,7 +56,7 @@ The product name is ZeroBuff. Preserve its established name and existing assets.
 - mobile/src/features/ contains the implemented user flows; backend/app/schemas/ contains the API request/response contracts.
 - mobile/assets/images/ contains the existing app icon and launch assets.
 - backend/tests/ and mobile/tests/workout.test.cjs provide behavioral checks. Their presence does not imply current execution or passing status.
-- Simulator observations and test history are recorded separately in /Users/salvozero4/Projects/ZeroBuff-context/STATO.md. Revalidate against the current checkout before relying on them.
+- Simulator observations and test history are kept outside this repository. Revalidate against the current checkout before relying on them.
 
 ## Product Principles
 

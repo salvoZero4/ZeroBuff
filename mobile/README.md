@@ -10,14 +10,14 @@ Install dependencies with `npm install`. Configure the backend URL in a local `.
 
 ## Structure
 
-- `index.js`: registers Notifee background handlers before Expo Router.
+- `index.js`: registers Expo notification handlers before Expo Router.
 - `src/app/`: route adapters and navigation layouts.
 - `src/features/`: feature-owned UI, APIs, contracts and state.
 - `src/features/workout/notifications/`: Expo notification integration, permissions and native timer synchronization.
 - `src/components/ui/`: shared UI primitives.
 - `src/shared/`: API transport, query cache, errors and utilities.
 - `modules/rest-timer/`: Swift/Kotlin timer integration discovered by autolinking.
-- `plugins/withRestTimer.js`: generates the Live Activity extension and Notifee native configuration.
+- `plugins/withRestTimer.js`: generates the Live Activity extension and removes legacy Notifee entries from incremental prebuilds.
 
 Do not edit generated `ios/` and `android/` files by hand. Native build details and platform limits are documented in [the rest timer module](modules/rest-timer/README.md).
 
@@ -85,4 +85,4 @@ npx expo lint
 node --test tests/*.test.cjs
 ```
 
-The Node suites test the real TypeScript logic with simulated native/network boundaries. They do not certify device behavior. See the repository's `context/` dossier for current verification coverage and remaining work.
+The Node suites test the real TypeScript logic with simulated native/network boundaries. They do not certify device behavior; revalidate native and notification flows on a real device.
