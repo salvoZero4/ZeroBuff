@@ -25,6 +25,10 @@ Force-stop, reboot, user dismissal and energy restrictions must be tested on rea
 
 A new native build is required; this migration cannot be installed by reloading an existing APK. Expo Go does not include the local timer module.
 
+`package.json` forces `expo-notifications` to build from source on Android through
+`expo.autolinking.android.buildFromSource`: the Kotlin adapter imports its scheduler
+classes, so Gradle needs the `:expo-notifications` project rather than the precompiled AAR.
+
 From `mobile`:
 
 ```sh
