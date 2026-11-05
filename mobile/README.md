@@ -8,6 +8,24 @@ Install dependencies with `npm install`. Configure the backend URL in a local `.
 
 `npm start` starts Metro. Use `npm run ios`, `npm run android` or `npm run web` for the target platform. Native rest notifications and Live Activities require a rebuilt native app; Expo Go cannot load that integration.
 
+## Builds
+
+`eas.json` contains the EAS build profiles. The API URL is not stored in the repository: it is provided by the `EXPO_PUBLIC_API_URL` environment variable for the `preview` and `production` EAS environments.
+
+Set it once with:
+
+```sh
+npx eas-cli env:set --name EXPO_PUBLIC_API_URL \
+  --value https://your-api.example.com/v1 \
+  --environment preview --visibility plaintext
+
+npx eas-cli env:set --name EXPO_PUBLIC_API_URL \
+  --value https://your-api.example.com/v1 \
+  --environment production --visibility plaintext
+```
+
+For local builds, Expo reads `EXPO_PUBLIC_API_URL` from `mobile/.env`.
+
 ## Structure
 
 - `index.js`: registers Expo notification handlers before Expo Router.

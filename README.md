@@ -225,6 +225,8 @@ npm start
 
 Use `npm run ios`, `npm run android`, or `npm run web` to target a specific platform. When using a physical device, replace `localhost` with the host machine's LAN IP address.
 
+Cloud builds use EAS. Build profiles live in `mobile/eas.json`; the API URL is supplied by the `EXPO_PUBLIC_API_URL` environment variable configured in EAS. See `mobile/README.md`.
+
 ## Database migrations
 
 Alembic revisions are stored in `backend/alembic/versions/`. The migration environment loads the SQLModel metadata and reads the database URL from the environment.

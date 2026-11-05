@@ -17,7 +17,6 @@ node_modules/
 .expo/
 dist/
 .github/skills/*
-mobile/eas.json
 
 # macOS
 .DS_Store
