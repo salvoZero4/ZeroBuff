@@ -34,8 +34,12 @@ object RestCompletionAlerts {
     )
   }
 
-  fun clear(context: Context) {
+  fun cancelPending(context: Context) {
     ExpoSchedulingDelegate(context).removeScheduledNotifications(listOf(ID))
+  }
+
+  fun clear(context: Context) {
+    cancelPending(context)
     context.getSystemService(NotificationManager::class.java).cancel(ID, 0)
   }
 }

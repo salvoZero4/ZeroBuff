@@ -15,9 +15,9 @@ No foreground service, app-held wake lock, JS background task or polling. The OS
 
 On Android 12+, exact-alarm access is optional. Expo's scheduler uses an inexact idle-aware alarm when permission is unavailable; it may arrive late. The UI links to Alarms & reminders and separately identifies blocked notification channels. Battery restrictions still apply. Never request battery-optimization exemptions automatically.
 
-Android 8+ removes the countdown at its deadline with the platform timeout. Android 7 lacks that API: the expired countdown is removed on reconciliation/clear. Android 16+ requests promoted ongoing visibility, but OEM/user settings decide presentation; Samsung Now Bar eligibility is not guaranteed.
+Android posts the countdown and schedules the completion alert when the app goes to the background. Returning to the app removes the countdown and cancels a pending completion alert. Android 8+ removes the countdown at its deadline with the platform timeout. Android 7 removes the expired countdown on reconciliation or clear. Android 16+ requests promotion using a system Live Update template. Samsung chooses which apps appear in Now Bar based on device support and notification settings.
 
-On iOS 16.4–16.x the Live Activity displays the countdown and opens the workout; buttons require iOS 17+. At expiry it becomes stale. The system may retain it until the workout clears it; no process is kept alive solely to end an activity at expiry.
+On iOS 16.4–16.x the Live Activity displays the countdown and opens the workout; buttons require iOS 17+. Expo suppresses the completion notification while the app is visible. At expiry the activity becomes stale. The system may retain it until the workout clears it; no process is kept alive solely to end an activity at expiry.
 
 Force-stop, reboot, user dismissal and energy restrictions must be tested on real devices. Expo restores supported pending alarms on boot; the countdown is reconstructed when the workout is reconciled. Neither platform guarantees delivery after force-stop.
 
