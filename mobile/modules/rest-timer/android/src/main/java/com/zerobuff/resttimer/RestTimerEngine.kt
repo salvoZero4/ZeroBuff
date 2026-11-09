@@ -108,8 +108,15 @@ object RestTimerEngine {
       RestCompletionAlerts.clear(context)
       return
     }
-    // An optional countdown failure must not prevent scheduling the end alert.
-    RestCompletionAlerts.schedule(context, state)
+    // Publish the countdown even if the alarm scheduler fails on this device.
+    try {
+      RestCompletionAlerts.schedule(context, state)
+    } finally {
+      showCountdown(context, state)
+    }
+  }
+
+  private fun showCountdown(context: Context, state: JSONObject) {
     if (state.optBoolean("surfaceDismissed")) {
       manager(context).cancel(RUNNING_ID)
       return
@@ -128,6 +135,7 @@ object RestTimerEngine {
       .setContentTitle(state.getString("title")).setContentText("Resting")
       .setContentIntent(open).setDeleteIntent(actionIntent(context, state, "dismiss"))
       .setOngoing(true).setAutoCancel(false).setOnlyAlertOnce(true)
+      .setCategory(Notification.CATEGORY_STOPWATCH)
       .setVisibility(Notification.VISIBILITY_PUBLIC)
       .setShowWhen(true).setWhen(deadline).setUsesChronometer(true).setChronometerCountDown(true)
       .addAction(Notification.Action.Builder(null, "Skip rest", actionIntent(context, state, "skip")).build())

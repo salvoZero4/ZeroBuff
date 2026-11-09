@@ -25,8 +25,12 @@ object RestCompletionAlerts {
       .setBody(data).setAutoDismiss(true).build()
     // Expo presents local requests under (identifier, 0).
     context.getSystemService(NotificationManager::class.java).cancel(ID, 0)
+    // The user started a timer. With exact-alarm access, use the alarm-clock
+    // delivery mode to avoid OEM deferrals while the phone is idle.
     ExpoSchedulingDelegate(context).scheduleNotification(
-      NotificationRequest(ID, content, DateTrigger(CHANNEL, state.getDouble("endAt").toLong()))
+      NotificationRequest(
+        ID, content, DateTrigger(CHANNEL, state.getDouble("endAt").toLong(), alarmClock = true)
+      )
     )
   }
 
