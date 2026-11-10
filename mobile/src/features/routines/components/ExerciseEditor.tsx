@@ -3,12 +3,15 @@ import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { TargetInput } from "@/features/routines/components/TargetInput";
 import { formatRestDuration } from "../utils/restDuration";
 import { Icon } from "@/components/ui/Icon";
+import { IconButton } from "@/components/ui/IconButton";
 
 type ExerciseEditorProps = {
   exercise: RoutineExerciseDraft;
   onChange: (changes: Partial<RoutineExerciseDraft>) => void;
   onRemove: () => void;
   onEditRest: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   drag: () => void;
   isActive: boolean;
   disabled?: boolean;
@@ -20,6 +23,8 @@ export function ExerciseEditor({
   onChange,
   onRemove,
   onEditRest,
+  onMoveUp,
+  onMoveDown,
   drag,
   isActive,
   disabled = false,
@@ -28,6 +33,8 @@ export function ExerciseEditor({
   const { fontScale } = useWindowDimensions();
   // Both native inputs and the rest selector share an explicit, text-scaled height.
   const fieldHeight = Math.max(48, Math.ceil(32 * fontScale));
+  const reorderDisabled = disabled || isActive;
+  const showReorderButtons = Boolean(onMoveUp || onMoveDown);
   return (
     <View
       className={`relative gap-sm px-sm py-lg ${isLast ? "" : "border-b border-border"} ${isActive ? "rounded-md bg-surface-raised" : "bg-bg"}`}
@@ -40,15 +47,13 @@ export function ExerciseEditor({
       )}
       <View className="flex-row items-center gap-sm">
         <Pressable
-          accessibilityLabel={`Drag to reorder ${exercise.name}`}
-          accessibilityHint="Touch and hold, then drag to change exercise order"
-          accessibilityRole="button"
+          accessible={false}
           disabled={disabled}
           onLongPress={drag}
           delayLongPress={300}
-          className={`min-h-12 flex-1 flex-row items-center gap-md rounded-sm ${isActive ? "" : "active:bg-surface"}`}
+          className={`min-h-12 flex-1 flex-row items-center gap-sm rounded-sm ${isActive ? "" : "active:bg-surface"}`}
         >
-          <View className="min-h-12 w-12 items-center justify-center">
+          <View className="min-h-12 w-8 items-center justify-center">
             <View
               className={`h-8 w-8 items-center justify-center rounded-sm ${isActive ? "bg-accent" : ""}`}
             >
@@ -63,6 +68,28 @@ export function ExerciseEditor({
             {exercise.name}
           </Text>
         </Pressable>
+        {showReorderButtons && (
+          <View className="flex-row">
+            <IconButton
+              variant="bare"
+              icon="chevron-up"
+              iconSize={16}
+              label={`Move up: ${exercise.name}`}
+              disabled={reorderDisabled || !onMoveUp}
+              iconClassName={reorderDisabled || !onMoveUp ? "text-text-disabled" : "text-text-primary"}
+              onPress={() => onMoveUp?.()}
+            />
+            <IconButton
+              variant="bare"
+              icon="chevron-down"
+              iconSize={16}
+              label={`Move down: ${exercise.name}`}
+              disabled={reorderDisabled || !onMoveDown}
+              iconClassName={reorderDisabled || !onMoveDown ? "text-text-disabled" : "text-text-primary"}
+              onPress={() => onMoveDown?.()}
+            />
+          </View>
+        )}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Remove ${exercise.name}`}
