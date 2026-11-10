@@ -108,7 +108,6 @@ Recorded on 2026-11-03. This is a design backlog, not an implementation or test 
 
 ### P2 — Today and workout flow
 
-- Weekday tiles are currently static views although the project directives call for tappable days. Make day selection meaningful and expose the selected date and scheduled routine clearly.
 - Today's routine card uses generic motivational text. Prefer useful planning information already available, such as exercise and planned-set counts, without turning the home into another routine editor.
 - Prefer an explicit “Start workout” label to “Start”. After a completed session, show a clear completion state and evaluate a secondary path to start another workout rather than simply losing the CTA.
 - During a workout, reduce the prominence of secondary adjustments such as auto-rest settings and removal. Preserve timer and active-set priority, subject to the lean-card constraint above.
