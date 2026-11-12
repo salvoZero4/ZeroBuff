@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 
-from app.api.dependencies import currentUserDep, sessionDep
-from app.schemas.user import UserNewInfo, UserResponse
-from app.services.user_service import get_current_user, update_info
+from app.db.session import sessionDep
+from app.features.auth.dependencies import currentUserDep
+from app.features.users.schemas import UserNewInfo, UserResponse
+from app.features.users.service import get_current_user, update_info
 
 router = APIRouter(
     prefix="/v1/users",

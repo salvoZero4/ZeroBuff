@@ -2,15 +2,16 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.api.dependencies import currentUserDep, sessionDep
-from app.schemas.routine import (
+from app.db.session import sessionDep
+from app.features.auth.dependencies import currentUserDep
+from app.features.routines.schemas import (
     RoutineCreate,
     RoutineListRead,
     RoutineRead,
     RoutineStats,
     RoutineUpdate,
 )
-from app.services.routine_service import (
+from app.features.routines.service import (
     create_routine,
     delete_routine,
     get_exercises_in_routine,

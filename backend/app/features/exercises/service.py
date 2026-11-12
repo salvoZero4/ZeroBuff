@@ -4,7 +4,7 @@ from app.models.exercise import Equipment, Exercise, MuscleGroup
 from app.models.routine import RoutineExercise
 from app.models.session import Session as SessionModel
 from app.models.session import Set_log
-from app.schemas.exercise import (
+from app.features.exercises.schemas import (
     ExerciseCreated,
     ExerciseListResponse,
     ExerciseModified,
@@ -15,7 +15,7 @@ from app.schemas.exercise import (
     SearchResponse,
     SetLogRead,
 )
-from app.services.service_helpers import commit_with_http_error_handling
+from app.core.db_errors import commit_with_http_error_handling
 from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlmodel import Session, select

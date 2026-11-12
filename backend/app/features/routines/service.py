@@ -8,8 +8,8 @@ from app.models.routine import Routine, RoutineExercise
 from app.models.session import Session as WorkoutSession
 from app.models.session import Set_log
 from app.models.user import User
-from app.services.service_helpers import commit_with_http_error_handling
-from app.schemas.routine import (
+from app.core.db_errors import commit_with_http_error_handling
+from app.features.routines.schemas import (
     ExerciseInRoutineRead,
     ExerciseStats,
     RoutineCreate,

@@ -5,7 +5,7 @@ from app.models.exercise import Exercise
 from app.models.routine import Routine, RoutineExercise
 from app.models.session import Session as WorkoutSession
 from app.models.session import Set_log
-from app.schemas.workoutsession import (
+from app.features.workout_sessions.schemas import (
     SessionCreate,
     SessionDetailRead,
     SessionRead,
@@ -14,7 +14,7 @@ from app.schemas.workoutsession import (
     SetLogRead,
     SetLogUpdate,
 )
-from app.services.service_helpers import commit_with_http_error_handling
+from app.core.db_errors import commit_with_http_error_handling
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
 

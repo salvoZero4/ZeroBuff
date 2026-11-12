@@ -3,7 +3,7 @@ import os
 import pytest
 from alembic import command
 from alembic.config import Config
-from app.api.dependencies import get_session
+from app.db.session import get_session
 from app.main import app
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient

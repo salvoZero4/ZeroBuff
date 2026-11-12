@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from app.api.dependencies import currentUserDep, sessionDep
-from app.schemas.workoutsession import (
+from app.db.session import sessionDep
+from app.features.auth.dependencies import currentUserDep
+from app.features.workout_sessions.schemas import (
     SessionCreate,
     SessionDetailRead,
     SessionRead,
@@ -10,7 +11,7 @@ from app.schemas.workoutsession import (
     SetLogRead,
     SetLogUpdate,
 )
-from app.services.workoutsession_service import (
+from app.features.workout_sessions.service import (
     create_session,
     create_set_log,
     delete_session,

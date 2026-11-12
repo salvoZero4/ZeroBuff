@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Request, status
 
-from app.api.dependencies import currentUserDep, sessionDep
 from app.core.limiter import limiter
-from app.schemas import (
+from app.db.session import sessionDep
+from app.features.auth.dependencies import currentUserDep
+from app.features.auth.schemas import (
     AuthOutput,
     ChangePassword,
     TokenRefreshInput,
@@ -10,7 +11,7 @@ from app.schemas import (
     UserLoginInput,
     UserRegisterInput,
 )
-from app.services.auth_service import (
+from app.features.auth.service import (
     change_password,
     login_user,
     refresh_token,

@@ -2,9 +2,10 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.api.dependencies import currentUserDep, sessionDep
-from app.schemas.schedule import ScheduleCreate, ScheduleRead, ScheduleUpdate
-from app.services.schedule_service import (
+from app.db.session import sessionDep
+from app.features.auth.dependencies import currentUserDep
+from app.features.schedule.schemas import ScheduleCreate, ScheduleRead, ScheduleUpdate
+from app.features.schedule.service import (
     create_schedule,
     delete_schedule,
     get_schedule_by_user,
