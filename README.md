@@ -39,6 +39,19 @@ ZeroBuff is an open-source workout tracker for iOS and Android. Build a routine 
   </tr>
 </table>
 
+<table>
+  <tr>
+    <th scope="col">Exercise progress</th>
+    <th scope="col">Create a routine</th>
+    <th scope="col">Exercise catalog</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/analytics-exercise.png" alt="Bench press load over time with a comparison between the latest two sessions" width="230"></td>
+    <td align="center"><img src="docs/images/create-routine.png" alt="New Push Day routine with two exercises and controls for order, sets, reps, and rest" width="230"></td>
+    <td align="center"><img src="docs/images/exercise-catalog.png" alt="Exercise catalog with search, muscle and equipment filters, and controls to add exercises to a routine" width="230"></td>
+  </tr>
+</table>
+
 *Captured on the iOS simulator with demo data.*
 
 ## Run locally
