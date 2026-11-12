@@ -1,3 +1,11 @@
+import { useState } from "react";
+import Animated, {
+  Easing,
+  ReduceMotion,
+  useAnimatedStyle,
+  useReducedMotion,
+  withTiming,
+} from "react-native-reanimated";
 import { Pressable, Text, type PressableProps } from "react-native";
 import { Icon, type IconName } from "./Icon";
 
@@ -43,13 +51,36 @@ export function Button({
   icon,
   disabled,
   accessibilityState,
+  onPressIn,
+  onPressOut,
   ...props
 }: ButtonProps) {
   const v = VARIANTS[variant];
+  const [pressed, setPressed] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const contentStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: withTiming(pressed && !disabled && !reduceMotion ? 0.97 : 1, {
+          duration: pressed ? 100 : 150,
+          easing: Easing.out(Easing.cubic),
+          reduceMotion: ReduceMotion.System,
+        }),
+      },
+    ],
+  }));
   return (
     <Pressable
       {...props}
       disabled={disabled}
+      onPressIn={(event) => {
+        setPressed(true);
+        onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        setPressed(false);
+        onPressOut?.(event);
+      }}
       accessibilityState={{
         ...accessibilityState,
         disabled: Boolean(disabled),
@@ -58,8 +89,14 @@ export function Button({
       accessibilityLabel={label}
       className={`flex-row items-center justify-center gap-sm px-lg py-sm ${v.box} ${disabled ? "opacity-50" : ""}`}
     >
-      {icon && <Icon name={icon} className={v.icon} />}
-      <Text className={`shrink text-center ${v.label}`}>{label}</Text>
+      <Animated.View
+        pointerEvents="none"
+        className="shrink flex-row items-center justify-center gap-sm"
+        style={contentStyle}
+      >
+        {icon && <Icon name={icon} className={v.icon} />}
+        <Text className={`shrink text-center ${v.label}`}>{label}</Text>
+      </Animated.View>
     </Pressable>
   );
 }

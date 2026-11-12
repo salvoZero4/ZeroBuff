@@ -1,8 +1,17 @@
+import Animated, {
+  Easing,
+  FadeIn,
+  ReduceMotion,
+} from "react-native-reanimated";
 import { useEffect, useState } from "react";
 import { AppState, Pressable, Switch, Text, View } from "react-native";
 import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
 import { useBackgroundRestTimerFeedback } from "@/features/workout/notifications/BackgroundRestTimerProvider";
 import { Icon } from "@/components/ui/Icon";
+
+const stateEntrance = FadeIn.duration(180)
+  .easing(Easing.out(Easing.cubic))
+  .reduceMotion(ReduceMotion.System);
 
 type RestTimerControlProps = {
   defaultSeconds: number;
@@ -54,6 +63,11 @@ export function RestTimerControl({
   }
 
   const isRunning = secondsLeft !== null && secondsLeft > 0;
+  const timerState = isRunning
+    ? "running"
+    : secondsLeft === 0
+      ? "complete"
+      : "idle";
   const displaySeconds = secondsLeft ?? defaultSeconds;
   const mins = Math.floor(displaySeconds / 60);
   const secs = displaySeconds % 60;
@@ -61,7 +75,9 @@ export function RestTimerControl({
 
   return (
     <View className="items-center gap-sm py-md">
-      <Text
+      <Animated.Text
+        key={timerState}
+        entering={stateEntrance}
         accessibilityLiveRegion="polite"
         className="font-body text-body text-text-secondary"
       >
@@ -70,7 +86,7 @@ export function RestTimerControl({
           : secondsLeft === 0
             ? "Rest complete"
             : "Rest timer"}
-      </Text>
+      </Animated.Text>
       <Text
         accessibilityLabel={`${mins} minutes ${secs} seconds`}
         className="font-numeric-bold text-8xl text-text-primary"

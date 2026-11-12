@@ -59,7 +59,7 @@ npx expo install --fix      # fix incompatible package versions
 - **Bottom nav:** Today / Routines / Analytics / Profile.
 - **Analytics** holds both routine statistics and session history (with a selector to filter quickly). No separate "History" tab.
 - **Home (final order):** day squares → today's routine card → body-weight banner (only if no weight logged today) → consistency grid → last-session card → "Edit your schedule" button → "Start workout" CTA fixed near the navbar. The "weekly summary" block was removed; do not re-add it.
-- **Day squares:** horizontal, tappable, above today's card. Days with a routine use the active color; rest days stay neutral.
+- **Day squares:** horizontal, read-only indicators above today's card. Days with a routine use the active color; rest days stay neutral.
 - **Consistency grid:** binary (trained / not trained, no intensity). Days are rows, weeks are columns, horizontally scrollable.
 - **Weekly schedule screen:** one row per day with a routine picker / "Rest". Backend allows one routine per day: assign = `POST`, change = `PATCH`, "Rest" = `DELETE`.
 - **Active session:** the user can move freely between exercises, not bound to the routine order (e.g. machine busy). UI: strip of exercise chips, weight × reps, stepper, "Mark set complete".
