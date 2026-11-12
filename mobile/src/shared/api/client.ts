@@ -1,9 +1,13 @@
 import { tokenStore } from "@/features/auth/store/tokenStore";
 import { ApiError, NetworkError } from "./errors";
 
-const BASE_URL = (
+const API_VERSION = "v1";
+const API_HOST_URL = (
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000"
-).replace(/\/+$/, "");
+)
+  .replace(/\/+$/, "")
+  .replace(/\/v1$/, ""); // Older EAS and local configurations include /v1.
+const BASE_URL = `${API_HOST_URL}/${API_VERSION}`;
 const TIMEOUT_MS = 30_000; // generous on purpose: Render free tier cold start
 
 let onSessionExpired: () => void = () => {};

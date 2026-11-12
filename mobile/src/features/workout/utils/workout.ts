@@ -446,13 +446,15 @@ export async function logSetCompleted(
   await saveSet(exerciseId, setIndex);
   const session = getActiveWorkout();
   const saved = session?.workoutLogs[exerciseId]?.[setIndex];
+  const now = Date.now();
   if (
     session?.startedAtTimestamp === original.startedAtTimestamp &&
     saved?.saveStatus === "saved" &&
     (session.autoRestEnabled ?? true) &&
+    (session.restEndTimestamp ?? 0) <= now &&
     restSeconds > 0
   ) {
-    setWorkoutRestEndTimestamp(Date.now() + restSeconds * 1000);
+    setWorkoutRestEndTimestamp(now + restSeconds * 1000);
   }
 }
 
