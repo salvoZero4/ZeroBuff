@@ -369,6 +369,29 @@ test("auto rest starts after confirmed save, can be disabled, and supports zero 
   assert.equal(manual.store.getActiveWorkout().restEndTimestamp, undefined);
 });
 
+test("saving a set keeps the timer started manually while the save is pending", async () => {
+  const request = deferred();
+  const t = setup({ createSetLogApi: () => request.promise });
+  const pending = t.workout.logSetCompleted("exercise", 0, 60);
+  const deadline = Date.now() + 30_000;
+  t.store.setWorkoutRestEndTimestamp(deadline);
+
+  request.resolve({ id: "saved" });
+  await pending;
+
+  assert.equal(t.row().saveStatus, "saved");
+  assert.equal(t.store.getActiveWorkout().restEndTimestamp, deadline);
+});
+
+test("saving a set starts auto rest when the previous timer has expired", async () => {
+  const t = setup();
+  t.store.setWorkoutRestEndTimestamp(Date.now() - 1);
+
+  await t.workout.logSetCompleted("exercise", 0, 60);
+
+  assert.ok(t.store.getActiveWorkout().restEndTimestamp > Date.now());
+});
+
 test("failed save never starts auto rest", async () => {
   const t = setup({
     createSetLogApi: async () => {

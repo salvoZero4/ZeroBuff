@@ -11,6 +11,8 @@ import { router } from "expo-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
+import { Button } from "@/components/ui/Button";
+import { loadErrorMessage } from "@/shared/api/loadError";
 import {
   SelectPickerModal,
   type PickerOption,
@@ -107,9 +109,12 @@ export function ExercisesScreen() {
     data,
     fetchNextPage,
     hasNextPage,
+    isFetching,
     isFetchingNextPage,
+    isFetchNextPageError,
     isLoading,
-    isError,
+    error,
+    refetch,
   } = useInfiniteQuery({
     queryKey: exerciseKeys.infiniteList(exerciseParams),
     queryFn: ({ pageParam = 0 }) =>
@@ -132,9 +137,19 @@ export function ExercisesScreen() {
   }
 
   function handleEndReached() {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    if (hasNextPage && !isFetching && !isFetchNextPageError) {
+      void fetchNextPage();
     }
+  }
+
+  const hasFilters =
+    Boolean(search) || selectedMuscle !== "all" || selectedEquipment !== "all";
+
+  function clearFilters() {
+    setSearch("");
+    setDebouncedSearch("");
+    setSelectedMuscle("all");
+    setSelectedEquipment("all");
   }
 
   const selectedMuscleLabel =
@@ -223,11 +238,17 @@ export function ExercisesScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#f5f5f5" />
         </View>
-      ) : isError ? (
-        <View className="flex-1 items-center justify-center p-lg">
-          <Text className="font-body text-body text-danger">
-            Unable to load exercises.
+      ) : error && !data ? (
+        <View className="flex-1 justify-center gap-md p-lg">
+          <Text accessibilityLiveRegion="polite" className="font-body text-body text-text-secondary">
+            {loadErrorMessage(error)}
           </Text>
+          <Button
+            variant="outline"
+            label={isFetching ? "Retrying…" : "Try again"}
+            disabled={isFetching}
+            onPress={() => void refetch()}
+          />
         </View>
       ) : (
         <FlatList
@@ -267,13 +288,25 @@ export function ExercisesScreen() {
               <View className="items-center py-lg">
                 <ActivityIndicator color="#f5f5f5" />
               </View>
+            ) : isFetchNextPageError ? (
+              <Button
+                variant="outline"
+                label="Retry loading more exercises"
+                disabled={isFetching}
+                onPress={() => void fetchNextPage()}
+              />
             ) : undefined
           }
           ListEmptyComponent={
-            <View className="items-center p-xl">
-              <Text className="font-body text-caption text-text-secondary">
-                No exercises found matching your filters.
+            <View className="items-center gap-md p-xl">
+              <Text className="text-center font-body text-caption text-text-secondary">
+                {hasFilters
+                  ? "No exercises found matching your filters."
+                  : "No exercises available."}
               </Text>
+              {hasFilters && (
+                <Button variant="outline" label="Clear filters" onPress={clearFilters} />
+              )}
             </View>
           }
         />

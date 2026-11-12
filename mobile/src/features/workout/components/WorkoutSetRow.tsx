@@ -1,3 +1,8 @@
+import Animated, {
+  Easing,
+  ReduceMotion,
+  ZoomIn,
+} from "react-native-reanimated";
 import { isSetSaved, WEIGHT_UNIT } from "@/features/workout/utils/experience";
 import {
   ActivityIndicator,
@@ -9,6 +14,11 @@ import {
 import { Icon } from "@/components/ui/Icon";
 
 import type { ActiveSetLog } from "@/features/workout/types/activeWorkout";
+
+const savedCheckEntrance = ZoomIn.duration(200)
+  .easing(Easing.out(Easing.cubic))
+  .withInitialValues({ transform: [{ scale: 0.6 }] })
+  .reduceMotion(ReduceMotion.System);
 
 export type PreviousSet = {
   weight: number;
@@ -185,7 +195,9 @@ export function WorkoutSetRow({
             {set.saveStatus === "pending" ? (
               <ActivityIndicator accessibilityLabel="Saving set" />
             ) : saved ? (
-              <Icon name="check" size={22} className="text-on-accent" />
+              <Animated.View entering={savedCheckEntrance}>
+                <Icon name="check" size={22} className="text-on-accent" />
+              </Animated.View>
             ) : null}
           </Pressable>
         </View>

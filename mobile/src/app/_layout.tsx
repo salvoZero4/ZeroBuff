@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import "../../global.css";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -27,6 +27,12 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/features/auth/provider/AuthProvider";
 import { BackgroundRestTimerProvider } from "@/features/workout/notifications/BackgroundRestTimerProvider";
 import { queryClient } from "@/shared/api/queryClient";
+import { APP_BACKGROUND } from "@/theme/tokens";
+
+const navigationTheme = {
+  ...DarkTheme,
+  colors: { ...DarkTheme.colors, background: APP_BACKGROUND },
+};
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,12 +41,12 @@ configureReanimatedLogger({
 });
 
 if (Platform.OS !== "web") {
-  void SystemUI.setBackgroundColorAsync("#0B0B0B");
+  void SystemUI.setBackgroundColorAsync(APP_BACKGROUND);
 }
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider style={{ flex: 1, backgroundColor: "#0B0B0B" }}>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: APP_BACKGROUND }}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <BackgroundRestTimerProvider>
@@ -49,7 +55,9 @@ export default function RootLayout() {
               navigationBarTranslucent
               preserveEdgeToEdge
             >
-              <RootNavigator />
+              <ThemeProvider value={navigationTheme}>
+                <RootNavigator />
+              </ThemeProvider>
             </KeyboardProvider>
           </BackgroundRestTimerProvider>
         </AuthProvider>
@@ -87,19 +95,14 @@ function RootNavigator() {
   if (status === "loading") return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0B0B0B" }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: APP_BACKGROUND }}>
       <StatusBar style="light" />
       <InterceptingGestureDetector>
         <SafeAreaView
           edges={["top"]}
-          style={{ flex: 1, backgroundColor: "#0B0B0B" }}
+          style={{ flex: 1, backgroundColor: APP_BACKGROUND }}
         >
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: "#0B0B0B" },
-            }}
-          >
+          <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
 
             <Stack.Protected guard={status === "signedIn"}>

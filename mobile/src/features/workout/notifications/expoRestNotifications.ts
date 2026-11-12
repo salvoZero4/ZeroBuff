@@ -6,6 +6,19 @@ export type RestNotificationData = Record<string, unknown>;
 export const REST_COMPLETE_CHANNEL = "zerobuff.rest.complete";
 export const REST_RUNNING_CHANNEL = "zerobuff.rest.ongoing";
 
+export function getNotificationBehavior(
+  data: RestNotificationData | undefined,
+  isBackground: boolean,
+): Notifications.NotificationBehavior {
+  const show = data?.kind !== "rest-timer" || isBackground;
+  return {
+    shouldShowBanner: show,
+    shouldShowList: show,
+    shouldPlaySound: show,
+    shouldSetBadge: false,
+  };
+}
+
 export function matchesRestNotification(
   data: RestNotificationData,
   state: NativeRestTimer | null,

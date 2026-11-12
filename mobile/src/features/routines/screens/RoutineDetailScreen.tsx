@@ -2,6 +2,7 @@ import { routineKeys } from "@/features/routines/api/queryKeys";
 import { router, usePreventRemove } from "expo-router";
 import { useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Keyboard,
   Pressable,
@@ -99,6 +100,7 @@ function RoutineEditorForm({
     updateExercise,
     addExercise,
     removeExercise,
+    moveExercise,
     reorderExercises,
   } = useRoutineDraft(initialRoutine);
 
@@ -186,20 +188,26 @@ function RoutineEditorForm({
     item,
     drag,
     isActive,
-    getIndex,
   }: RenderItemParams<RoutineExerciseDraft>) {
+    const index = draft.exercises.findIndex((exercise) => exercise.id === item.id);
+    const isLast = index === draft.exercises.length - 1;
+
+    function move(direction: -1 | 1) {
+      if (saveInFlight.current || dragInFlight.current) return;
+      moveExercise(item.id, direction);
+      AccessibilityInfo.announceForAccessibility(
+        `${item.name} moved to position ${index + direction + 1} of ${draft.exercises.length}.`,
+      );
+    }
+
     return (
       <View>
         <ExerciseEditor
           disabled={isSaving || (isDragging && !isActive)}
-          isLast={
-            (getIndex() ??
-              draft.exercises.findIndex(
-                (exercise) => exercise.id === item.id,
-              )) ===
-            draft.exercises.length - 1
-          }
+          isLast={isLast}
           exercise={item}
+          onMoveUp={index > 0 ? () => move(-1) : undefined}
+          onMoveDown={index >= 0 && !isLast ? () => move(1) : undefined}
           onEditRest={() => {
             if (!saveInFlight.current && !dragInFlight.current) {
               Keyboard.dismiss();

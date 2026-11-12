@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { FlatList, Modal, Pressable, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { FlatList, Modal, Platform, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getExercises } from "@/features/exercises/api/exercise";
@@ -96,24 +96,50 @@ export function ExercisePicker({
   onSelect: (exercise: ExerciseRead) => void;
   onClose: () => void;
 }) {
+  const [visible, setVisible] = useState(true);
+  const pendingSelection = useRef<ExerciseRead | null>(null);
+
+  function select(exercise: ExerciseRead) {
+    if (Platform.OS !== "ios") {
+      onSelect(exercise);
+      return;
+    }
+    if (pendingSelection.current) return;
+    // Wait for the native modal to close before presenting the set editor.
+    pendingSelection.current = exercise;
+    setVisible(false);
+  }
+
   return (
-    <Modal animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-bg p-lg">
-        <View className="flex-row items-center justify-between pb-lg">
-          <Text className="font-body-bold text-xl text-text-primary">
-            Add exercise
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            className="min-h-12 justify-center px-md"
-          >
-            <Text className="font-body-semibold text-body text-text-primary">
-              Cancel
+    <Modal
+      animationType="slide"
+      backdropColor="#0B0B0B"
+      visible={visible}
+      onRequestClose={onClose}
+      onDismiss={() => {
+        const exercise = pendingSelection.current;
+        pendingSelection.current = null;
+        if (exercise) onSelect(exercise);
+      }}
+    >
+      <SafeAreaView style={{ flex: 1 }}>
+        <View className="flex-1 bg-bg p-lg">
+          <View className="flex-row items-center justify-between pb-lg">
+            <Text className="font-body-bold text-xl text-text-primary">
+              Add exercise
             </Text>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onClose}
+              className="min-h-12 justify-center px-md"
+            >
+              <Text className="font-body-semibold text-body text-text-primary">
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+          <ExerciseList onSelect={select} />
         </View>
-        <ExerciseList onSelect={onSelect} />
       </SafeAreaView>
     </Modal>
   );

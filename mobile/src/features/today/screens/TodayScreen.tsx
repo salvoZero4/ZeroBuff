@@ -10,7 +10,7 @@ import {
   LastSessionSkeleton,
   ConsistencySkeleton,
 } from "@/features/today/components/TodaySkeletons";
-import { LoadingNotice, ScreenError } from "@/components/ui/ScreenState";
+import { LoadingNotice } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
@@ -49,6 +49,36 @@ const DAY_KEYS: readonly DayOfWeek[] = [
   "sunday",
 ];
 
+function SectionLoadError({
+  title,
+  error,
+  retrying,
+  onRetry,
+}: {
+  title: string;
+  error: Error;
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <View className="gap-sm rounded-md border border-border bg-surface p-md">
+      <Text accessibilityLiveRegion="polite" className="font-body-semibold text-body text-text-primary">
+        {title}
+      </Text>
+      <Text className="font-body text-caption text-text-secondary">
+        {loadErrorMessage(error)}
+      </Text>
+      <Button
+        variant="outline"
+        label={retrying ? "Retrying…" : "Try again"}
+        accessibilityHint={title}
+        disabled={retrying}
+        onPress={onRetry}
+      />
+    </View>
+  );
+}
+
 export function TodayScreen() {
   const [startButtonHeight, setStartButtonHeight] = useState(0);
   const [isRefetching, setIsRefetching] = useState(false);
@@ -68,6 +98,7 @@ export function TodayScreen() {
   const {
     data: todaySchedule,
     isPending: pendingTodaySchedule,
+    isFetching: fetchingTodaySchedule,
     error: errorTodaySchedule,
     refetch: refetchTodaySchedule,
   } = useQuery({
@@ -76,8 +107,9 @@ export function TodayScreen() {
   });
 
   const {
-    data: sessions = [],
+    data: sessions,
     isPending: pendingSessions,
+    isFetching: fetchingSessions,
     error: errorSessions,
     refetch: refetchSessions,
   } = useQuery({
@@ -87,14 +119,12 @@ export function TodayScreen() {
 
   // Session still open on the server (e.g. the app was closed mid-workout)
   const ongoingSession = useMemo(
-    () => sessions.find((s) => s.status !== "completed"),
+    () => sessions?.find((s) => s.status !== "completed"),
     [sessions],
   );
 
   const {
     data: routines = [],
-    isPending: pendingRoutines,
-    error: errorRoutines,
     refetch: refetchRoutines,
   } = useQuery({
     queryKey: routineKeys.list(),
@@ -104,6 +134,7 @@ export function TodayScreen() {
   const {
     data: todayWeight,
     isPending: pendingWeight,
+    isFetching: fetchingWeight,
     error: errorWeight,
     refetch: refetchWeight,
   } = useQuery<WeightLogRead | null>({
@@ -112,8 +143,9 @@ export function TodayScreen() {
   });
 
   const {
-    data: weekSchedule = [],
+    data: weekSchedule,
     isPending: pendingWeekSchedule,
+    isFetching: fetchingWeekSchedule,
     error: errorWeekSchedule,
     refetch: refetchWeekSchedule,
   } = useQuery({
@@ -122,15 +154,16 @@ export function TodayScreen() {
   });
 
   const hasCompletedSessionToday = useMemo(() => {
-    return sessions.some(
+    return sessions?.some(
       (s) => s.status === "completed" && s.date === todayDateStr,
     );
   }, [sessions, todayDateStr]);
 
-  const showStartWorkoutBotton =
-    !hasCompletedSessionToday ||
-    Boolean(activeSession) ||
-    Boolean(ongoingSession);
+  const canResumeWorkout = Boolean(activeSession || ongoingSession?.routine_id);
+  const loadingWorkout = !canResumeWorkout &&
+    (pendingSessions || pendingTodaySchedule);
+  const showStartWorkoutButton =
+    canResumeWorkout || (sessions !== undefined && !hasCompletedSessionToday);
 
   const scheduledRoutine = routines.find(
     (routine) => routine.id === todaySchedule?.routine_id,
@@ -151,11 +184,11 @@ export function TodayScreen() {
     }
   }
 
-  const scheduledDayKeys = new Set(weekSchedule.map((s) => s.day_of_week));
+  const scheduledDayKeys = new Set(weekSchedule?.map((s) => s.day_of_week));
 
   const lastCompletedSession = useMemo(() => {
-    const completed = sessions.filter((s) => s.status === "completed");
-    if (completed.length === 0) return undefined;
+    const completed = sessions?.filter((s) => s.status === "completed");
+    if (!completed?.length) return undefined;
     return [...completed].sort(
       (a, b) =>
         new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
@@ -196,6 +229,8 @@ export function TodayScreen() {
       return;
     }
 
+    if (!sessions) return;
+
     if (todaySchedule) {
       router.push({
         pathname: "/workout/[routineId]",
@@ -205,22 +240,6 @@ export function TodayScreen() {
       setShowWorkoutPicker(true);
     }
   }
-
-  const loadError =
-    errorTodaySchedule ||
-    errorSessions ||
-    errorRoutines ||
-    errorWeight ||
-    errorWeekSchedule;
-  if (loadError)
-    return (
-      <ScreenError
-        title="Today couldn’t load"
-        message={loadErrorMessage(loadError)}
-        onRetry={handleRefetch}
-        busy={isRefetching}
-      />
-    );
 
   return (
     <View className="flex-1 bg-bg">
@@ -242,13 +261,19 @@ export function TodayScreen() {
             pendingWeekSchedule ||
             pendingTodaySchedule ||
             pendingWeight ||
-            pendingSessions ||
-            pendingRoutines
+            pendingSessions
           }
         />
 
         {pendingWeekSchedule ? (
           <WeekStripSkeleton />
+        ) : errorWeekSchedule && !weekSchedule ? (
+          <SectionLoadError
+            title="Week schedule couldn’t load"
+            error={errorWeekSchedule}
+            retrying={fetchingWeekSchedule}
+            onRetry={() => void refetchWeekSchedule()}
+          />
         ) : (
           <WeekStrip
             hasRoutine={(_date, dayIndex) => {
@@ -261,6 +286,13 @@ export function TodayScreen() {
         <Section title="Today's routine">
           {pendingTodaySchedule ? (
             <RoutineCardSkeleton />
+          ) : errorTodaySchedule && todaySchedule === undefined ? (
+            <SectionLoadError
+              title="Today’s routine couldn’t load"
+              error={errorTodaySchedule}
+              retrying={fetchingTodaySchedule}
+              onRetry={() => void refetchTodaySchedule()}
+            />
           ) : todaySchedule ? (
             <InfoCard
               title={todaySchedule.routine_name}
@@ -280,6 +312,13 @@ export function TodayScreen() {
 
         {pendingWeight ? (
           <WeightBannerSkeleton />
+        ) : errorWeight && todayWeight === undefined ? (
+          <SectionLoadError
+            title="Body weight couldn’t load"
+            error={errorWeight}
+            retrying={fetchingWeight}
+            onRetry={() => void refetchWeight()}
+          />
         ) : (
           !todayWeight && (
             <View className="flex-row items-center gap-md border-y border-border py-md">
@@ -304,13 +343,20 @@ export function TodayScreen() {
 
         {pendingSessions ? (
           <ConsistencySkeleton />
-        ) : (
+        ) : sessions ? (
           <ConsistencyGrid sessions={sessions} mode="recent" framed={false} />
-        )}
+        ) : null}
 
         <Section title="Last session">
-          {pendingSessions || pendingRoutines ? (
+          {pendingSessions ? (
             <LastSessionSkeleton />
+          ) : errorSessions && !sessions ? (
+            <SectionLoadError
+              title="Workout sessions couldn’t load"
+              error={errorSessions}
+              retrying={fetchingSessions}
+              onRetry={() => void refetchSessions()}
+            />
           ) : (
             <LastSessionCard
               session={lastCompletedSession}
@@ -325,14 +371,11 @@ export function TodayScreen() {
           label="Edit your schedule"
           onPress={() => router.push("/schedule")}
         />
-        {(pendingSessions ||
-          pendingRoutines ||
-          pendingTodaySchedule ||
-          showStartWorkoutBotton) && (
+        {(loadingWorkout || showStartWorkoutButton) && (
           <View className="mb-md" style={{ height: startButtonHeight }} />
         )}
       </ScrollView>
-      {pendingSessions || pendingRoutines || pendingTodaySchedule ? (
+      {loadingWorkout ? (
         <View
           className="absolute bottom-md left-lg right-lg"
           onLayout={(event) =>
@@ -342,7 +385,7 @@ export function TodayScreen() {
           <Skeleton className="h-14 w-full rounded-md" />
         </View>
       ) : (
-        showStartWorkoutBotton && (
+        showStartWorkoutButton && (
           <View
             className="absolute bottom-md left-lg right-lg"
             onLayout={(event) =>
@@ -356,7 +399,7 @@ export function TodayScreen() {
                   ? `Resume ${activeSession.routineName}${
                       activeSession.isPaused ? " (Paused)" : ""
                     }`
-                  : ongoingSession
+                  : ongoingSession?.routine_id
                     ? `Resume ${ongoingRoutineName ?? "workout"}`
                     : todaySchedule
                       ? "Start workout"

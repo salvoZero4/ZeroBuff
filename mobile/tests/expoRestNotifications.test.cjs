@@ -22,6 +22,7 @@ vm.runInThisContext(
 )(mod, mod.exports);
 const {
   createExpoRestNotifications,
+  getNotificationBehavior,
   matchesRestNotification,
   hasNotificationPermission,
 } = mod.exports;
@@ -102,6 +103,25 @@ test("iOS does not call Android channel APIs", async () => {
   const t = setup("ios");
   await t.prepare();
   assert.equal(t.channels.length, 0);
+});
+test("rest completion is silent and hidden while the app is visible", () => {
+  assert.deepEqual(getNotificationBehavior(data, false), {
+    shouldShowBanner: false,
+    shouldShowList: false,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  });
+  assert.deepEqual(getNotificationBehavior(data, true), {
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  });
+  assert.equal(
+    getNotificationBehavior({ kind: "other" }, false).shouldShowBanner,
+    true,
+  );
+  assert.equal(getNotificationBehavior(undefined, false).shouldShowBanner, true);
 });
 test("cold-launch and live response events open a notification only once", async () => {
   const t = setup(),

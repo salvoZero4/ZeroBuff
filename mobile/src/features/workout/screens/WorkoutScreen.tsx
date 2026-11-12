@@ -1,3 +1,9 @@
+import Animated, {
+  Easing,
+  FadeIn,
+  ReduceMotion,
+  useReducedMotion,
+} from "react-native-reanimated";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { routineKeys } from "@/features/routines/api/queryKeys";
 import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
@@ -67,6 +73,10 @@ import {
   workoutErrorMessage,
 } from "@/features/workout/utils/workout";
 
+const exerciseEntrance = FadeIn.duration(180)
+  .easing(Easing.out(Easing.cubic))
+  .reduceMotion(ReduceMotion.System);
+
 type WorkoutScreenProp = {
   routineId: string;
 };
@@ -91,6 +101,7 @@ const KEYBOARD_TOOLBAR_THEME = {
 };
 
 export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
+  const reduceMotion = useReducedMotion();
   const {
     data: routine,
     isLoading,
@@ -304,7 +315,10 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     if (next >= 0) {
       Keyboard.dismiss();
       setCurrentSetIndex(next);
-      setsScrollRef.current?.scrollTo({ x: pageWidth * next, animated: true });
+      setsScrollRef.current?.scrollTo({
+        x: pageWidth * next,
+        animated: !reduceMotion,
+      });
     }
   }
 
@@ -335,7 +349,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       setCurrentSetIndex(nextIndex);
       setsScrollRef.current?.scrollTo({
         x: pageWidth * nextIndex,
-        animated: true,
+        animated: !reduceMotion,
       });
     } catch (error) {
       setRemoveError(workoutErrorMessage(error));
@@ -518,14 +532,18 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         </ScrollView>
 
         {/* Info Esercizio */}
-        <View className="flex-row items-center gap-md">
+        <Animated.View
+          key={ex.exercise_id}
+          entering={exerciseEntrance}
+          className="flex-row items-center gap-md"
+        >
           <Text className="flex-1 font-body-semibold text-xl text-text-primary">
             {ex.name}
           </Text>
           <Text className="font-body text-caption text-text-secondary">
             {session.currentExerciseIndex + 1} / {routine.exercises.length}
           </Text>
-        </View>
+        </Animated.View>
 
         <View className="flex-1 justify-center gap-lg">
           {/* Timer Riposo */}

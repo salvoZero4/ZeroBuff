@@ -1,6 +1,9 @@
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { nativeRestTimer } from "./nativeRestTimer";
-import { createExpoRestNotifications } from "./expoRestNotifications";
+import {
+  createExpoRestNotifications,
+  getNotificationBehavior,
+} from "./expoRestNotifications";
 
 let runtime: ReturnType<typeof createRuntime> | undefined;
 function createRuntime() {
@@ -9,12 +12,11 @@ function createRuntime() {
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- Guarded native module load.
     require("expo-notifications") as typeof import("expo-notifications");
   api.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async ({ request }) =>
+      getNotificationBehavior(
+        request.content.data,
+        AppState.currentState === "background",
+      ),
   });
   return {
     api,

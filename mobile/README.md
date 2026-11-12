@@ -4,7 +4,7 @@ Expo SDK 58 / React Native app for Today, Routines, Workout, Analytics and Profi
 
 ## Development
 
-Install dependencies with `npm install`. Configure the backend URL in a local `.env` using `EXPO_PUBLIC_API_URL`, including `/v1`; use an address reachable from your device. Do not commit credentials.
+Install dependencies with `npm install`. Set `EXPO_PUBLIC_API_URL` in a local `.env` to a backend address reachable from your device. The mobile client adds `/v1`. Do not commit credentials.
 
 `npm start` starts Metro. Use `npm run ios`, `npm run android` or `npm run web` for the target platform. Native rest notifications and Live Activities require a rebuilt native app; Expo Go cannot load that integration.
 
@@ -16,15 +16,15 @@ Set it once with:
 
 ```sh
 npx eas-cli env:set --name EXPO_PUBLIC_API_URL \
-  --value https://your-api.example.com/v1 \
+  --value https://your-api.example.com \
   --environment preview --visibility plaintext
 
 npx eas-cli env:set --name EXPO_PUBLIC_API_URL \
-  --value https://your-api.example.com/v1 \
+  --value https://your-api.example.com \
   --environment production --visibility plaintext
 ```
 
-For local builds, Expo reads `EXPO_PUBLIC_API_URL` from `mobile/.env`.
+For local builds, Expo reads `EXPO_PUBLIC_API_URL` from `mobile/.env`. Existing URLs ending in `/v1` are also supported.
 
 ## Structure
 
