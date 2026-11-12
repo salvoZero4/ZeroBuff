@@ -6,8 +6,8 @@ from sqlmodel import Session, select
 
 from app.models.routine import Routine
 from app.models.schedule import Schedule
-from app.schemas.schedule import ScheduleCreate, ScheduleRead, ScheduleUpdate
-from app.services.service_helpers import commit_with_http_error_handling
+from app.features.schedule.schemas import ScheduleCreate, ScheduleRead, ScheduleUpdate
+from app.core.db_errors import commit_with_http_error_handling
 
 
 def create_schedule(

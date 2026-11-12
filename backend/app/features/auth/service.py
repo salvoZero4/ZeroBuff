@@ -11,8 +11,8 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
-from app.services.service_helpers import commit_with_http_error_handling
-from app.schemas import (
+from app.core.db_errors import commit_with_http_error_handling
+from app.features.auth.schemas import (
     AuthOutput,
     TokenRefreshInput,
     TokenRefreshOutput,

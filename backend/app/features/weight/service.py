@@ -2,8 +2,8 @@ from datetime import date
 from uuid import UUID
 
 from app.models.weight_log import WeightLog
-from app.schemas.weight import WeightLogCreate, WeightLogUpdate
-from app.services.service_helpers import commit_with_http_error_handling
+from app.features.weight.schemas import WeightLogCreate, WeightLogUpdate
+from app.core.db_errors import commit_with_http_error_handling
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
 

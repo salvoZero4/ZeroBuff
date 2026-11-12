@@ -1,9 +1,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from app.api.dependencies import currentUserDep, sessionDep
+from app.db.session import sessionDep
+from app.features.auth.dependencies import currentUserDep
 from app.models.exercise import Equipment, MuscleGroup
-from app.schemas.exercise import (
+from app.features.exercises.schemas import (
     ExerciseCreated,
     ExerciseListResponse,
     ExerciseModified,
@@ -11,7 +12,7 @@ from app.schemas.exercise import (
     ExerciseStatsResponse,
     SearchResponse,
 )
-from app.services.exercise_service import (
+from app.features.exercises.service import (
     create_custom_exercise,
     delete_exercise,
     exercise_details,

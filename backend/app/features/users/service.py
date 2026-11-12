@@ -2,8 +2,8 @@ from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
 from app.models.user import User, UserProfile
-from app.schemas.user import UserNewInfo, UserResponse
-from app.services.service_helpers import commit_with_http_error_handling
+from app.features.users.schemas import UserNewInfo, UserResponse
+from app.core.db_errors import commit_with_http_error_handling
 
 
 def get_current_user(current_user: User, session: Session) -> UserResponse:

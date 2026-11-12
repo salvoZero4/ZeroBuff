@@ -3,15 +3,12 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlmodel import Session
 
 from app.core.security import decode_token
-from app.db import get_session
+from app.db.session import sessionDep
 from app.models.user import User
 
 scheme = HTTPBearer()
-# Common dependency to get a database session for API endpoints
-sessionDep = Annotated[Session, Depends(get_session)]
 tokenDep = Annotated[HTTPAuthorizationCredentials, Depends(scheme)]
 
 

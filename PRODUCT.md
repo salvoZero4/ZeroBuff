@@ -53,7 +53,7 @@ The product name is ZeroBuff. Preserve its established name and existing assets.
 
 - README.md describes the product and repository architecture.
 - AGENTS.md and mobile/AGENTS.md record project rules and established product decisions.
-- mobile/src/features/ contains the implemented user flows; backend/app/schemas/ contains the API request/response contracts.
+- mobile/src/features/ contains the implemented user flows; backend/app/features/ contains the API request/response contracts.
 - mobile/assets/images/ contains the existing app icon and launch assets.
 - backend/tests/ and mobile/tests/workout.test.cjs provide behavioral checks. Their presence does not imply current execution or passing status.
 - Simulator observations and test history are kept outside this repository. Revalidate against the current checkout before relying on them.

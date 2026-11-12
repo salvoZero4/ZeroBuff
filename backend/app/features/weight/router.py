@@ -1,9 +1,10 @@
 from datetime import date
 from uuid import UUID
 
-from app.api.dependencies import currentUserDep, sessionDep
-from app.schemas.weight import WeightLogCreate, WeightLogRead, WeightLogUpdate
-from app.services.weight_service import (
+from app.db.session import sessionDep
+from app.features.auth.dependencies import currentUserDep
+from app.features.weight.schemas import WeightLogCreate, WeightLogRead, WeightLogUpdate
+from app.features.weight.service import (
     create_weight_log,
     delete_weight_log,
     get_weight_log_by_date,
