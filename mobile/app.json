@@ -9,7 +9,7 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0B0B0B",
     "ios": {
-      "icon": "./assets/images/icon.png",
+      "icon": "./assets/images/splash-icon.png",
       "bundleIdentifier": "com.zerobuff.mobile"
     },
     "android": {
