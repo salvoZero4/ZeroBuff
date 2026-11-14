@@ -133,3 +133,12 @@ The backend suite applies migrations to the test database. Use the local environ
 ## License
 
 ZeroBuff is available under the [MIT License](LICENSE.md).
+
+## Landing page and mobile downloads
+
+Preview the GitHub Pages landing locally with `python3 -m http.server 8765 --directory docs` and open `http://localhost:8765/`.
+
+In **Settings → Pages**, select **GitHub Actions** as the source. The landing workflow deploys `docs/` on changes to `main` and can also run manually from Actions.
+
+- **Android** — attach an installable `.apk` to a published [GitHub Release](https://github.com/salvoZero4/ZeroBuff/releases). The landing checks recent releases and prefers stable builds. If a release contains several APKs, name the universal one with `universal` or visitors can choose on the release page.
+- **iOS** — set `testflight` in [`docs/builds.json`](docs/builds.json) to the public TestFlight invitation URL once it is available.

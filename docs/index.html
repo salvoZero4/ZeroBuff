@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ZeroBuff is an open-source strength training log for iOS and Android. Plan workouts, log sets, and track your progress.">
+  <meta name="theme-color" content="#0b0b0b">
+  <title>ZeroBuff — Strength training log</title>
+  <link rel="icon" href="./images/zerobuff.png" type="image/png">
+  <link rel="stylesheet" href="./landing.css">
+  <script src="./downloads.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="shell header">
+    <a class="brand" href="./"><img src="./images/zerobuff.png" width="36" height="36" alt="">ZeroBuff</a>
+    <nav aria-label="Main navigation">
+      <a href="#features">Features</a>
+      <a href="#download">Download</a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="shell hero" aria-labelledby="title">
+      <div class="hero-copy">
+        <h1 id="title">Your training.<br><em>Set by set.</em></h1>
+        <p>Build a routine, log every lift, and see how your strength changes over time. An open-source workout tracker for iOS and Android.</p>
+        <a class="button" href="#download">Get ZeroBuff <span aria-hidden="true">&darr;</span></a>
+      </div>
+      <div class="hero-visual">
+        <img class="phone phone-back" src="./images/today.png" width="662" height="1440" alt="">
+        <img class="phone phone-front" src="./images/workout.png" width="662" height="1440" alt="An active Bench Press workout with a rest timer and fields for weight and reps">
+      </div>
+    </section>
+
+    <section class="shell features" id="features" aria-labelledby="features-title">
+      <h2 id="features-title">From plan to progress.</h2>
+      <ol class="steps">
+        <li>
+          <div class="step-copy">
+            <h3>Plan your week</h3>
+            <p>Choose exercises from the catalog or create your own. Set the order, sets, reps, and rest times, then assign routines to weekdays.</p>
+          </div>
+          <img src="./images/create-routine.png" width="662" height="1440" loading="lazy" alt="Creating a Push Day routine with exercise order, sets, reps, and rest settings">
+        </li>
+        <li>
+          <div class="step-copy">
+            <h3>Log every set</h3>
+            <p>Record weight, reps, and optional reps in reserve. Compare with your last session, switch exercises as equipment frees up, and let the rest timer tell you when to go again.</p>
+          </div>
+          <img src="./images/workout.png" width="662" height="1440" loading="lazy" alt="Bench Press set logging showing the previous set and the active rest timer">
+        </li>
+        <li>
+          <div class="step-copy">
+            <h3>Review your progress</h3>
+            <p>Explore your workout history and track load, reps, volume, and estimated one-rep max by exercise. Log body weight to follow it over time.</p>
+          </div>
+          <img src="./images/analytics-exercise.png" width="662" height="1440" loading="lazy" alt="Bench Press progress chart and a comparison with the previous session">
+        </li>
+      </ol>
+    </section>
+
+    <section class="download" id="download" aria-labelledby="download-title">
+      <div class="shell download-inner">
+        <div>
+          <h2 id="download-title">Get ZeroBuff.</h2>
+          <p>Choose a build for your device. ZeroBuff needs an internet connection to save workouts.</p>
+          <a class="text-link" href="https://github.com/salvoZero4/ZeroBuff/releases">View all releases</a>
+        </div>
+        <div class="platforms">
+          <div class="platform">
+            <div>
+              <h3>Android</h3>
+              <p id="android-status" role="status">Check GitHub Releases for an Android APK.</p>
+            </div>
+            <a class="button" id="android-download" href="https://github.com/salvoZero4/ZeroBuff/releases">Browse builds</a>
+          </div>
+          <div class="platform">
+            <div>
+              <h3>iOS</h3>
+              <p id="ios-status">Check the release notes for iOS availability.</p>
+            </div>
+            <a class="text-link" id="ios-download" href="https://github.com/salvoZero4/ZeroBuff/releases">Release notes</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="shell footer">
+    <span>ZeroBuff</span>
+    <a href="https://github.com/salvoZero4/ZeroBuff">Source on GitHub</a>
+  </footer>
+</body>
+</html>
