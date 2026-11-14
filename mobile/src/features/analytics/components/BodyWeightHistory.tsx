@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, Switch, Text, View } from "react-native";
+import { Alert, FlatList, Pressable, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -12,15 +12,19 @@ import {
   dateLabel,
   numberLabel,
   periodStart,
-  rollingWeight,
+  weeklyWeightAverages,
   type Period,
 } from "../utils/progress";
-import { Empty, PeriodControl, QueryNotice } from "./AnalyticsControls";
+import { Choices, Empty, PeriodControl, QueryNotice } from "./AnalyticsControls";
 import { ProgressChart } from "./ProgressChart";
 import { WeightEntryEditor } from "./WeightEntryEditor";
+
+const CHART_VIEWS = ["Weekly average", "Daily"] as const;
+type ChartView = (typeof CHART_VIEWS)[number];
+
 export function BodyWeightHistory() {
   const [period, setPeriod] = useState<Period>("3M");
-  const [average, setAverage] = useState(false);
+  const [chartView, setChartView] = useState<ChartView>("Weekly average");
   const [editor, setEditor] = useState<{ log: WeightLogRead | null } | null>(
     null,
   );
@@ -37,15 +41,23 @@ export function BodyWeightHistory() {
         .sort((a, b) => a.date.localeCompare(b.date)),
     [query.data],
   );
+  const start = periodStart(period);
   const visible = (query.data ?? [])
-    .filter((log) => log.date >= periodStart(period))
+    .filter((log) => log.date >= start)
     .sort((a, b) => b.date.localeCompare(a.date));
-  const chartPoints = (
-    average && visible.length > 1 ? rollingWeight(points) : points
-  ).filter((p) => p.date >= periodStart(period));
+  const weekly = chartView === "Weekly average";
+  const weeks = useMemo(() => weeklyWeightAverages(points), [points]);
+  const chartPoints = weekly
+    ? weeks
+        .filter((week) => week.endDate >= start)
+        .map((week) => ({
+          ...week,
+          label: `${dateLabel(week.date)} – ${dateLabel(week.endDate)} · ${week.count} ${week.count === 1 ? "weigh-in" : "weigh-ins"}`,
+        }))
+    : points.filter((point) => point.date >= start);
   const change =
-    visible.length > 1
-      ? visible[0].weight - visible[visible.length - 1].weight
+    chartPoints.length > 1
+      ? chartPoints[chartPoints.length - 1].value - chartPoints[0].value
       : null;
   const remove = useMutation({
     mutationFn: deleteWeight,
@@ -74,32 +86,31 @@ export function BodyWeightHistory() {
               error={query.error}
               retry={() => void query.refetch()}
             />
-            {query.data && visible.length > 0 && (
+            {query.data && points.length > 0 && (
               <>
-                <ProgressChart points={chartPoints} unit={WEIGHT_UNIT} />
-                {visible.length > 1 && (
-                  <View className="min-h-12 flex-row items-center justify-between gap-lg">
-                    <Text className="flex-1 font-body text-sm text-text-primary">
-                      7-day moving average
-                    </Text>
-                    <Switch
-                      accessibilityLabel="Show 7-day moving average"
-                      value={average}
-                      onValueChange={setAverage}
-                    />
-                  </View>
-                )}
-                {average && visible.length > 1 && (
+                <Choices
+                  values={CHART_VIEWS}
+                  value={chartView}
+                  onChange={setChartView}
+                />
+                {weekly && (
                   <Text className="font-body text-caption text-text-secondary">
-                    Average of recorded measurements in the preceding 7 days.
-                    Missing days are not filled in.
+                    Monday to Sunday · average of logged weights
                   </Text>
                 )}
+                <ProgressChart
+                  key={chartView}
+                  points={chartPoints}
+                  unit={WEIGHT_UNIT}
+                  pointName={weekly ? "weekly average" : "measurement"}
+                />
                 {change !== null && (
                   <Text className="font-body text-sm text-text-secondary">
                     Period change: {change > 0 ? "+" : ""}
-                    {numberLabel(change)} {WEIGHT_UNIT} · first to last recorded
-                    weight
+                    {numberLabel(change)} {WEIGHT_UNIT} ·{" "}
+                    {weekly
+                      ? "first to last weekly average"
+                      : "first to last recorded weight"}
                   </Text>
                 )}
               </>

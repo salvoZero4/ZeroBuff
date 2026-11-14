@@ -12,10 +12,12 @@ export function ProgressChart({
   points,
   unit,
   onOpen,
+  pointName = "measurement",
 }: {
   points: Point[];
   unit: string;
   onOpen?: (id: string) => void;
+  pointName?: "measurement" | "weekly average";
 }) {
   const [width, setWidth] = useState(240);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -36,10 +38,12 @@ export function ProgressChart({
           </Text>
         </Text>
         <Text className="font-body text-sm text-text-secondary">
-          {dateLabel(point.date)}
+          {point.label ?? dateLabel(point.date)}
         </Text>
         <Text className="font-body text-caption text-text-secondary">
-          One measurement. A trend will appear after more records are added.
+          {pointName === "weekly average"
+            ? "Log weight in another week to compare averages."
+            : "One measurement. A trend will appear after more records are added."}
         </Text>
         {onOpen && (
           <Pressable
@@ -55,12 +59,8 @@ export function ProgressChart({
       </View>
     );
   }
-  const selected = Math.max(
-    0,
-    selectedId
-      ? points.findIndex((p) => p.id === selectedId)
-      : points.length - 1,
-  );
+  const selectedIndex = points.findIndex((p) => p.id === selectedId);
+  const selected = selectedIndex === -1 ? points.length - 1 : selectedIndex;
   const point = points[selected];
   const geometry = chartGeometry(points, width, 160);
   function selectAt(x: number) {
@@ -82,12 +82,12 @@ export function ProgressChart({
             </Text>
           </Text>
           <Text className="font-body text-caption text-text-secondary">
-            {dateLabel(point.date)}
+            {point.label ?? dateLabel(point.date)}
           </Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Previous measurement"
+          accessibilityLabel={`Previous ${pointName}`}
           disabled={selected === 0}
           onPress={() => setSelectedId(points[selected - 1].id)}
           className="min-h-12 min-w-12 items-center justify-center"
@@ -102,7 +102,7 @@ export function ProgressChart({
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Next measurement"
+          accessibilityLabel={`Next ${pointName}`}
           disabled={selected === points.length - 1}
           onPress={() => setSelectedId(points[selected + 1].id)}
           className="min-h-12 min-w-12 items-center justify-center"
@@ -133,7 +133,7 @@ export function ProgressChart({
           onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
           onStartShouldSetResponder={() => true}
           onResponderRelease={(event) => selectAt(event.nativeEvent.locationX)}
-          accessibilityLabel="Progress chart. Use previous and next measurement buttons to inspect values."
+          accessibilityLabel={`Progress chart. Use previous and next ${pointName} buttons to inspect values.`}
         >
           {[0, 80, 160].map((top) => (
             <View

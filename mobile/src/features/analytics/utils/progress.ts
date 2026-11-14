@@ -4,7 +4,13 @@ import { toLocalDateString } from "@/shared/utils/dates";
 
 export type Period = "1M" | "3M" | "6M" | "All";
 export type Metric = "Load" | "Reps" | "Volume" | "Est. 1RM";
-export type Point = { id: string; date: string; value: number; time?: number };
+export type Point = {
+  id: string;
+  date: string;
+  value: number;
+  time?: number;
+  label?: string;
+};
 export type HistoryEntry = ExerciseSessionLog & { started_at?: string };
 export const PERIODS: Period[] = ["1M", "3M", "6M", "All"];
 export const METRICS: Metric[] = ["Load", "Reps", "Volume", "Est. 1RM"];
@@ -92,18 +98,35 @@ export function parseSet(values: {
     throw new Error("RIR must be a whole number from 0 to 10, or empty.");
   return { weight, reps, set_number, rir };
 }
-export function rollingWeight(points: Point[]): Point[] {
-  return points.map((point) => {
-    const end = Date.parse(point.date),
-      start = end - 6 * 86400000;
-    const window = points.filter(
-      (p) => Date.parse(p.date) >= start && Date.parse(p.date) <= end,
-    );
-    return {
-      ...point,
-      value: window.reduce((sum, p) => sum + p.value, 0) / window.length,
-    };
-  });
+export function weeklyWeightAverages(points: Point[]) {
+  const weeks = new Map<
+    string,
+    { endDate: string; total: number; count: number }
+  >();
+  for (const point of points) {
+    // Weight logs are calendar dates. UTC arithmetic keeps week boundaries stable across DST.
+    const date = new Date(point.date);
+    const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+    date.setUTCDate(date.getUTCDate() - daysSinceMonday);
+    const monday = date.toISOString().slice(0, 10);
+    let week = weeks.get(monday);
+    if (!week) {
+      date.setUTCDate(date.getUTCDate() + 6);
+      week = { endDate: date.toISOString().slice(0, 10), total: 0, count: 0 };
+      weeks.set(monday, week);
+    }
+    week.total += point.value;
+    week.count += 1;
+  }
+  return [...weeks.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, { endDate, total, count }]) => ({
+      id: date,
+      date,
+      endDate,
+      count,
+      value: total / count,
+    }));
 }
 export function chartGeometry(points: Point[], width: number, height: number) {
   if (!points.length) return { min: 0, max: 1, points: [] };

@@ -137,7 +137,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                     </Text>
                     {editing && <View className="w-12" />}
                   </View>
-                  {sets.map((set) => (
+                  {sets.map((set, index) => (
                     <View key={set.id} className="flex-row items-center">
                       <Pressable
                         disabled={!editing}
@@ -151,7 +151,9 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                             set,
                           })
                         }
-                        className="min-h-14 flex-1 flex-row items-center gap-sm border-b border-border"
+                        className={`min-h-14 flex-1 flex-row items-center gap-sm ${
+                          index < sets.length - 1 ? "border-b border-border" : ""
+                        }`}
                       >
                         <Text className="w-12 font-numeric text-xl text-text-secondary">
                           {set.set_number}
