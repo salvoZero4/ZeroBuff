@@ -80,10 +80,14 @@ export function WeightEntryEditor({
         className="bg-black/75"
       >
         <View
-          className="gap-lg rounded-t-lg border border-border bg-surface p-xl"
-          style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+          accessibilityViewIsModal
+          className="gap-lg rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
-          <Text className="font-body-bold text-xl text-text-primary">
+          <Text
+            accessibilityRole="header"
+            className="font-body-bold text-xl text-text-primary"
+          >
             {log ? "Edit body weight" : "Log body weight"}
           </Text>
           {log ? (
@@ -135,7 +139,7 @@ export function WeightEntryEditor({
           )}
           <Button
             label="Cancel"
-            variant="outline"
+            variant="ghost"
             disabled={busy}
             onPress={onClose}
           />

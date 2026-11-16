@@ -7,9 +7,11 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Icon } from "./Icon";
 import { Button } from "./Button";
+import { IconButton } from "./IconButton";
 
 export type PickerOption = {
   label: string;
@@ -35,6 +37,7 @@ export function SelectPickerModal({
   onConfirm,
   onClose,
 }: SelectPickerModalProps) {
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
   const [currentSelected, setCurrentSelected] =
     useState<string[]>(selectedValues);
@@ -96,27 +99,30 @@ export function SelectPickerModal({
         />
 
         <View
+          accessibilityViewIsModal
           onStartShouldSetResponder={() => true}
-          className="max-h-[80%] gap-md rounded-t-lg border border-border bg-surface p-xl"
+          className="max-h-[80%] gap-md rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
           {/* Header */}
-          <View className="flex-row items-center justify-between pb-xs">
-            <View className="gap-xs">
-              <Text className="font-body-bold text-xl text-text-primary">
+          <View className="flex-row items-center gap-md pb-xs">
+            <View className="flex-1 gap-xs">
+              <Text
+                accessibilityRole="header"
+                className="font-body-bold text-xl text-text-primary"
+              >
                 {title}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
                 {multiSelect ? "Select one or more items" : "Choose an option"}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
+            <IconButton
+              icon="xmark"
+              label="Close"
+              variant="bare"
               onPress={onClose}
-              className="h-9 w-9 items-center justify-center rounded-full bg-surface-raised active:bg-surface"
-            >
-              <Icon name="xmark" size={14} className="text-text-secondary" />
-            </Pressable>
+            />
           </View>
 
           {/* Ricerca interna */}
@@ -124,10 +130,9 @@ export function SelectPickerModal({
             <TextInput
               accessibilityLabel={`Search ${title}`}
               placeholder="Search..."
-              placeholderTextColor="#737373"
               value={search}
               onChangeText={setSearch}
-              className="min-h-12 rounded-sm border border-border bg-surface-raised px-md font-body text-body text-text-primary"
+              className="min-h-12 rounded-sm border border-border bg-surface-raised px-md font-body text-body text-text-primary placeholder:text-text-secondary"
             />
           ) : null}
 

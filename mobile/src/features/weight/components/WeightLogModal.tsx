@@ -1,11 +1,12 @@
 import { weightKeys } from "@/features/weight/api/queryKeys";
 import { useEffect, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
-import { Icon } from "@/components/ui/Icon";
+import { IconButton } from "@/components/ui/IconButton";
 import { ApiError } from "@/shared/api/errors";
 import {
   createWeight,
@@ -24,6 +25,7 @@ export function WeightLogModal({
   existingLog,
   onClose,
 }: WeightLogModalProps) {
+  const insets = useSafeAreaInsets();
   const [weightInput, setWeightInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -79,6 +81,7 @@ export function WeightLogModal({
     >
       <KeyboardAwareScrollView
         bottomOffset={20}
+        className="bg-black/75"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ justifyContent: "flex-end", flexGrow: 1 }}
       >
@@ -90,30 +93,29 @@ export function WeightLogModal({
         />
 
         <View
+          accessibilityViewIsModal
           onStartShouldSetResponder={() => true}
-          className="gap-lg rounded-t-lg border border-border bg-surface p-xl"
+          className="gap-lg rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
-          <View className="flex-row items-center justify-between">
-            <View className="gap-xs">
-              <Text className="font-body-bold text-xl text-text-primary">
+          <View className="flex-row items-center gap-md">
+            <View className="flex-1 gap-xs">
+              <Text
+                accessibilityRole="header"
+                className="font-body-bold text-xl text-text-primary"
+              >
                 {existingLog ? "Update today's weight" : "Log body weight"}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
                 Track your daily weight in kilograms
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
+            <IconButton
+              icon="xmark"
+              label="Close"
+              variant="bare"
               onPress={onClose}
-              className="h-9 w-9 items-center justify-center rounded-full bg-surface-raised active:bg-surface"
-            >
-              <Icon
-                name="arrow-left"
-                size={14}
-                className="text-text-secondary"
-              />
-            </Pressable>
+            />
           </View>
 
           <TextField

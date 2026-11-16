@@ -8,6 +8,7 @@ import type { ExerciseRead } from "@/features/exercises/types/exercise";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { APP_BACKGROUND } from "@/theme/tokens";
 import { Empty, QueryNotice } from "./AnalyticsControls";
 export function ExerciseList({
   onSelect,
@@ -113,7 +114,7 @@ export function ExercisePicker({
   return (
     <Modal
       animationType="slide"
-      backdropColor="#0B0B0B"
+      backdropColor={APP_BACKGROUND}
       visible={visible}
       onRequestClose={onClose}
       onDismiss={() => {
@@ -122,10 +123,13 @@ export function ExercisePicker({
         if (exercise) onSelect(exercise);
       }}
     >
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: APP_BACKGROUND }}>
         <View className="flex-1 bg-bg p-lg">
           <View className="flex-row items-center justify-between pb-lg">
-            <Text className="font-body-bold text-xl text-text-primary">
+            <Text
+              accessibilityRole="header"
+              className="flex-1 font-body-bold text-title leading-10 text-text-primary"
+            >
               Add exercise
             </Text>
             <Pressable
