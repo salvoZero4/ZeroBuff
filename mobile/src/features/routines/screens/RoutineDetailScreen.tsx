@@ -39,7 +39,13 @@ import { Section } from "@/components/ui/Section";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 
-export function RoutineDetailScreen({ routineId }: { routineId: string }) {
+export function RoutineDetailScreen({
+  routineId,
+  offerWorkoutAfterSave,
+}: {
+  routineId: string;
+  offerWorkoutAfterSave: boolean;
+}) {
   const isNewRoutine = routineId === "new";
 
   const {
@@ -80,6 +86,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
       routineId={routineId}
       isNewRoutine={isNewRoutine}
       initialRoutine={routine}
+      offerWorkoutAfterSave={isNewRoutine && offerWorkoutAfterSave}
     />
   );
 }
@@ -88,10 +95,12 @@ function RoutineEditorForm({
   routineId,
   isNewRoutine,
   initialRoutine,
+  offerWorkoutAfterSave,
 }: {
   routineId: string;
   isNewRoutine: boolean;
   initialRoutine?: RoutineRead;
+  offerWorkoutAfterSave: boolean;
 }) {
   const {
     draft,
@@ -113,6 +122,7 @@ function RoutineEditorForm({
   const [baseline] = useState(() => routineDraftSignature(draft));
   const [leaving, setLeaving] = useState(false);
   const [pendingExit, setPendingExit] = useState<(() => void) | null>(null);
+  const [savedRoutine, setSavedRoutine] = useState<RoutineRead | null>(null);
   const saveInFlight = useRef(false);
   const dragInFlight = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -134,11 +144,16 @@ function RoutineEditorForm({
         return await updateRoutine(routineId, payload);
       }
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       setLeaving(true);
       disableExitProtection();
       queryClient.invalidateQueries({ queryKey: routineKeys.all });
-      router.back();
+      if (offerWorkoutAfterSave) {
+        Keyboard.dismiss();
+        setSavedRoutine(saved);
+      } else {
+        router.back();
+      }
     },
     onError: (err) => {
       if (err instanceof ApiError) {
@@ -224,6 +239,30 @@ function RoutineEditorForm({
             if (!saveInFlight.current) drag();
           }}
           isActive={isActive}
+        />
+      </View>
+    );
+  }
+
+  if (savedRoutine) {
+    return (
+      <View className="flex-1 gap-lg bg-bg p-lg">
+        <ScreenHeader title="Routine saved" subtitle={savedRoutine.name} />
+        <Button
+          variant="primary"
+          label="Start workout"
+          onPress={() => {
+            router.back();
+            router.push({
+              pathname: "/workout/[routineId]",
+              params: { routineId: savedRoutine.id },
+            });
+          }}
+        />
+        <Button
+          variant="ghost"
+          label="Back to Today"
+          onPress={() => router.back()}
         />
       </View>
     );

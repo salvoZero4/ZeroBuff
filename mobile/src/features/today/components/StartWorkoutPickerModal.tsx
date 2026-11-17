@@ -1,7 +1,6 @@
 import { routineKeys } from "@/features/routines/api/queryKeys";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { getRoutines } from "@/features/routines/api/routines";
 import { Icon } from "@/components/ui/Icon";
@@ -13,12 +12,14 @@ import { loadErrorMessage } from "@/shared/api/loadError";
 type StartWorkoutPickerModalProps = {
   visible: boolean;
   onClose: () => void;
+  onCreateRoutine: () => void;
   onSelectRoutine: (routineId: string) => void;
 };
 
 export function StartWorkoutPickerModal({
   visible,
   onClose,
+  onCreateRoutine,
   onSelectRoutine,
 }: StartWorkoutPickerModalProps) {
   const insets = useSafeAreaInsets();
@@ -33,14 +34,6 @@ export function StartWorkoutPickerModal({
     queryFn: () => getRoutines(),
     enabled: visible,
   });
-
-  function handleCreateNew() {
-    onClose();
-    router.push({
-      pathname: "/(tabs)/routines/[routineId]",
-      params: { routineId: "new" },
-    });
-  }
 
   return (
     <Modal
@@ -148,7 +141,7 @@ export function StartWorkoutPickerModal({
               variant={routines.length ? "ghost" : "primary"}
               icon="plus"
               label="Create routine"
-              onPress={handleCreateNew}
+              onPress={onCreateRoutine}
             />
           )}
         </View>

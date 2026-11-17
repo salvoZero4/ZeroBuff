@@ -124,12 +124,15 @@ export function TodayScreen() {
   );
 
   const {
-    data: routines = [],
+    data: routineList,
+    isPending: pendingRoutines,
     refetch: refetchRoutines,
   } = useQuery({
     queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
   });
+  const routines = useMemo(() => routineList ?? [], [routineList]);
+  const needsFirstRoutine = routineList?.length === 0 && !todaySchedule;
 
   const {
     data: todayWeight,
@@ -161,9 +164,9 @@ export function TodayScreen() {
 
   const canResumeWorkout = Boolean(activeSession || ongoingSession?.routine_id);
   const loadingWorkout = !canResumeWorkout &&
-    (pendingSessions || pendingTodaySchedule);
+    (pendingSessions || pendingTodaySchedule || (pendingRoutines && !todaySchedule));
   const showStartWorkoutButton =
-    canResumeWorkout || (sessions !== undefined && !hasCompletedSessionToday);
+    canResumeWorkout || needsFirstRoutine || sessions !== undefined;
 
   const scheduledRoutine = routines.find(
     (routine) => routine.id === todaySchedule?.routine_id,
@@ -229,9 +232,9 @@ export function TodayScreen() {
       return;
     }
 
-    if (!sessions) return;
-
-    if (todaySchedule) {
+    if (needsFirstRoutine) {
+      handleCreateRoutine();
+    } else if (todaySchedule && !hasCompletedSessionToday) {
       router.push({
         pathname: "/workout/[routineId]",
         params: { routineId: todaySchedule.routine_id },
@@ -240,6 +243,26 @@ export function TodayScreen() {
       setShowWorkoutPicker(true);
     }
   }
+
+  function handleCreateRoutine() {
+    setShowWorkoutPicker(false);
+    router.push({
+      pathname: "/(tabs)/routines/[routineId]",
+      params: { routineId: "new", fromWorkout: "true" },
+    });
+  }
+
+  const workoutActionLabel = activeSession
+    ? `Resume ${activeSession.routineName}${activeSession.isPaused ? " (Paused)" : ""}`
+    : ongoingSession?.routine_id
+      ? `Resume ${ongoingRoutineName ?? "workout"}`
+      : needsFirstRoutine
+        ? "Create your first routine"
+        : hasCompletedSessionToday
+          ? "Start another workout"
+          : todaySchedule
+            ? "Start workout"
+            : "Choose a workout";
 
   return (
     <View className="flex-1 bg-bg">
@@ -302,11 +325,21 @@ export function TodayScreen() {
                   : "Your scheduled workout for today"
               }
             />
+          ) : needsFirstRoutine ? (
+            <InfoCard
+              title="No routines yet"
+              description="Add the exercises you want to track in your first workout."
+            />
           ) : (
             <InfoCard
               title="Rest day"
-              description="No routine is scheduled for today. Rest and recover or pick a routine manually."
+              description="No routine is scheduled for today."
             />
+          )}
+          {hasCompletedSessionToday && (
+            <Text className="font-body-semibold text-caption text-text-secondary">
+              Workout completed today
+            </Text>
           )}
         </Section>
 
@@ -394,17 +427,7 @@ export function TodayScreen() {
           >
             <Button
               variant="primary"
-              label={
-                activeSession
-                  ? `Resume ${activeSession.routineName}${
-                      activeSession.isPaused ? " (Paused)" : ""
-                    }`
-                  : ongoingSession?.routine_id
-                    ? `Resume ${ongoingRoutineName ?? "workout"}`
-                    : todaySchedule
-                      ? "Start workout"
-                      : "Choose a workout"
-              }
+              label={workoutActionLabel}
               onPress={handleStartWorkout}
             />
           </View>
@@ -420,6 +443,7 @@ export function TodayScreen() {
       <StartWorkoutPickerModal
         visible={showWorkoutPicker}
         onClose={() => setShowWorkoutPicker(false)}
+        onCreateRoutine={handleCreateRoutine}
         onSelectRoutine={(routineId) => {
           router.push({
             pathname: "/workout/[routineId]",
