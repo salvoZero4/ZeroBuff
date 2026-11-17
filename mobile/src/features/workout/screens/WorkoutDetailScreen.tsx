@@ -68,7 +68,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
               title="Session details"
               subtitle={
                 data
-                  ? `${dateLabel(data.date)} · ${exerciseIds.length} exercises · ${data.sets.length} sets`
+                  ? `${dateLabel(data.date)} · ${exerciseIds.length} ${exerciseIds.length === 1 ? "exercise" : "exercises"} · ${data.sets.length} ${data.sets.length === 1 ? "set" : "sets"}`
                   : ""
               }
             />

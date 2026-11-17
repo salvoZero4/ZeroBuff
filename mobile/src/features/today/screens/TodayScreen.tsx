@@ -13,8 +13,8 @@ import {
 import { LoadingNotice } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { AppState, ScrollView, Text, View } from "react-native";
 import { RefreshControl } from "react-native-gesture-handler";
 import { useQuery } from "@tanstack/react-query";
 import { ConsistencyGrid } from "@/features/analytics/components/ConsistencyGrid";
@@ -82,16 +82,38 @@ function SectionLoadError({
 export function TodayScreen() {
   const [startButtonHeight, setStartButtonHeight] = useState(0);
   const [isRefetching, setIsRefetching] = useState(false);
-  const [showBodyWeightModal, setShowBodyWeightModal] = useState(false);
+  const [weightEditor, setWeightEditor] = useState<{
+    date: string;
+    existingLog: WeightLogRead | null;
+  } | null>(null);
   const [showWorkoutPicker, setShowWorkoutPicker] = useState(false);
+  const [todayDateStr, setTodayDateStr] = useState(toLocalDateString);
 
   const todayLongStr = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
-  }).format(new Date());
+  }).format(new Date(`${todayDateStr}T12:00:00`));
 
-  const todayDateStr = toLocalDateString();
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    function updateDay() {
+      clearTimeout(timeout);
+      const now = new Date();
+      setTodayDateStr(toLocalDateString(now));
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 0, 0);
+      timeout = setTimeout(updateDay, nextMidnight.getTime() - now.getTime());
+    }
+    updateDay();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") updateDay();
+    });
+    return () => {
+      clearTimeout(timeout);
+      subscription.remove();
+    };
+  }, []);
 
   const activeSession = useActiveWorkout();
 
@@ -353,25 +375,27 @@ export function TodayScreen() {
             onRetry={() => void refetchWeight()}
           />
         ) : (
-          !todayWeight && (
-            <View className="flex-row items-center gap-md border-y border-border py-md">
-              <View className="flex-1 gap-xs">
-                <Text className="font-body-semibold text-body text-text-primary">
-                  Track body weight
-                </Text>
-                <Text className="font-body text-caption leading-5 text-text-secondary">
-                  Keep your progress context up to date.
-                </Text>
-              </View>
-              <IconButton
-                variant="bare"
-                icon="plus"
-                iconSize={16}
-                label="Log body weight"
-                onPress={() => setShowBodyWeightModal(true)}
-              />
+          <View className="flex-row items-center gap-md border-y border-border py-md">
+            <View className="flex-1 gap-xs">
+              <Text className="font-body-semibold text-body text-text-primary">
+                {todayWeight ? "Today’s weight" : "Track body weight"}
+              </Text>
+              <Text className="font-body text-caption leading-5 text-text-secondary">
+                {todayWeight
+                  ? `${todayWeight.weight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`
+                  : "Keep your progress context up to date."}
+              </Text>
             </View>
-          )
+            <IconButton
+              variant="bare"
+              icon={todayWeight ? "pen-to-square" : "plus"}
+              iconSize={16}
+              label={todayWeight ? "Edit today’s weight" : "Log body weight"}
+              onPress={() =>
+                setWeightEditor({ date: todayDateStr, existingLog: todayWeight ?? null })
+              }
+            />
+          </View>
         )}
 
         {pendingSessions ? (
@@ -434,11 +458,13 @@ export function TodayScreen() {
         )
       )}
 
-      <WeightLogModal
-        visible={showBodyWeightModal}
-        existingLog={todayWeight}
-        onClose={() => setShowBodyWeightModal(false)}
-      />
+      {weightEditor && (
+        <WeightLogModal
+          date={weightEditor.date}
+          existingLog={weightEditor.existingLog}
+          onClose={() => setWeightEditor(null)}
+        />
+      )}
 
       <StartWorkoutPickerModal
         visible={showWorkoutPicker}

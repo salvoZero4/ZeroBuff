@@ -4,11 +4,13 @@ import { useAuth } from "@/features/auth/provider/AuthProvider";
 import { ApiError } from "@/shared/api/errors";
 import { AuthFormLayout } from "@/features/auth/components/AuthFormLayout";
 import { TextField } from "@/components/ui/TextField";
+import {
+  getRegistrationPasswordError,
+  REGISTRATION_PASSWORD_HINT,
+} from "@/features/auth/utils/registrationPassword";
 
 type Field = "username" | "email" | "password";
 type FormErrors = Partial<Record<Field, string>>;
-
-const MIN_PASSWORD_LENGTH = 8;
 
 function validate(values: Record<Field, string>): FormErrors {
   const username = (values.username ?? "").trim();
@@ -22,9 +24,8 @@ function validate(values: Record<Field, string>): FormErrors {
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     errors.email = "Enter a valid email address.";
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
-  }
+  const passwordError = getRegistrationPasswordError(password);
+  if (passwordError) errors.password = passwordError;
   return errors;
 }
 
@@ -115,6 +116,7 @@ export function SignUpScreen() {
 
       <TextField
         label="Password"
+        helperText={REGISTRATION_PASSWORD_HINT}
         value={password}
         onChangeText={(value) => {
           setPassword(value);

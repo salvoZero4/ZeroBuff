@@ -12,6 +12,7 @@ type ConfirmModalProps = {
   confirmVariant?: ButtonVariant;
   isDestructive?: boolean;
   isPending?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -25,6 +26,7 @@ export function ConfirmModal({
   confirmVariant = "primary",
   isDestructive = false,
   isPending = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
@@ -79,7 +81,7 @@ export function ConfirmModal({
             <Button
               variant={resolvedVariant}
               label={confirmLabel}
-              disabled={isPending}
+              disabled={isPending || confirmDisabled}
               onPress={onConfirm}
             />
 

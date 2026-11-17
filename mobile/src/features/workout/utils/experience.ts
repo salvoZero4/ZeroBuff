@@ -42,13 +42,7 @@ export function summarizeWorkout(
   let hasAddedLoad = false;
   const improvements: WorkoutImprovement[] = [];
   for (const [id, logs] of Object.entries(session.workoutLogs)) {
-    const saved = logs.filter(
-      (set) =>
-        set.completed &&
-        set.backendId &&
-        !set.backendId.startsWith("tmp-") &&
-        (!set.saveStatus || set.saveStatus === "saved"),
-    );
+    const saved = logs.filter(isSetSaved);
     if (!saved.length) continue;
     exercises++;
     sets += saved.length;
@@ -104,6 +98,28 @@ export function isSetSaved(set: ActiveSetLog): boolean {
     !set.backendId.startsWith("tmp-") &&
     (!set.saveStatus || set.saveStatus === "saved"),
   );
+}
+
+export function getFinishBlocker(sets: ActiveSetLog[]): string | null {
+  if (sets.some((set) => set.saveStatus === "pending"))
+    return "Wait for your sets to finish saving.";
+  if (sets.some((set) =>
+    set.saveStatus === "error" || set.saveStatus === "dirty" || set.needsReconcile,
+  ))
+    return "Save or retry the highlighted sets before finishing your workout.";
+  return null;
+}
+
+export function describeWorkoutFinish(sets: ActiveSetLog[]): string {
+  const saved = sets.filter(isSetSaved).length;
+  const incomplete = sets.length - saved;
+  const summary =
+    saved === 0
+      ? "This workout will be saved without any sets."
+      : `${saved} ${saved === 1 ? "set" : "sets"} saved.`;
+  return incomplete === 0
+    ? summary
+    : `${summary} ${incomplete} incomplete ${incomplete === 1 ? "set" : "sets"} won’t be included.`;
 }
 
 export function nextIncompleteSet(sets: ActiveSetLog[], after: number): number {

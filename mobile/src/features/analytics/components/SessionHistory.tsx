@@ -181,7 +181,7 @@ export function SessionHistory() {
             )}
             {sessions.data && (
               <Text className="font-body text-caption text-text-secondary">
-                {data.length} sessions
+                {data.length} {data.length === 1 ? "session" : "sessions"}
                 {period !== "All" ? " in this period" : " in your history"}
               </Text>
             )}

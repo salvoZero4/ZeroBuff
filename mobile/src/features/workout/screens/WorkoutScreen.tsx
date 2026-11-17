@@ -10,6 +10,8 @@ import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker
 import { WorkoutSummaryScreen } from "@/features/workout/components/WorkoutSummaryScreen";
 import {
   summarizeWorkout,
+  describeWorkoutFinish,
+  getFinishBlocker,
   isSetSaved,
   nextSetAfterSave,
   type WorkoutSummary,
@@ -435,13 +437,21 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     router.replace("/(tabs)");
   }
 
+  function openFinishModal() {
+    setFinishError(null);
+    setShowFinishModal(true);
+  }
+
   function handleNextExercise() {
     if (isLastExercise) {
-      setShowFinishModal(true);
+      openFinishModal();
     } else {
       selectExercise(session!.currentExerciseIndex + 1);
     }
   }
+
+  const finishSets = showFinishModal ? Object.values(session.workoutLogs).flat() : [];
+  const finishBlocker = getFinishBlocker(finishSets);
 
   return (
     <View className="flex-1 bg-bg">
@@ -450,7 +460,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         isPaused={session.isPaused}
         onBack={handleBackToToday}
         onTogglePause={toggleWorkoutPause}
-        onFinish={() => setShowFinishModal(true)}
+        onFinish={openFinishModal}
       />
 
       {network.isConnected === false ||
@@ -718,8 +728,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         visible={showFinishModal}
         title="Finish workout"
         description={
-          finishError ??
-          "Are you sure you want to end and save this training session?"
+          finishBlocker ?? finishError ?? describeWorkoutFinish(finishSets)
         }
         confirmLabel={
           session.isFinishing
@@ -729,6 +738,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               : "Finish & Save"
         }
         isPending={session.isFinishing}
+        confirmDisabled={finishBlocker !== null}
         cancelLabel="Keep training"
         onConfirm={confirmFinish}
         onCancel={() => setShowFinishModal(false)}

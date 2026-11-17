@@ -4,9 +4,10 @@ import { Text, TextInput, View, type TextInputProps } from "react-native";
 type TextFieldProps = TextInputProps & {
   label: string;
   error?: string | null;
+  helperText?: string;
 };
 
-export function TextField({ label, error, ...inputProps }: TextFieldProps) {
+export function TextField({ label, error, helperText, ...inputProps }: TextFieldProps) {
   return (
     <View className="gap-xs">
       <Text className="font-body-semibold text-caption text-text-primary">
@@ -19,6 +20,9 @@ export function TextField({ label, error, ...inputProps }: TextFieldProps) {
           error ? "border-danger" : "border-border"
         }`}
       />
+      {helperText ? (
+        <Text className="font-body text-caption text-text-secondary">{helperText}</Text>
+      ) : null}
       {error ? (
         <Text className="font-body text-caption text-danger">{error}</Text>
       ) : null}

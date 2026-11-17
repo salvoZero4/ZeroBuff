@@ -1,5 +1,5 @@
 import { weightKeys } from "@/features/weight/api/queryKeys";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -7,7 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
-import { ApiError } from "@/shared/api/errors";
+import { parseWeight } from "@/features/analytics/utils/progress";
 import {
   createWeight,
   updateWeight,
@@ -15,69 +15,57 @@ import {
 import type { WeightLogRead } from "@/features/weight/types/weight";
 
 type WeightLogModalProps = {
-  visible: boolean;
+  date: string;
   existingLog?: WeightLogRead | null;
   onClose: () => void;
 };
 
 export function WeightLogModal({
-  visible,
+  date,
   existingLog,
   onClose,
 }: WeightLogModalProps) {
   const insets = useSafeAreaInsets();
-  const [weightInput, setWeightInput] = useState("");
+  const [weightInput, setWeightInput] = useState(() =>
+    existingLog ? String(existingLog.weight) : "",
+  );
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (visible) {
-      const reset = setTimeout(() => {
-        setWeightInput(existingLog ? String(existingLog.weight) : "");
-        setError(null);
-      }, 0);
-      return () => clearTimeout(reset);
-    }
-  }, [visible, existingLog]);
-
   const { mutate: saveWeight, isPending } = useMutation({
-    mutationFn: async (value: number) => {
+    mutationFn: async (value: string) => {
+      const payload = parseWeight(value, date);
       if (existingLog) {
-        return await updateWeight(existingLog.id, { weight: value });
+        return await updateWeight(existingLog.id, { weight: payload.weight });
       }
-      return await createWeight({ weight: value });
+      return await createWeight(payload);
     },
-    onSuccess: () => {
+    onSuccess: async (saved) => {
+      const queryKey = weightKeys.today(saved.date);
+      await queryClient.cancelQueries({ queryKey, exact: true });
+      queryClient.setQueryData(queryKey, saved);
       queryClient.invalidateQueries({ queryKey: weightKeys.all });
       onClose();
     },
     onError: (err) => {
-      if (err instanceof ApiError) {
-        setError(err.message || "Invalid weight value.");
-      } else {
-        setError("Network error. Please try again.");
-      }
+      setError(err instanceof Error ? err.message : "Network error. Please try again.");
     },
   });
 
   function handleSubmit() {
-    const normalized = weightInput.replace(",", ".").trim();
-    const parsed = Number.parseFloat(normalized);
-
-    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 500) {
-      setError("Enter a valid weight between 1 and 500 kg.");
-      return;
-    }
-
-    saveWeight(parsed);
+    if (isPending) return;
+    setError(null);
+    saveWeight(weightInput);
   }
 
   return (
     <Modal
       animationType="slide"
       transparent
-      visible={visible}
-      onRequestClose={onClose}
+      visible
+      onRequestClose={() => {
+        if (!isPending) onClose();
+      }}
     >
       <KeyboardAwareScrollView
         bottomOffset={20}
@@ -89,6 +77,7 @@ export function WeightLogModal({
           accessibilityRole="button"
           accessibilityLabel="Close weight modal"
           className="absolute inset-0"
+          disabled={isPending}
           onPress={onClose}
         />
 
@@ -114,13 +103,14 @@ export function WeightLogModal({
               icon="xmark"
               label="Close"
               variant="bare"
+              disabled={isPending}
               onPress={onClose}
             />
           </View>
 
           <TextField
             label="Weight (kg)"
-            placeholder="es. 78.5"
+            placeholder="e.g. 78.5"
             keyboardType="decimal-pad"
             value={weightInput}
             onChangeText={(val) => {
