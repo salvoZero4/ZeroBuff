@@ -5,6 +5,12 @@ type API = typeof Notifications;
 export type RestNotificationData = Record<string, unknown>;
 export const REST_COMPLETE_CHANNEL = "zerobuff.rest.complete";
 export const REST_RUNNING_CHANNEL = "zerobuff.rest.ongoing";
+const REST_NOTIFICATION_PROMPT_KEY = "zerobuff.rest.notificationPromptRequested";
+
+type PromptStorage = {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+};
 
 export function getNotificationBehavior(
   data: RestNotificationData | undefined,
@@ -56,6 +62,36 @@ export function createExpoRestNotifications(api: API, platform: string) {
       sound: "default",
     });
   };
+  let requesting = false;
+  let requested = false;
+  const requestOnToday = async (
+    canPresent: () => boolean,
+    storage: PromptStorage,
+    isAndroidPermissionUndetermined?: () => Promise<boolean>,
+  ) => {
+    if (requested || requesting || !canPresent()) return;
+    requesting = true;
+    try {
+      if (await storage.getItem(REST_NOTIFICATION_PROMPT_KEY)) return;
+      const permissions = await api.getPermissionsAsync();
+      if (hasNotificationPermission(permissions) || !permissions.canAskAgain) return;
+      const undetermined =
+        platform === "android"
+          ? await isAndroidPermissionUndetermined?.()
+          : permissions.ios?.status === api.IosAuthorizationStatus.NOT_DETERMINED;
+      if (!undetermined || !canPresent()) return;
+      await prepare();
+      if (!canPresent()) return;
+
+      requested = true;
+      const request = api.requestPermissionsAsync({
+        ios: { allowAlert: true, allowSound: true, allowBadge: false },
+      });
+      await Promise.all([request, storage.setItem(REST_NOTIFICATION_PROMPT_KEY, "1")]);
+    } finally {
+      requesting = false;
+    }
+  };
   const subscribePress = (listener: (data: RestNotificationData) => void) => {
     let disposed = false;
     const seen = new Set<string>();
@@ -89,5 +125,5 @@ export function createExpoRestNotifications(api: API, platform: string) {
       subscription.remove();
     };
   };
-  return { prepare, subscribePress };
+  return { prepare, requestOnToday, subscribePress };
 }

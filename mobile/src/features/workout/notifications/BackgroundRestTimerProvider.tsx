@@ -56,25 +56,13 @@ export function BackgroundRestTimerProvider({
   const [runtime] = useState(getRestTimerRuntime);
   const [sync] = useState(() => {
     if (!bridge || !runtime) return null;
-    let askedPermission = false;
     return new RestTimerSync(
       {
         ...runtime.adapter,
         authorize: async () => {
           setFailed(false);
           await runtime.prepare();
-          let permissions = await runtime.api.getPermissionsAsync();
-          if (
-            !hasNotificationPermission(permissions) &&
-            permissions.canAskAgain &&
-            !askedPermission &&
-            AppState.currentState === "active"
-          ) {
-            askedPermission = true;
-            permissions = await runtime.api.requestPermissionsAsync({
-              ios: { allowAlert: true, allowSound: true, allowBadge: false },
-            });
-          }
+          const permissions = await runtime.api.getPermissionsAsync();
           const granted = hasNotificationPermission(permissions);
           const exact =
             Platform.OS === "android" &&

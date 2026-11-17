@@ -4,10 +4,11 @@ import Animated, {
   ReduceMotion,
 } from "react-native-reanimated";
 import { useEffect, useState } from "react";
-import { AppState, Pressable, Switch, Text, View } from "react-native";
+import { AppState, Pressable, Text, View } from "react-native";
 import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
 import { useBackgroundRestTimerFeedback } from "@/features/workout/notifications/BackgroundRestTimerProvider";
 import { Icon } from "@/components/ui/Icon";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
 const stateEntrance = FadeIn.duration(180)
   .easing(Easing.out(Easing.cubic))
@@ -134,18 +135,12 @@ export function RestTimerControl({
           </Pressable>
         ) : null}
       </View>
-      <View className="min-h-12 flex-row items-center gap-sm">
-        <Text className="font-body text-caption text-text-secondary">
-          Auto rest
-        </Text>
-        <View className="min-h-12 min-w-12 items-center justify-center">
-          <Switch
-            accessibilityLabel="Automatically start rest after saving a set"
-            value={autoRestEnabled}
-            onValueChange={onToggleAutoRest}
-          />
-        </View>
-      </View>
+      <ToggleSwitch
+        label="Auto rest"
+        accessibilityHint="Automatically start rest after saving a set"
+        value={autoRestEnabled}
+        onValueChange={onToggleAutoRest}
+      />
       {background.message ? (
         <View className="items-center gap-xs">
           <Text

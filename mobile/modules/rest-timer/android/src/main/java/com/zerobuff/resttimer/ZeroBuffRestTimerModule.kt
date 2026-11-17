@@ -1,8 +1,12 @@
 package com.zerobuff.resttimer
 
+import android.Manifest
+import android.os.Build
 import android.util.Log
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.common.LifecycleState
+import expo.modules.interfaces.permissions.PermissionsStatus
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -31,6 +35,19 @@ class ZeroBuffRestTimerModule : Module() {
     AsyncFunction("setTimer") { json: String, expectedVersion: Int -> RestTimerEngine.set(context, json, expectedVersion) }
     AsyncFunction("clear") { RestTimerEngine.clear(context) }
     AsyncFunction("performAction") { action: String, id: String, version: Int -> RestTimerEngine.action(context, action, id, version) }
+    AsyncFunction("isNotificationPermissionUndetermined") { promise: Promise ->
+      val permissions = appContext.permissions
+      if (Build.VERSION.SDK_INT < 33 || permissions == null) {
+        promise.resolve(false)
+      } else {
+        // Expo Notifications combines OS delivery settings with the raw permission.
+        // Check the underlying Expo permission to distinguish first ask from denial.
+        val permission = Manifest.permission.POST_NOTIFICATIONS
+        permissions.getPermissions({ result ->
+          promise.resolve(result[permission]?.status == PermissionsStatus.UNDETERMINED)
+        }, permission)
+      }
+    }
     AsyncFunction("canScheduleExactAlarms") { RestTimerEngine.canScheduleExactAlarms(context) }
     AsyncFunction("openAlarmSettings") { RestTimerEngine.openAlarmSettings(context) }
     Function("canShowLiveActivity") { true }
