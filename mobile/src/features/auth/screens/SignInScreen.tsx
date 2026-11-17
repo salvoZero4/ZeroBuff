@@ -1,12 +1,9 @@
-import { Link } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/provider/AuthProvider";
 import { ApiError } from "@/shared/api/errors";
-import { Button } from "@/components/ui/Button";
+import { AuthFormLayout } from "@/features/auth/components/AuthFormLayout";
 import { TextField } from "@/components/ui/TextField";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 type Field = "email" | "password";
 type FormErrors = Partial<Record<Field, string>>;
@@ -64,96 +61,48 @@ export function SignInScreen() {
   }
 
   return (
-    <KeyboardAwareScrollView
-      style={{ flex: 1, backgroundColor: "#0B0B0B" }}
-      contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: "space-between",
-        padding: 16,
-      }}
-      keyboardShouldPersistTaps="handled"
-      mode="layout"
-      bottomOffset={20}
-      extraKeyboardSpace={12}
+    <AuthFormLayout
+      title="Sign in"
+      subtitle="Sign in to keep your routines and progress in one place."
+      error={generalError}
+      submitLabel={isPending ? "Signing in..." : "Sign in"}
+      isPending={isPending}
+      onSubmit={handleSubmit}
+      switchPrompt="New to ZeroBuff?"
+      switchLabel="Create an account"
+      switchHref="/(auth)/sign-up"
     >
-      <View className="gap-xl">
-          <View className="gap-sm">
-            <Text className="font-body-semibold text-caption uppercase tracking-[1.6px] text-accent">
-              Welcome back
-            </Text>
-            <Text className="font-body-bold text-title text-text-primary">
-              Train with intent.
-            </Text>
-            <Text className="font-body text-body leading-6 text-text-secondary">
-              Sign in to keep your routines and progress in one place.
-            </Text>
-          </View>
+      <TextField
+        label="Email"
+        value={email}
+        onChangeText={(value) => {
+          setEmail(value ?? "");
+          clearError("email");
+        }}
+        error={errors.email}
+        placeholder="you@example.com"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="email"
+        textContentType="emailAddress"
+        editable={!isPending}
+      />
 
-          <View className="gap-lg">
-            <TextField
-              label="Email"
-              value={email}
-              onChangeText={(value) => {
-                setEmail(value ?? "");
-                clearError("email");
-              }}
-              error={errors.email}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="emailAddress"
-              editable={!isPending}
-            />
-
-            <TextField
-              label="Password"
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value ?? "");
-                clearError("password");
-              }}
-              error={errors.password}
-              placeholder="Your password"
-              secureTextEntry
-              autoComplete="current-password"
-              textContentType="password"
-              editable={!isPending}
-            />
-
-            {generalError ? (
-              <View className="rounded-sm border border-danger/40 bg-danger/10 p-md">
-                <Text className="font-body text-caption text-danger">
-                  {generalError}
-                </Text>
-              </View>
-            ) : null}
-
-            <Button
-              label={isPending ? "Signing in..." : "Sign in"}
-              onPress={handleSubmit}
-              disabled={isPending}
-            />
-          </View>
-      </View>
-
-      <View className="flex-row items-center justify-center gap-xs pb-md">
-        <Text className="font-body text-caption text-text-secondary">
-          New to Zerobuff?
-        </Text>
-        <Link href="/(auth)/sign-up" replace asChild>
-          <Pressable
-            accessibilityRole="link"
-            className="min-h-12 justify-center px-sm"
-            disabled={isPending}
-          >
-            <Text className="font-body-semibold text-caption text-accent">
-              Create an account
-            </Text>
-          </Pressable>
-        </Link>
-      </View>
-    </KeyboardAwareScrollView>
+      <TextField
+        label="Password"
+        value={password}
+        onChangeText={(value) => {
+          setPassword(value ?? "");
+          clearError("password");
+        }}
+        error={errors.password}
+        placeholder="Your password"
+        secureTextEntry
+        autoComplete="current-password"
+        textContentType="password"
+        editable={!isPending}
+      />
+    </AuthFormLayout>
   );
 }
