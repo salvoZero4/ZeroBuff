@@ -1,3 +1,5 @@
+import { useLanguage } from "@/shared/i18n/LanguageProvider";
+import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Platform } from "react-native";
@@ -35,6 +37,8 @@ export function BackgroundRestTimerProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
+  const { language, ready } = useLanguage();
   const { status } = useAuth();
   const session = useActiveWorkoutStore(
     useShallow((state) =>
@@ -59,9 +63,9 @@ export function BackgroundRestTimerProvider({
     return new RestTimerSync(
       {
         ...runtime.adapter,
-        authorize: async () => {
+        authorize: async (language) => {
           setFailed(false);
-          await runtime.prepare();
+          await runtime.prepare(language);
           const permissions = await runtime.api.getPermissionsAsync();
           const granted = hasNotificationPermission(permissions);
           const exact =
@@ -104,7 +108,7 @@ export function BackgroundRestTimerProvider({
   });
 
   useEffect(() => {
-    if (status === "loading") return;
+    if (!ready || status === "loading") return;
     if (status === "signedOut") {
       clearActiveWorkout();
       void sync?.update(null);
@@ -116,11 +120,14 @@ export function BackgroundRestTimerProvider({
       workoutKey: `${session.routineId}:${session.startedAtTimestamp}`,
       routineId: session.routineId,
       title: session.routineName,
+      language,
       id: session.restTimerId ?? null,
       endAt: session.restEndTimestamp ?? null,
     });
   }, [
     status,
+    ready,
+    language,
     session?.routineId,
     session?.startedAtTimestamp,
     session?.restTimerId,
@@ -190,9 +197,13 @@ export function BackgroundRestTimerProvider({
       value={{
         message:
           !bridge && session?.restEndTimestamp
-            ? "Background rest timer isn’t available in this version of ZeroBuff."
-            : message,
-        actionLabel: failed ? "Try again" : "Open settings",
+            ? t(
+                "Background rest timer isn’t available in this version of ZeroBuff.",
+              )
+            : message
+              ? t(message)
+              : null,
+        actionLabel: failed ? t("Try again") : t("Open settings"),
         onAction:
           failed && sync
             ? () => {

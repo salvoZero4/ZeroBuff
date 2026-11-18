@@ -11,6 +11,9 @@ struct RestTimerState: Codable, Hashable {
   var surfaceDismissed: Bool?
   var activityStarted: Bool?
   var startedAt: Double?
+  var language: String?
+
+  var isItalian: Bool { language == "it" }
 
   var endDate: Date { Date(timeIntervalSince1970: endAt / 1000) }
   var json: String { String(data: (try? JSONEncoder().encode(self)) ?? Data(), encoding: .utf8) ?? "null" }

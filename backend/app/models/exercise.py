@@ -2,6 +2,7 @@ from enum import Enum
 from uuid import UUID, uuid4
 
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy import Boolean, Index, Text, UniqueConstraint, false
 from sqlmodel import ARRAY, Column, Field, SQLModel
 
 
@@ -63,6 +64,25 @@ class Exercise(SQLModel, table=True):
         default_factory=list, sa_column=Column(ARRAY(SAEnum(MuscleGroup)))
     )
     equipment: Equipment = Field(index=True)
+    archived: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default=false()))
     created_by_user: UUID | None = Field(
         default=None, foreign_key="user.id", index=True, nullable=True
     )
+
+
+class ExerciseTranslation(SQLModel, table=True):
+    __tablename__ = "exercise_translation"
+    __table_args__ = (
+        UniqueConstraint("exercise_id", "language", name="uq_exercise_translation_language"),
+        Index(
+            "ix_exercise_translation_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    exercise_id: UUID = Field(foreign_key="exercise.id", ondelete="CASCADE")
+    language: str = Field(max_length=63)
+    name: str = Field(sa_type=Text)

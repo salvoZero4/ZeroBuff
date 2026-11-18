@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 
@@ -16,11 +17,12 @@ export function ScheduleDayRow({
   disabled = false,
   onPress,
 }: ScheduleDayRowProps) {
+  const { t } = useTranslation();
   const isTrainingDay = assignment !== null;
 
   return (
     <Pressable
-      accessibilityLabel={`${dayLabel}: ${assignment ?? "Rest"}`}
+      accessibilityLabel={`${dayLabel}: ${assignment ?? t("Rest")}`}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       className={`min-h-14 flex-row items-center gap-md py-lg active:bg-surface ${!isLast ? "border-b border-border" : ""}`}
@@ -34,7 +36,7 @@ export function ScheduleDayRow({
         <Text
           className={`font-body text-caption ${isTrainingDay ? "text-text-primary" : "text-text-secondary"}`}
         >
-          {assignment ?? "Rest"}
+          {assignment ?? t("Rest")}
         </Text>
       </View>
       <Icon name="chevron-right" size={14} className="text-text-secondary" />

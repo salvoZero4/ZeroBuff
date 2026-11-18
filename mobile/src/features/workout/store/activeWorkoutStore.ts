@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { tokenStore } from "@/features/auth/store/tokenStore";
+import { offlineWorkoutStorage } from "../storage/offlineWorkoutStorage";
 import { WorkoutDraftStorage } from "../storage/workoutDraftStorage";
 import { calculateWorkoutDurationSeconds } from "../utils/duration";
 import type {
@@ -44,6 +45,52 @@ export type ActiveWorkoutState = ActiveWorkoutActions & {
 };
 
 const drafts = new WorkoutDraftStorage(AsyncStorage);
+let localTail: Promise<void> = Promise.resolve();
+let lastLocalWrite = localTail;
+let detachWithoutDeleting = false;
+
+function runLocalWrite(action: () => Promise<void>) {
+  const work = localTail.then(action);
+  localTail = work.catch(() => {});
+  return work;
+}
+
+export function detachActiveWorkout() {
+  detachWithoutDeleting = true;
+  revision++;
+  hydratedScope = null;
+  storageScope = null;
+  activeWorkoutStore.setState({ session: null, persistenceError: null });
+  detachWithoutDeleting = false;
+}
+
+function persistLocal(account: string, scope: string, session: ActiveWorkoutSession) {
+  // Pending represents waiting for disk in memory. The committed snapshot contains
+  // the final set state so an app kill immediately after that write can recover it.
+  const snapshot = {
+    ...session,
+    isFinishing: false,
+    workoutLogs: Object.fromEntries(Object.entries(session.workoutLogs).map(([id, sets]) => [
+      id, sets.map((set) => set.saveStatus === "pending"
+        ? { ...set, saveStatus: set.completed ? "saved" as const : undefined }
+        : set),
+    ])),
+  };
+  lastLocalWrite = runLocalWrite(() => offlineWorkoutStorage!.saveDraft(account, snapshot));
+  void lastLocalWrite.then(
+    () => {
+      if (tokenStore.getSessionScope() === scope) reportPersistenceError(null);
+    },
+    () => {
+      if (tokenStore.getSessionScope() === scope)
+        reportPersistenceError("Changes couldn’t be backed up on this device. Keep the app open and try again.");
+    },
+  );
+  return lastLocalWrite;
+}
+
+export const waitForLocalWorkoutWrite = () => lastLocalWrite;
+
 let revision = 0;
 let hydratedScope: string | null = null;
 let storageScope: string | null = null;
@@ -83,14 +130,20 @@ export function useWorkoutPersistenceError() {
 export async function restoreActiveWorkout(): Promise<ActiveWorkoutSession | null> {
   const scope = tokenStore.getSessionScope();
   if (!scope) return null;
-  if (hydratedScope === scope) return getActiveWorkout();
-  if (hydration?.scope === scope) return hydration.promise;
+  const account = tokenStore.getAccountId?.();
+  const hydrationKey = `${scope}:${account ?? ""}`;
+  if (hydratedScope === hydrationKey || hydratedScope === scope) return getActiveWorkout();
+  if (hydration?.scope === hydrationKey) return hydration.promise;
   const before = revision;
-  const promise = drafts
-    .read(scope)
+  const promise = localTail.then(async () => {
+    const local = account && offlineWorkoutStorage
+      ? await offlineWorkoutStorage.readDraft(account)
+      : null;
+    return local ?? drafts.read(scope);
+  })
     .then((saved) => {
-      if (tokenStore.getSessionScope() !== scope) return null;
-      hydratedScope = scope;
+      if (tokenStore.getSessionScope() !== scope || tokenStore.getAccountId?.() !== account) return null;
+      hydratedScope = hydrationKey;
       storageScope = scope;
       if (revision === before) {
         reportPersistenceError(null);
@@ -110,17 +163,21 @@ export async function restoreActiveWorkout(): Promise<ActiveWorkoutSession | nul
     .finally(() => {
       if (hydration?.promise === promise) hydration = null;
     });
-  hydration = { scope, promise };
+  hydration = { scope: hydrationKey, promise };
   return promise;
 }
 
 export async function retryWorkoutPersistence() {
   await restoreActiveWorkout();
   const scope = tokenStore.getSessionScope();
-  if (scope) await persist(scope, getActiveWorkout());
+  const account = tokenStore.getAccountId?.();
+  const session = getActiveWorkout();
+  if (scope && account && session?.localId && offlineWorkoutStorage)
+    await persistLocal(account, scope, session).catch(() => {});
+  else if (scope) await persist(scope, session);
 }
 
-export const flushWorkoutPersistence = () => drafts.flush();
+export const flushWorkoutPersistence = () => Promise.all([drafts.flush(), localTail]);
 
 let restSequence = 0;
 
@@ -138,7 +195,7 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
     },
     toggleWorkoutPause: () => {
       const session = get().session;
-      if (!session) return;
+      if (!session || session.isFinishing) return;
       const now = Date.now();
       set({
         session: session.isPaused
@@ -161,7 +218,7 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
     },
     setCurrentExerciseIndex: (index: number) => {
       const activeSession = get().session;
-      if (!activeSession) return;
+      if (!activeSession || activeSession.isFinishing) return;
       set({ session: { ...activeSession, currentExerciseIndex: index } });
     },
     updateLocalSetLog: (
@@ -190,7 +247,7 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
     },
     addLocalSetToExercise: (exerciseId: string, defaultReps: number) => {
       const activeSession = get().session;
-      if (!activeSession) return;
+      if (!activeSession || activeSession.isFinishing) return;
       const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
       const newSet: ActiveSetLog = {
         setNumber: currentSets.length + 1,
@@ -212,7 +269,7 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
     },
     removeLocalSetFromExercise: (exerciseId: string, setIndex: number) => {
       const activeSession = get().session;
-      if (!activeSession) return;
+      if (!activeSession || activeSession.isFinishing) return;
       const currentSets = activeSession.workoutLogs[exerciseId] ?? [];
       if (setIndex < 0 || setIndex >= currentSets.length) return;
 
@@ -263,6 +320,7 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
         ...changes,
         touched: true,
         saveStatus:
+          set.localSaved ||
           set.backendId ||
           set.saveStatus === "error" ||
           set.saveStatus === "dirty"
@@ -273,7 +331,7 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
     },
     setWorkoutRestEndTimestamp: (restEndTimestamp: number | null) => {
       const activeSession = get().session;
-      if (!activeSession) return;
+      if (!activeSession || activeSession.isFinishing) return;
       const starting =
         restEndTimestamp !== null &&
         (!activeSession.restEndTimestamp ||
@@ -290,7 +348,7 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
     },
     toggleAutoRest: () => {
       const activeSession = get().session;
-      if (!activeSession) return;
+      if (!activeSession || activeSession.isFinishing) return;
       set({
         session: {
           ...activeSession,
@@ -332,10 +390,27 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
 
 // Persist only session changes: error feedback and stable actions never write to disk.
 activeWorkoutStore.subscribe((state, previous) => {
-  if (state.session === previous.session) return;
+  if (state.session === previous.session || detachWithoutDeleting) return;
   revision++;
   const scope = tokenStore.getSessionScope();
-  if (scope) void persist(scope, state.session);
+  if (!scope) return;
+  const account = tokenStore.getAccountId?.();
+  if (offlineWorkoutStorage && account) {
+    if (state.session?.localId) {
+      if (!state.session.isFinishing) void persistLocal(account, scope, state.session);
+      return;
+    }
+    if (previous.session?.localId) {
+      const id = previous.session.localId;
+      const storage = offlineWorkoutStorage;
+      void runLocalWrite(() => storage.discardDraft(account, id)).catch(() => {
+        if (tokenStore.getSessionScope() === scope)
+          reportPersistenceError("Changes couldn’t be backed up on this device. Keep the app open and try again.");
+      });
+      return;
+    }
+  }
+  void persist(scope, state.session);
 });
 
 export function useActiveWorkoutStore<T>(

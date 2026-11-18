@@ -94,8 +94,7 @@ export function summarizeWorkout(
 export function isSetSaved(set: ActiveSetLog): boolean {
   return Boolean(
     set.completed &&
-    set.backendId &&
-    !set.backendId.startsWith("tmp-") &&
+    (set.localSaved || (set.backendId && !set.backendId.startsWith("tmp-"))) &&
     (!set.saveStatus || set.saveStatus === "saved"),
   );
 }
@@ -103,16 +102,33 @@ export function isSetSaved(set: ActiveSetLog): boolean {
 export function getFinishBlocker(sets: ActiveSetLog[]): string | null {
   if (sets.some((set) => set.saveStatus === "pending"))
     return "Wait for your sets to finish saving.";
-  if (sets.some((set) =>
-    set.saveStatus === "error" || set.saveStatus === "dirty" || set.needsReconcile,
-  ))
+  if (
+    sets.some(
+      (set) =>
+        set.saveStatus === "error" ||
+        set.saveStatus === "dirty" ||
+        set.needsReconcile,
+    )
+  )
     return "Save or retry the highlighted sets before finishing your workout.";
   return null;
 }
 
-export function describeWorkoutFinish(sets: ActiveSetLog[]): string {
+export function describeWorkoutFinish(
+  sets: ActiveSetLog[],
+  translate?: (key: string, options?: { count: number }) => string,
+): string {
   const saved = sets.filter(isSetSaved).length;
   const incomplete = sets.length - saved;
+  if (translate) {
+    const summary =
+      saved === 0
+        ? translate("This workout will be saved without any sets.")
+        : translate("savedSetCount", { count: saved });
+    return incomplete === 0
+      ? summary
+      : `${summary} ${translate("incompleteSetCount", { count: incomplete })}`;
+  }
   const summary =
     saved === 0
       ? "This workout will be saved without any sets."

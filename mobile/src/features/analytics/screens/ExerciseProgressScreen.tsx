@@ -1,3 +1,5 @@
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
@@ -16,12 +18,11 @@ import {
   QueryNotice,
 } from "../components/AnalyticsControls";
 import { ProgressChart } from "../components/ProgressChart";
+import { dateLabel, numberLabel } from "@/shared/i18n/i18n";
 import {
   METRICS,
-  dateLabel,
   exercisePoints,
   metricValue,
-  numberLabel,
   periodStart,
   type Metric,
   type Period,
@@ -33,6 +34,8 @@ export function ExerciseProgressScreen({
   exerciseId: string;
   name: string;
 }) {
+  const { t } = useTranslation();
+  const exerciseName = useExerciseNames();
   const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState<Period>("3M"),
     [metric, setMetric] = useState<Metric>("Load");
@@ -57,7 +60,7 @@ export function ExerciseProgressScreen({
     );
   const latest = visible[0],
     baseline = visible.find((s) => s.session_id === comparison) ?? visible[1];
-  const unit = effectiveMetric === "Reps" ? "reps" : WEIGHT_UNIT;
+  const unit = effectiveMetric === "Reps" ? t("reps") : WEIGHT_UNIT;
   function openSession(id: string) {
     router.push({
       pathname: "/session/[sessionId]",
@@ -77,7 +80,7 @@ export function ExerciseProgressScreen({
             <View className="flex-row items-center gap-md">
               <IconButton
                 icon="arrow-left"
-                label="Back to Analytics"
+                label={t("Back to Analytics")}
                 onPress={() =>
                   router.canGoBack()
                     ? router.back()
@@ -86,8 +89,11 @@ export function ExerciseProgressScreen({
               />
               <View className="flex-1">
                 <ScreenHeader
-                  title={name || "Exercise progress"}
-                  subtitle="Completed sessions. Every recorded rep."
+                  title={exerciseName(
+                    exerciseId,
+                    name || t("Exercise progress"),
+                  )}
+                  subtitle={t("Completed sessions. Every recorded rep.")}
                 />
               </View>
             </View>
@@ -102,12 +108,14 @@ export function ExerciseProgressScreen({
             )}
             <Text className="font-body text-caption text-text-secondary">
               {effectiveMetric === "Load"
-                ? "Highest load recorded in each session"
+                ? t("Highest load recorded in each session")
                 : effectiveMetric === "Reps"
-                  ? "Most repetitions in a single set"
+                  ? t("Most repetitions in a single set")
                   : effectiveMetric === "Volume"
-                    ? "Sum of load × reps across all sets"
-                    : "Estimated 1RM · Epley formula, not a measured maximum"}
+                    ? t("Sum of load × reps across all sets")
+                    : t(
+                        "Estimated 1RM · Epley formula, not a measured maximum",
+                      )}
             </Text>
             {query.data && (
               <ProgressChart points={points} unit={unit} onOpen={openSession} />
@@ -115,7 +123,7 @@ export function ExerciseProgressScreen({
             {latest && baseline && (
               <View className="gap-sm border-y border-border py-lg">
                 <Text className="font-body-semibold text-body text-text-primary">
-                  Latest vs {dateLabel(baseline.date)}
+                  {t("Latest vs")} {dateLabel(baseline.date)}
                 </Text>
                 <Text className="font-numeric text-xl text-text-primary">
                   {numberLabel(metricValue(baseline.sets, effectiveMetric))} →{" "}
@@ -123,17 +131,18 @@ export function ExerciseProgressScreen({
                   {unit}
                 </Text>
                 <Text className="font-body text-caption text-text-secondary">
-                  Change:{" "}
+                  {t("Change:")}{" "}
                   {numberLabel(
                     metricValue(latest.sets, effectiveMetric) -
                       metricValue(baseline.sets, effectiveMetric),
                   )}{" "}
-                  {unit} · {effectiveMetric}. Compare the sets and RIR below.
+                  {unit} · {t(effectiveMetric)}.{" "}
+                  {t("Compare the sets and RIR below.")}
                 </Text>
               </View>
             )}
             <Text className="pt-lg font-body-semibold text-xl text-text-primary">
-              Session history
+              {t("Session history")}
             </Text>
           </View>
         }
@@ -146,7 +155,7 @@ export function ExerciseProgressScreen({
             >
               <Text className="font-body-semibold text-body text-text-primary">
                 {dateLabel(item.date)}
-                {item.session_id === latest?.session_id ? " · Latest" : ""}
+                {item.session_id === latest?.session_id ? t(" · Latest") : ""}
               </Text>
               <Icon
                 name="chevron-right"
@@ -162,7 +171,8 @@ export function ExerciseProgressScreen({
                   className="flex-row flex-wrap justify-between gap-md"
                 >
                   <Text className="font-body text-sm text-text-secondary">
-                    Set {set.set_number}
+                    {t("Set")}
+                    {set.set_number}
                   </Text>
                   <Text className="font-numeric text-xl text-text-primary">
                     {numberLabel(set.weight)} {WEIGHT_UNIT} × {set.reps}
@@ -183,8 +193,8 @@ export function ExerciseProgressScreen({
               >
                 <Text className="font-body text-sm text-text-secondary">
                   {item.session_id === baseline?.session_id
-                    ? "Comparing with latest"
-                    : "Compare with latest"}
+                    ? t("Comparing with latest")
+                    : t("Compare with latest")}
                 </Text>
               </Pressable>
             )}
@@ -193,8 +203,10 @@ export function ExerciseProgressScreen({
         ListEmptyComponent={
           !query.isPending && !query.error ? (
             <Empty
-              title="No sets in this period"
-              message="Choose a longer period or log this exercise in a workout."
+              title={t("No sets in this period")}
+              message={t(
+                "Choose a longer period or log this exercise in a workout.",
+              )}
             />
           ) : undefined
         }

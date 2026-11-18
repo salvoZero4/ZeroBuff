@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useRef } from "react";
 import { Pressable, Text, View } from "react-native";
 import ReanimatedSwipeable, {
@@ -61,6 +62,7 @@ export function RoutineCard({
   onActions,
   isLast,
 }: RoutineCardProps) {
+  const { t } = useTranslation();
   const swipeableRef = useRef<SwipeableMethods>(null);
   const muscleGroupsPreview = muscleGroups.join("   ");
 
@@ -85,7 +87,7 @@ export function RoutineCard({
         className={`flex-row items-center bg-bg ${isLast ? "" : "border-b border-border"}`}
       >
         <Pressable
-          accessibilityLabel={`Open ${name} routine`}
+          accessibilityLabel={t("Open {{name}} routine", { name: name })}
           accessibilityRole="button"
           onPress={onPress}
           className="min-h-14 flex-1 gap-xs py-lg pr-md active:bg-surface"
@@ -94,13 +96,13 @@ export function RoutineCard({
             {name}
           </Text>
           <Text className="font-body text-caption text-text-secondary">
-            {exerciseCount} {exerciseCount === 1 ? "exercise" : "exercises"}
+            {t("exerciseCount", { count: exerciseCount })}
             {muscleGroupsPreview ? ` · ${muscleGroups.join(" · ")}` : ""}
           </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Actions for ${name}`}
+          accessibilityLabel={t("Actions for {{name}}", { name: name })}
           onPress={onActions}
           className="min-h-12 min-w-12 items-center justify-center rounded-sm active:bg-surface"
         >

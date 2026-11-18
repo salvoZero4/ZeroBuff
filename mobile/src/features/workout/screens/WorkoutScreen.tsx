@@ -1,3 +1,5 @@
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
   FadeIn,
@@ -5,7 +7,6 @@ import Animated, {
   useReducedMotion,
 } from "react-native-reanimated";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
-import { routineKeys } from "@/features/routines/api/queryKeys";
 import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
 import { WorkoutSummaryScreen } from "@/features/workout/components/WorkoutSummaryScreen";
 import {
@@ -39,7 +40,9 @@ import {
   KeyboardToolbar,
 } from "react-native-keyboard-controller";
 
-import { getRoutine } from "@/features/routines/api/routines";
+import { offlineStartEnabled, useWorkoutRoutine } from "../storage/useCachedWorkoutData";
+import { useAuth } from "@/features/auth/provider/AuthProvider";
+import { useQueuedWorkouts } from "../sync/WorkoutSyncProvider";
 import { getExerciseStats } from "@/features/exercises/api/exercise";
 import { Icon } from "@/components/ui/Icon";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -103,25 +106,27 @@ const KEYBOARD_TOOLBAR_THEME = {
 };
 
 export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
+  const { t } = useTranslation();
+  const exerciseName = useExerciseNames();
   const reduceMotion = useReducedMotion();
+  const session = useActiveWorkout();
+  const { accountId } = useAuth();
+  const [localSummary, setLocalSummary] = useState(false);
+  const queue = useQueuedWorkouts();
   const {
-    data: routine,
-    isLoading,
+    data: loadedRoutine,
     isError,
     error,
     refetch,
     isFetching,
-  } = useQuery({
-    queryKey: routineKeys.detail(routineId),
-    queryFn: () => getRoutine(routineId ?? ""),
-    enabled: !!routineId,
-  });
-
-  const session = useActiveWorkout();
+    loadingLocal,
+  } = useWorkoutRoutine(routineId, !session?.routineSnapshot && !localSummary);
+  const routine = session?.routineSnapshot ?? loadedRoutine;
   const persistenceError = useWorkoutPersistenceError();
   const [initError, setInitError] = useState(false);
   const [initAttempt, setInitAttempt] = useState(0);
   const network = useNetInfo();
+  const offline = network.isConnected === false || network.isInternetReachable === false;
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const previousSetsRef = useRef<
     Record<string, { weight: number; reps: number }[]>
@@ -166,10 +171,19 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   }, [session, session?.isPaused, session?.startedAtTimestamp]);
 
   useEffect(() => {
-    if (!routine) return;
+    if (session?.localId && session.routineId !== routineId) {
+      router.replace({ pathname: "/workout/[routineId]", params: { routineId: session.routineId } });
+    }
+  }, [session?.localId, session?.routineId, routineId]);
+
+  const hasSession = Boolean(session);
+  useEffect(() => {
+    if (!routine || summary || finishingRef.current || session?.localId || !routine.exercises.length) return;
+    if (offline && !offlineStartEnabled && !hasSession) return;
     let cancelled = false;
-    initOrResumeWorkout(routine)
+    initOrResumeWorkout(routine, offline)
       .then((active) => {
+        if (!cancelled) setInitError(false);
         if (!cancelled && active && active.routineId !== routine.id) {
           router.replace({
             pathname: "/workout/[routineId]",
@@ -183,7 +197,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     return () => {
       cancelled = true;
     };
-  }, [routine, initAttempt]);
+  }, [routine, initAttempt, offline, session?.localId, hasSession, summary, accountId]);
 
   useEffect(() => {
     if (!session || !activeExercise) return;
@@ -239,11 +253,14 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     setCurrentExerciseIndex(index);
   }
 
-  if (summary)
+  if (summary) {
+    const queuedWorkout = queue.data?.find((item) => item.payload.id === summary.sessionId);
+    const synced = !localSummary || (queue.isSuccess && !queuedWorkout);
     return (
       <WorkoutSummaryScreen
         summary={summary}
         onDone={() => router.replace("/(tabs)")}
+        syncLabel={localSummary ? (synced ? t("Synced") : t("Saved on this device")) : undefined}
         onViewWorkout={() => {
           if (summary.sessionId)
             router.push({
@@ -253,12 +270,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         }}
       />
     );
+  }
 
-  if (isError || !routineId)
+  if ((!routine && !loadingLocal && (isError || offline)) || (offline && !offlineStartEnabled && !hasSession) || !routineId)
     return (
       <ScreenError
-        title="Workout couldn’t load"
-        message={loadErrorMessage(error)}
+        title={t("Workout couldn’t load")}
+        message={offline ? t("Connect to download this routine.") : t(loadErrorMessage(error))}
         onRetry={() => {
           void refetch();
         }}
@@ -266,13 +284,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         onBack={() => router.replace("/(tabs)")}
       />
     );
-  if (initError)
+  if (initError && !session?.localId)
     return (
       <ScreenError
-        title="Workout recovery couldn’t finish"
+        title={t("Workout recovery couldn’t finish")}
         message={
-          persistenceError ??
-          "Your saved workout couldn’t be restored. Please try again."
+          (persistenceError ? t(persistenceError) : null) ??
+          t("Your saved workout couldn’t be restored. Please try again.")
         }
         onRetry={() => {
           setInitError(false);
@@ -281,13 +299,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         onBack={() => router.replace("/(tabs)")}
       />
     );
-  if (isLoading || !routine || !session || session.routineId !== routine.id)
+  if (!routine || (!session && routine.exercises.length > 0) || (session && session.routineId !== routineId))
     return <WorkoutSkeleton />;
-  if (!activeExercise)
+  if (!activeExercise || !session)
     return (
       <ScreenError
-        title="No exercises in this routine"
-        message="Add exercises to your routine before starting a workout."
+        title={t("No exercises in this routine")}
+        message={t("Add exercises to your routine before starting a workout.")}
         onRetry={() => {
           void refetch();
         }}
@@ -404,25 +422,16 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       const snapshot = getActiveWorkout();
       const duration = getActiveWorkoutDurationSeconds();
       let confirmedSessionId = snapshot?.sessionId ?? null;
-      if (
-        await finishWorkoutSession((id) => {
-          confirmedSessionId = id;
-        })
-      ) {
-        if (snapshot)
-          setSummary(
-            summarizeWorkout(
-              { ...snapshot, sessionId: confirmedSessionId },
-              duration,
-              previousSetsRef.current,
-              Object.fromEntries(
-                (routine?.exercises ?? []).map((exercise) => [
-                  exercise.exercise_id,
-                  exercise.name,
-                ]),
-              ),
-            ),
-          );
+      if (!snapshot) return;
+      const result = summarizeWorkout(
+        { ...snapshot, sessionId: snapshot.localId ?? confirmedSessionId },
+        duration,
+        previousSetsRef.current,
+        Object.fromEntries((routine?.exercises ?? []).map((exercise) => [exercise.exercise_id, exercise.name])),
+      );
+      if (await finishWorkoutSession((id) => { confirmedSessionId = id; }, result)) {
+        setLocalSummary(Boolean(snapshot.localId));
+        setSummary({ ...result, sessionId: confirmedSessionId });
         setShowFinishModal(false);
       }
     } catch (error) {
@@ -450,7 +459,9 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     }
   }
 
-  const finishSets = showFinishModal ? Object.values(session.workoutLogs).flat() : [];
+  const finishSets = showFinishModal
+    ? Object.values(session.workoutLogs).flat()
+    : [];
   const finishBlocker = getFinishBlocker(finishSets);
 
   return (
@@ -463,15 +474,15 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         onFinish={openFinishModal}
       />
 
-      {network.isConnected === false ||
-      network.isInternetReachable === false ? (
+      {offline ? (
         <View
           accessibilityLiveRegion="polite"
           className="bg-surface px-lg py-sm"
         >
           <Text className="font-body text-caption text-text-secondary">
-            You are offline. Reconnect to save your sets and finish this
-            workout.
+            {t(
+              session.localId ? "You are offline. Your workout is saved on this device." : "You are offline. Reconnect to save your sets and finish this workout.",
+            )}
           </Text>
         </View>
       ) : null}
@@ -482,7 +493,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           className="gap-xs bg-surface px-lg py-sm"
         >
           <Text className="font-body text-caption text-danger">
-            {persistenceError}
+            {t(persistenceError)}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -492,7 +503,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             className="min-h-12 justify-center"
           >
             <Text className="font-body-medium text-caption text-text-primary">
-              Try again
+              {t("Try again")}
             </Text>
           </Pressable>
         </View>
@@ -525,14 +536,14 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               logs.every(
                 (s) =>
                   s.completed &&
-                  s.backendId &&
+                  (s.backendId || s.localSaved) &&
                   (!s.saveStatus || s.saveStatus === "saved"),
               );
             return (
               <ExerciseStepPill
                 key={exItem.exercise_id}
                 index={idx}
-                name={exItem.name}
+                name={exerciseName(exItem.exercise_id, exItem.name)}
                 isActive={idx === session.currentExerciseIndex}
                 isCompleted={isCompleted}
                 onPress={() => selectExercise(idx)}
@@ -548,7 +559,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           className="flex-row items-center gap-md"
         >
           <Text className="flex-1 font-body-semibold text-xl text-text-primary">
-            {ex.name}
+            {exerciseName(ex.exercise_id, ex.name)}
           </Text>
           <Text className="font-body text-caption text-text-secondary">
             {session.currentExerciseIndex + 1} / {routine.exercises.length}
@@ -655,7 +666,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             >
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Add set"
+                accessibilityLabel={t("Add set")}
                 onPress={handleAddSet}
                 style={
                   setCardHeight > 0 ? { minHeight: setCardHeight } : undefined
@@ -664,10 +675,10 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               >
                 <Icon name="plus" size={28} className="text-text-secondary" />
                 <Text className="font-body-semibold text-body text-text-secondary">
-                  Add set
+                  {t("Add set")}
                 </Text>
                 <Text className="font-body text-caption text-text-secondary">
-                  Swipe here to add the next set
+                  {t("Swipe here to add the next set")}
                 </Text>
               </Pressable>
             </View>
@@ -678,8 +689,10 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               accessibilityLiveRegion="polite"
               className="font-body text-caption text-text-secondary"
             >
-              {activeExerciseLogs.filter(isSetSaved).length} of{" "}
-              {activeExerciseLogs.length} saved
+              {t("{{saved}} of {{total}} saved", {
+                saved: activeExerciseLogs.filter(isSetSaved).length,
+                total: activeExerciseLogs.length,
+              })}
             </Text>
           </View>
 
@@ -688,7 +701,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               accessibilityLiveRegion="polite"
               className="font-body text-caption text-danger"
             >
-              Could not remove the set. {removeError}
+              {t("Could not remove the set.")} {t(removeError)}
             </Text>
           ) : null}
         </View>
@@ -703,19 +716,21 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           className="w-full min-h-14 items-center justify-center rounded-md bg-accent active:bg-accent-pressed"
         >
           <Text className="font-body-semibold text-body text-on-accent">
-            {isLastExercise ? "Complete workout" : "Next exercise"}
+            {isLastExercise ? t("Complete workout") : t("Next exercise")}
           </Text>
         </Pressable>
       </View>
 
       <ConfirmModal
         visible={showRemoveModal}
-        title="Remove saved set?"
+        title={t("Remove saved set?")}
         description={
           removeError ??
-          "This removes the last set and its saved performance from this workout."
+          t(
+            "This removes the last set and its saved performance from this workout.",
+          )
         }
-        confirmLabel="Remove set"
+        confirmLabel={t("Remove set")}
         isDestructive
         isPending={activeExerciseLogs.at(-1)?.saveStatus === "pending"}
         onConfirm={() => {
@@ -726,25 +741,33 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
       <ConfirmModal
         visible={showFinishModal}
-        title="Finish workout"
+        title={t("Finish workout")}
         description={
-          finishBlocker ?? finishError ?? describeWorkoutFinish(finishSets)
+          finishBlocker
+            ? t(finishBlocker)
+            : finishError
+              ? t(finishError)
+              : describeWorkoutFinish(finishSets, (key, options) =>
+                  t(key, options ?? {}),
+                )
         }
         confirmLabel={
           session.isFinishing
-            ? "Saving…"
+            ? t("Saving…")
             : finishError
-              ? "Retry"
-              : "Finish & Save"
+              ? t("Retry")
+              : t("Finish & Save")
         }
         isPending={session.isFinishing}
         confirmDisabled={finishBlocker !== null}
-        cancelLabel="Keep training"
+        cancelLabel={t("Keep training")}
         onConfirm={confirmFinish}
         onCancel={() => setShowFinishModal(false)}
       />
 
-      <KeyboardToolbar theme={KEYBOARD_TOOLBAR_THEME} />
+      <KeyboardToolbar theme={KEYBOARD_TOOLBAR_THEME}>
+        <KeyboardToolbar.Done text={t("Done")} />
+      </KeyboardToolbar>
     </View>
   );
 }

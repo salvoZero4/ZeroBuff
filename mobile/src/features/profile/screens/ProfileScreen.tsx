@@ -1,3 +1,6 @@
+import { dateLocale } from "@/shared/i18n/i18n";
+import { useLanguage } from "@/shared/i18n/LanguageProvider";
+import { useTranslation } from "react-i18next";
 import { userKeys } from "@/features/profile/api/queryKeys";
 import { useState } from "react";
 import {
@@ -41,6 +44,14 @@ const SEX_OPTIONS: readonly PickerOption[] = [
 ];
 
 export function ProfileScreen() {
+  const { t } = useTranslation();
+  const { preference, setPreference } = useLanguage();
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const languageOptions: PickerOption[] = [
+    { value: "system", label: t("System") },
+    { value: "it", label: "Italiano" },
+    { value: "en", label: "English" },
+  ];
   const { signOut } = useAuth();
   const queryClient = useQueryClient();
   const history = useHistory();
@@ -69,7 +80,7 @@ export function ProfileScreen() {
       setSexError(null);
     },
     onError: () =>
-      setSexError("Could not update this field. Select it again to retry."),
+      setSexError(t("Could not update this field. Select it again to retry.")),
   });
 
   if (isLoading) {
@@ -83,15 +94,15 @@ export function ProfileScreen() {
   if (error && !user)
     return (
       <ScreenError
-        title="Profile couldn’t load"
-        message={loadErrorMessage(error)}
+        title={t("Profile couldn’t load")}
+        message={t(loadErrorMessage(error))}
         onRetry={() => void refetch()}
         busy={isRefetching}
       />
     );
 
   const formattedSex = user?.sex
-    ? user.sex.charAt(0).toUpperCase() + user.sex.slice(1)
+    ? t(SEX_OPTIONS.find(({ value }) => value === user.sex)?.label ?? "")
     : "";
 
   return (
@@ -112,8 +123,8 @@ export function ProfileScreen() {
         }
       >
         <ScreenHeader
-          title="Profile"
-          subtitle="Your account and personal details"
+          title={t("Profile")}
+          subtitle={t("Your account and personal details")}
         />
 
         <ProfileHeaderCard
@@ -124,16 +135,16 @@ export function ProfileScreen() {
 
         <ProfileConsistency history={history} />
 
-        <Section title="Personal info">
+        <Section title={t("Personal info")}>
           <View>
             <SettingRow
-              title="Height"
+              title={t("Height")}
               detail={formatHeightDetail(user?.height_cm)}
               onPress={() => setEditingField("height")}
             />
             <SettingRow
-              title="Sex"
-              detail={isUpdatingSex ? "Saving…" : formattedSex}
+              title={t("Sex")}
+              detail={isUpdatingSex ? t("Saving…") : formattedSex}
               onPress={
                 isUpdatingSex
                   ? undefined
@@ -144,12 +155,12 @@ export function ProfileScreen() {
               }
             />
             <SettingRow
-              title="Date of birth"
+              title={t("Date of birth")}
               detail={
                 user?.date_of_birth
                   ? new Date(
                       `${user.date_of_birth}T12:00:00`,
-                    ).toLocaleDateString("en-GB", {
+                    ).toLocaleDateString(dateLocale(), {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
@@ -170,25 +181,36 @@ export function ProfileScreen() {
             {sexError}
           </Text>
         )}
-        <Section title="Account">
+        <Section title={t("Preferences")}>
+          <SettingRow
+            title={t("Language")}
+            detail={
+              languageOptions.find(({ value }) => value === preference)
+                ?.label ?? ""
+            }
+            onPress={() => setShowLanguagePicker(true)}
+            isLast
+          />
+        </Section>
+        <Section title={t("Account")}>
           <View>
             <SettingRow
               isLast
-              title="Change password"
-              detail="Update your account password"
+              title={t("Change password")}
+              detail={t("Update your account password")}
               onPress={() => setShowPasswordModal(true)}
             />
           </View>
         </Section>
         <Pressable
-          accessibilityLabel="Sign out"
+          accessibilityLabel={t("Sign out")}
           accessibilityRole="button"
           className="min-h-14 flex-row items-center gap-md rounded-sm py-lg active:bg-surface"
           onPress={() => setShowSignOutModal(true)}
         >
           <Icon name="right-from-bracket" size={18} className="text-danger" />
           <Text className="font-body-semibold text-body text-danger">
-            Sign out
+            {t("Sign out")}
           </Text>
         </Pressable>
       </ScrollView>
@@ -206,14 +228,33 @@ export function ProfileScreen() {
       {showSexPicker ? (
         <SelectPickerModal
           visible
-          title="Biological sex"
-          options={SEX_OPTIONS}
+          title={t("Biological sex")}
+          options={SEX_OPTIONS.map((option) => ({
+            ...option,
+            label: t(option.label),
+          }))}
           selectedValues={user?.sex ? [user.sex] : []}
           multiSelect={false}
           onConfirm={(vals) => updateSex(vals[0] as Sex)}
           onClose={() => setShowSexPicker(false)}
         />
       ) : null}
+
+      {showLanguagePicker && (
+        <SelectPickerModal
+          visible
+          title={t("Language")}
+          options={languageOptions}
+          selectedValues={[preference]}
+          multiSelect={false}
+          onConfirm={([value]) => {
+            if (value === "system" || value === "it" || value === "en") {
+              setPreference(value);
+            }
+          }}
+          onClose={() => setShowLanguagePicker(false)}
+        />
+      )}
 
       {/* Modale Cambio Password */}
       {showPasswordModal ? (
@@ -227,10 +268,10 @@ export function ProfileScreen() {
       {showSignOutModal ? (
         <ConfirmModal
           visible
-          title="Sign out"
-          description="Are you sure you want to sign out of your account?"
-          confirmLabel="Sign out"
-          cancelLabel="Cancel"
+          title={t("Sign out")}
+          description={t("Are you sure you want to sign out of your account?")}
+          confirmLabel={t("Sign out")}
+          cancelLabel={t("Cancel")}
           isDestructive
           onConfirm={() => {
             setShowSignOutModal(false);

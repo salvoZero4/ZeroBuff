@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ActionSheet } from "@/components/ui/ActionSheet";
 export function SessionActionsModal({
   visible,
@@ -12,20 +13,21 @@ export function SessionActionsModal({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ActionSheet
       visible={visible}
-      title="Session actions"
+      title={t("Session actions")}
       subtitle={date}
       onClose={onClose}
       actions={[
         {
-          label: "View / edit session",
+          label: t("View / edit session"),
           icon: "pen-to-square",
           onPress: onView,
         },
         {
-          label: "Delete session",
+          label: t("Delete session"),
           icon: "trash",
           destructive: true,
           onPress: onDelete,

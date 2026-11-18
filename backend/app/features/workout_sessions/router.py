@@ -3,6 +3,8 @@ from uuid import UUID
 from app.db.session import sessionDep
 from app.features.auth.dependencies import currentUserDep
 from app.features.workout_sessions.schemas import (
+    CompletedWorkout,
+    WorkoutSyncRead,
     SessionCreate,
     SessionDetailRead,
     SessionRead,
@@ -21,7 +23,8 @@ from app.features.workout_sessions.service import (
     update_session,
     update_set_log,
 )
-from fastapi import APIRouter, status
+from app.features.workout_sessions.sync import sync_completed_workout
+from fastapi import APIRouter, Response, status
 
 router = APIRouter(
     prefix="/v1/session",
@@ -45,6 +48,25 @@ def create_session_route(
     session_data: SessionCreate, user: currentUserDep, session: sessionDep
 ):
     return create_session(user.id, session_data, session)
+
+
+@router.post(
+    "/completed",
+    response_model=WorkoutSyncRead,
+    status_code=status.HTTP_201_CREATED,
+    responses={200: {"model": WorkoutSyncRead}},
+)
+def sync_completed_route(
+    workout: CompletedWorkout, response: Response, user: currentUserDep, session: sessionDep
+):
+    try:
+        created = sync_completed_workout(user.id, workout, session)
+    except Exception:
+        session.rollback()
+        raise
+    if not created:
+        response.status_code = status.HTTP_200_OK
+    return WorkoutSyncRead(id=workout.id)
 
 
 @router.post(

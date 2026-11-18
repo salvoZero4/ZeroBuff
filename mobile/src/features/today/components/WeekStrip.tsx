@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { dateLocale } from "@/shared/i18n/i18n";
 import { View } from "react-native";
 import { getWeekDays } from "@/shared/utils/dates";
 import { WeekDayTile } from "@/features/today/components/WeekDayTile";
@@ -8,7 +10,9 @@ type WeekStripProps = {
 };
 
 export function WeekStrip({ weekDays, hasRoutine }: WeekStripProps) {
-  const days = weekDays ?? getWeekDays();
+  const { i18n } = useTranslation();
+  const days =
+    weekDays ?? getWeekDays(new Date(), dateLocale(i18n.resolvedLanguage));
 
   return (
     <View className="flex-row gap-xs rounded-md">

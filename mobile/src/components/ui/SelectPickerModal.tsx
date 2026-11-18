@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -37,6 +38,7 @@ export function SelectPickerModal({
   onConfirm,
   onClose,
 }: SelectPickerModalProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
   const [currentSelected, setCurrentSelected] =
@@ -93,7 +95,7 @@ export function SelectPickerModal({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close picker"
+          accessibilityLabel={t("Close picker")}
           className="absolute inset-0"
           onPress={onClose}
         />
@@ -114,12 +116,14 @@ export function SelectPickerModal({
                 {title}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
-                {multiSelect ? "Select one or more items" : "Choose an option"}
+                {multiSelect
+                  ? t("Select one or more items")
+                  : t("Choose an option")}
               </Text>
             </View>
             <IconButton
               icon="xmark"
-              label="Close"
+              label={t("Close")}
               variant="bare"
               onPress={onClose}
             />
@@ -128,8 +132,8 @@ export function SelectPickerModal({
           {/* Ricerca interna */}
           {options.length > 8 ? (
             <TextInput
-              accessibilityLabel={`Search ${title}`}
-              placeholder="Search..."
+              accessibilityLabel={t("Search {{title}}", { title: title })}
+              placeholder={t("Search...")}
               value={search}
               onChangeText={setSearch}
               className="min-h-12 rounded-sm border border-border bg-surface-raised px-md font-body text-body text-text-primary placeholder:text-text-secondary"
@@ -176,7 +180,7 @@ export function SelectPickerModal({
               {filteredOptions.length === 0 ? (
                 <View className="p-xl items-center">
                   <Text className="font-body text-caption text-text-secondary">
-                    No results matching &quot;{search}&quot;
+                    {t("No results matching {{query}}", { query: search })}
                   </Text>
                 </View>
               ) : null}
@@ -185,7 +189,7 @@ export function SelectPickerModal({
 
           {multiSelect ? (
             <Button
-              label={`Confirm (${currentSelected.length} selected)`}
+              label={t("Confirm selection", { count: currentSelected.length })}
               onPress={handleSaveMulti}
             />
           ) : null}

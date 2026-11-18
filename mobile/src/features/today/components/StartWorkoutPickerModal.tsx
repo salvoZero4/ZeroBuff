@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { routineKeys } from "@/features/routines/api/queryKeys";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +23,7 @@ export function StartWorkoutPickerModal({
   onCreateRoutine,
   onSelectRoutine,
 }: StartWorkoutPickerModalProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const {
     data: routines = [],
@@ -45,7 +47,7 @@ export function StartWorkoutPickerModal({
       <View className="flex-1 justify-end bg-black/75">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close workout picker"
+          accessibilityLabel={t("Close workout picker")}
           className="absolute inset-0"
           onPress={onClose}
         />
@@ -60,15 +62,15 @@ export function StartWorkoutPickerModal({
                 accessibilityRole="header"
                 className="font-body-bold text-xl text-text-primary"
               >
-                Select workout
+                {t("Select workout")}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
-                Choose a routine to start training
+                {t("Choose a routine to start training")}
               </Text>
             </View>
             <IconButton
               icon="xmark"
-              label="Close workout picker"
+              label={t("Close workout picker")}
               variant="bare"
               onPress={onClose}
             />
@@ -76,17 +78,17 @@ export function StartWorkoutPickerModal({
           {error ? (
             <View className="gap-md">
               <Text className="font-body text-caption text-text-secondary">
-                {loadErrorMessage(error)}
+                {t(loadErrorMessage(error))}
               </Text>
               <Button
                 variant="outline"
-                label={isFetching ? "Retrying…" : "Try again"}
+                label={isFetching ? t("Retrying…") : t("Try again")}
                 disabled={isFetching}
                 onPress={() => void refetch()}
               />
             </View>
           ) : isPending ? (
-            <LoadingNotice label="Loading routines…" />
+            <LoadingNotice label={t("Loading routines…")} />
           ) : (
             <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
               {routines.length > 0 ? (
@@ -110,8 +112,10 @@ export function StartWorkoutPickerModal({
                         </Text>
                         <Text className="font-body text-caption text-text-secondary">
                           {isEmpty
-                            ? "Add exercises to start this workout"
-                            : `${routine.exercises_count} ${routine.exercises_count === 1 ? "exercise" : "exercises"}`}
+                            ? t("Add exercises to start this workout")
+                            : t("exerciseCount", {
+                                count: routine.exercises_count,
+                              })}
                         </Text>
                       </View>
                       {!isEmpty && (
@@ -127,10 +131,10 @@ export function StartWorkoutPickerModal({
               ) : (
                 <View className="gap-sm py-lg">
                   <Text className="font-body-semibold text-body text-text-primary">
-                    No routines yet
+                    {t("No routines yet")}
                   </Text>
                   <Text className="font-body text-caption text-text-secondary">
-                    Create a routine to start your first workout.
+                    {t("Create a routine to start your first workout.")}
                   </Text>
                 </View>
               )}
@@ -140,7 +144,7 @@ export function StartWorkoutPickerModal({
             <Button
               variant={routines.length ? "ghost" : "primary"}
               icon="plus"
-              label="Create routine"
+              label={t("Create routine")}
               onPress={onCreateRoutine}
             />
           )}

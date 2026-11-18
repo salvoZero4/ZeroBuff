@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Pressable, Text } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 
@@ -16,9 +17,10 @@ export function RoutineOptionItem({
   disabled = false,
   isLast = false,
 }: RoutineOptionItemProps) {
+  const { t } = useTranslation();
   return (
     <Pressable
-      accessibilityLabel={`Set ${label}`}
+      accessibilityLabel={t("Set {{name}}", { name: label })}
       accessibilityRole="button"
       disabled={disabled}
       accessibilityState={{ selected, disabled }}

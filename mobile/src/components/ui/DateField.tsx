@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Keyboard, Pressable, Text, View } from "react-native";
 import { Icon } from "./Icon";
@@ -30,6 +31,9 @@ export function DateField({
   maxDate: string;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
+  const monthLabels = MONTHS.map((monthName) => t(monthName));
+  const dateParts = { day: t("Day"), month: t("Month"), year: t("Year") };
   const [active, setActive] = useState<DatePart | null>(null);
   const [year, month, day] = value.split("-").map(Number);
   const [maxYear, maxMonth, maxDay] = maxDate.split("-").map(Number);
@@ -44,10 +48,12 @@ export function DateField({
           value: String(maxYear - i),
         }))
       : active === "month"
-        ? MONTHS.slice(0, year === maxYear ? maxMonth : 12).map((label, i) => ({
-            label,
-            value: String(i + 1),
-          }))
+        ? monthLabels
+            .slice(0, year === maxYear ? maxMonth : 12)
+            .map((label, i) => ({
+              label,
+              value: String(i + 1),
+            }))
         : Array.from({ length: days }, (_, i) => ({
             label: String(i + 1),
             value: String(i + 1),
@@ -55,14 +61,22 @@ export function DateField({
   return (
     <View className="gap-xs">
       <Text className="font-body-semibold text-caption text-text-secondary">
-        Date
+        {t("Date")}
       </Text>
       <View className="flex-row gap-sm">
         {(["day", "month", "year"] as const).map((part) => (
           <Pressable
             key={part}
             accessibilityRole="button"
-            accessibilityLabel={`Select ${part}: ${part === "month" ? MONTHS[month - 1] : part === "day" ? day : year}`}
+            accessibilityLabel={t("Select {{part}}: {{value}}", {
+              part: dateParts[part],
+              value:
+                part === "month"
+                  ? monthLabels[month - 1]
+                  : part === "day"
+                    ? day
+                    : year,
+            })}
             accessibilityState={{ disabled, expanded: active === part }}
             disabled={disabled}
             onPress={() => {
@@ -73,14 +87,14 @@ export function DateField({
           >
             <View className="flex-1 gap-xs">
               <Text className="font-body text-caption capitalize text-text-secondary">
-                {part}
+                {dateParts[part]}
               </Text>
               <Text
                 className="font-body-bold text-body text-text-primary"
                 numberOfLines={1}
               >
                 {part === "month"
-                  ? MONTHS[month - 1]
+                  ? monthLabels[month - 1]
                   : part === "day"
                     ? day
                     : year}
@@ -96,7 +110,9 @@ export function DateField({
       </View>
       <SelectPickerModal
         visible={active !== null}
-        title={`Select ${active ?? "date"}`}
+        title={t("Select {{part}}", {
+          part: active ? dateParts[active] : t("Date"),
+        })}
         options={options}
         selectedValues={[
           String(active === "year" ? year : active === "month" ? month : day),

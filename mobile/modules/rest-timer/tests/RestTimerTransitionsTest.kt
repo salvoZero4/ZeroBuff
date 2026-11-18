@@ -30,5 +30,10 @@ fun main() {
   check(expired.getString("status") == "complete" && expired.getInt("version") == 2)
   check(RestTimerTransitions.expire(expired, 200_000) === expired)
   check(RestTimerTransitions.set(null, state(), 0, 200_000).getString("status") == "complete")
-  println("Android rest timer transitions: 17 checks passed")
+  val translated = RestTimerTransitions.set(original, state().put("language", "it"), 1, 1_000)
+  check(translated.getInt("version") == 2 && translated.getString("language") == "it")
+  check(translated.getDouble("endAt") == original.getDouble("endAt"))
+  val extended = requireNotNull(RestTimerTransitions.action(translated, "add", "rest-1", 2, 1_000))
+  check(extended.getString("language") == "it")
+  println("Android rest timer transitions: 20 checks passed")
 }

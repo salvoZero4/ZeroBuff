@@ -26,33 +26,23 @@ ZeroBuff is an open-source workout tracker for iOS and Android. Build a routine 
 
 ## Screenshots
 
-<table>
-  <tr>
-    <th scope="col">Today</th>
-    <th scope="col">Active workout</th>
-    <th scope="col">Analytics</th>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/images/today.png" alt="Today showing the weekly schedule, assigned routine, and workout entry point" width="230"></td>
-    <td align="center"><img src="docs/images/workout.png" alt="An active workout showing the recovery timer and a set with load and reps" width="230"></td>
-    <td align="center"><img src="docs/images/analytics.png" alt="Analytics showing workout history grouped by month, with date and routine filters" width="230"></td>
-  </tr>
-</table>
+### Plan and train
 
-<table>
-  <tr>
-    <th scope="col">Exercise progress</th>
-    <th scope="col">Create a routine</th>
-    <th scope="col">Exercise catalog</th>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/images/analytics-exercise.png" alt="Bench press load over time with a comparison between the latest two sessions" width="230"></td>
-    <td align="center"><img src="docs/images/create-routine.png" alt="New Push Day routine with two exercises and controls for order, sets, reps, and rest" width="230"></td>
-    <td align="center"><img src="docs/images/exercise-catalog.png" alt="Exercise catalog with search, muscle and equipment filters, and controls to add exercises to a routine" width="230"></td>
-  </tr>
-</table>
+<p align="center">
+  <a href="docs/images/today.png"><img src="docs/images/today.png" alt="Today showing the weekly schedule and the assigned workout" width="172"></a>
+  <a href="docs/images/create-routine.png"><img src="docs/images/create-routine.png" alt="Upper Body routine with set, rep, and rest targets for two exercises" width="172"></a>
+  <a href="docs/images/workout.png"><img src="docs/images/workout.png" alt="Active workout with the rest timer, load, reps, and RIR" width="172"></a>
+</p>
 
-*Captured on the iOS simulator with demo data.*
+### Browse and review
+
+<p align="center">
+  <a href="docs/images/exercise-catalog.png"><img src="docs/images/exercise-catalog.png" alt="Exercise catalog filtered to chest exercises" width="172"></a>
+  <a href="docs/images/analytics.png"><img src="docs/images/analytics.png" alt="Workout history grouped by month" width="172"></a>
+  <a href="docs/images/analytics-exercise.png"><img src="docs/images/analytics-exercise.png" alt="Barbell bench press load over time with a session comparison" width="172"></a>
+</p>
+
+*Captured on the iOS simulator with demo data. Select an image to view it at full size.*
 
 ## Run locally
 

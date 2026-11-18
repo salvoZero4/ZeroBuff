@@ -91,3 +91,14 @@ class ExerciseSessionLog(BaseModel):
 class ExerciseStatsResponse(BaseModel):
     exercise_id: UUID
     sessions: list[ExerciseSessionLog]
+
+
+class ExerciseTranslationRead(BaseModel):
+    exercise_id: UUID
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExerciseTranslationsResponse(BaseModel):
+    translations: list[ExerciseTranslationRead]

@@ -1,3 +1,5 @@
+import { errorText, localizedFieldErrors } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/provider/AuthProvider";
@@ -23,6 +25,7 @@ function validate(values: Record<Field, string>): FormErrors {
 }
 
 export function SignInScreen() {
+  const { t } = useTranslation();
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,13 +37,13 @@ export function SignInScreen() {
     onError: (err) => {
       if (err instanceof ApiError) {
         if (err.fieldErrors) {
-          setErrors(err.fieldErrors);
+          setErrors(localizedFieldErrors(err.fieldErrors));
         } else {
-          setGeneralError(err.message || "Invalid credentials.");
+          setGeneralError(errorText(err, "Invalid credentials."));
         }
       } else {
         setGeneralError(
-          "Unable to connect to the server. Check your connection.",
+          t("Unable to connect to the server. Check your connection."),
         );
       }
     },
@@ -62,25 +65,25 @@ export function SignInScreen() {
 
   return (
     <AuthFormLayout
-      title="Sign in"
-      subtitle="Sign in to keep your routines and progress in one place."
+      title={t("Sign in")}
+      subtitle={t("Sign in to keep your routines and progress in one place.")}
       error={generalError}
-      submitLabel={isPending ? "Signing in..." : "Sign in"}
+      submitLabel={isPending ? t("Signing in...") : t("Sign in")}
       isPending={isPending}
       onSubmit={handleSubmit}
-      switchPrompt="New to ZeroBuff?"
-      switchLabel="Create an account"
+      switchPrompt={t("New to ZeroBuff?")}
+      switchLabel={t("Create an account")}
       switchHref="/(auth)/sign-up"
     >
       <TextField
-        label="Email"
+        label={t("Email")}
         value={email}
         onChangeText={(value) => {
           setEmail(value ?? "");
           clearError("email");
         }}
-        error={errors.email}
-        placeholder="you@example.com"
+        error={errors.email ? t(errors.email) : undefined}
+        placeholder={t("you@example.com")}
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
@@ -90,14 +93,14 @@ export function SignInScreen() {
       />
 
       <TextField
-        label="Password"
+        label={t("Password")}
         value={password}
         onChangeText={(value) => {
           setPassword(value ?? "");
           clearError("password");
         }}
-        error={errors.password}
-        placeholder="Your password"
+        error={errors.password ? t(errors.password) : undefined}
+        placeholder={t("Your password")}
         secureTextEntry
         autoComplete="current-password"
         textContentType="password"

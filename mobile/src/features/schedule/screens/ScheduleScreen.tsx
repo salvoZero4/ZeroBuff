@@ -1,3 +1,7 @@
+import { savedScheduleKey } from "@/features/workout/storage/useCachedWorkoutData";
+import { tokenStore } from "@/features/auth/store/tokenStore";
+import { cacheSchedule, confirmScheduleForOffline, refreshWorkoutCache } from "@/features/workout/storage/workoutCache";
+import { useTranslation } from "react-i18next";
 import { routineKeys } from "@/features/routines/api/queryKeys";
 import { scheduleKeys } from "@/features/schedule/api/queryKeys";
 import { router } from "expo-router";
@@ -34,6 +38,7 @@ export const DAYS: readonly { key: DayOfWeek; label: string }[] = [
 ];
 
 export function ScheduleScreen() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedDayKey, setSelectedDayKey] = useState<DayOfWeek | null>(null);
@@ -57,7 +62,7 @@ export function ScheduleScreen() {
     isRefetching: refreshingSchedule,
   } = useQuery({
     queryKey: scheduleKeys.list(),
-    queryFn: getSchedule,
+    queryFn: () => refreshWorkoutCache("schedule", getSchedule, cacheSchedule),
   });
 
   const scheduleByDay = schedule.reduce<
@@ -78,28 +83,38 @@ export function ScheduleScreen() {
       dayKey: DayOfWeek;
       newRoutineId: string | null;
     }) => {
+      const account = tokenStore.getAccountId();
       const existing = scheduleByDay[dayKey];
+      let entry = existing ?? null;
 
       if (newRoutineId === null) {
         if (existing) {
           await deleteSchedule(existing.id);
+          entry = null;
         }
       } else if (existing) {
         if (existing.routine_id !== newRoutineId) {
-          await updateSchedule(existing.id, { routine_id: newRoutineId });
+          entry = await updateSchedule(existing.id, { routine_id: newRoutineId });
         }
       } else {
-        await createSchedule({ day_of_week: dayKey, routine_id: newRoutineId });
+        entry = await createSchedule({ day_of_week: dayKey, routine_id: newRoutineId });
       }
+      await confirmScheduleForOffline(account, dayKey, entry);
+      return entry;
     },
     onMutate: () => setSaveError(null),
-    onSuccess: async () => {
+    onSuccess: async (entry, { dayKey }) => {
+      await queryClient.cancelQueries({ queryKey: scheduleKeys.list() });
+      queryClient.setQueryData<ScheduleRead[]>(scheduleKeys.list(), (old) =>
+        old ? [...old.filter((item) => item.day_of_week !== dayKey), ...(entry ? [entry] : [])] : old,
+      );
+      void queryClient.invalidateQueries({ queryKey: savedScheduleKey() });
       await queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
       setSelectedDayKey(null);
     },
     onError: () => {
       setSaveError(
-        "Could not save this change. Select the routine again to retry.",
+        t("Could not save this change. Select the routine again to retry."),
       );
     },
   });
@@ -114,8 +129,8 @@ export function ScheduleScreen() {
   if (routinesError || scheduleError)
     return (
       <ScreenError
-        title="Schedule couldn’t load"
-        message={loadErrorMessage(routinesError || scheduleError)}
+        title={t("Schedule couldn’t load")}
+        message={t(loadErrorMessage(routinesError || scheduleError))}
         busy={refreshingRoutines || refreshingSchedule}
         onRetry={() => {
           void refetchRoutines();
@@ -136,15 +151,15 @@ export function ScheduleScreen() {
           <IconButton
             variant="bare"
             disabled={isAssigning}
-            label="Go Back"
+            label={t("Go Back")}
             icon="arrow-left"
             iconSize={20}
             onPress={() => router.back()}
           />
           <View className="flex-1">
             <ScreenHeader
-              title="Schedule"
-              subtitle="Plan your week · Changes save automatically"
+              title={t("Schedule")}
+              subtitle={t("Plan your week · Changes save automatically")}
             />
           </View>
         </View>
@@ -160,7 +175,7 @@ export function ScheduleScreen() {
               return (
                 <ScheduleDayRow
                   key={day.key}
-                  dayLabel={day.label}
+                  dayLabel={t(day.label)}
                   assignment={item ? item.routine_name : null}
                   isLast={index === DAYS.length - 1}
                   disabled={routines.length === 0 || isAssigning}
@@ -177,11 +192,12 @@ export function ScheduleScreen() {
         {routines.length === 0 && !isLoading && (
           <View className="gap-md py-lg">
             <Text className="font-body text-caption text-text-secondary">
-              You haven&apos;t created any routines yet. Create a routine first
-              to assign it to your week.
+              {t(
+                "You haven't created any routines yet. Create a routine first to assign it to your week.",
+              )}
             </Text>
             <Button
-              label="Create routine"
+              label={t("Create routine")}
               variant="outline"
               onPress={() =>
                 router.push({
@@ -196,7 +212,7 @@ export function ScheduleScreen() {
 
       <RoutineSelectorModal
         visible={selectedDayKey !== null}
-        dayLabel={selectedDay?.label}
+        dayLabel={selectedDay ? t(selectedDay.label) : undefined}
         isPending={isAssigning}
         error={saveError}
         routines={routines}

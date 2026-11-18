@@ -1,3 +1,6 @@
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { useLanguage } from "@/shared/i18n/LanguageProvider";
+import { useTranslation } from "react-i18next";
 import { useRef, useState } from "react";
 import { FlatList, Modal, Platform, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,12 +18,15 @@ export function ExerciseList({
 }: {
   onSelect: (exercise: ExerciseRead) => void;
 }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
+  const exerciseName = useExerciseNames();
+  const { language } = useLanguage();
+  const params = { name: search.trim(), language, limit: 30 };
   const query = useInfiniteQuery({
-    queryKey: exerciseKeys.infiniteList({ name: search.trim(), limit: 30 }),
+    queryKey: exerciseKeys.infiniteList(params),
     initialPageParam: 0,
-    queryFn: ({ pageParam }) =>
-      getExercises({ name: search.trim(), limit: 30, offset: pageParam }),
+    queryFn: ({ pageParam }) => getExercises({ ...params, offset: pageParam }),
     getNextPageParam: (page, pages) =>
       page.length === 30 ? pages.length * 30 : undefined,
   });
@@ -34,8 +40,8 @@ export function ExerciseList({
       ListHeaderComponent={
         <View className="gap-md pb-lg">
           <TextField
-            label="Find an exercise"
-            placeholder="Search by name"
+            label={t("Find an exercise")}
+            placeholder={t("Search by name")}
             value={search}
             onChangeText={setSearch}
           />
@@ -54,11 +60,11 @@ export function ExerciseList({
         >
           <View className="flex-1 gap-xs">
             <Text className="font-body-semibold text-body text-text-primary">
-              {item.name}
+              {exerciseName(item.id, item.name)}
             </Text>
             <Text className="font-body text-caption text-text-secondary">
-              {item.muscle_group.replaceAll("_", " ")} ·{" "}
-              {item.equipment.replaceAll("_", " ")}
+              {t(`exercise.${item.muscle_group}`)} ·{" "}
+              {t(`exercise.${item.equipment}`)}
             </Text>
           </View>
           <Icon
@@ -70,7 +76,10 @@ export function ExerciseList({
       )}
       ListEmptyComponent={
         !query.isPending && !query.error ? (
-          <Empty title="No exercises found" message="Try a different name." />
+          <Empty
+            title={t("No exercises found")}
+            message={t("Try a different name.")}
+          />
         ) : undefined
       }
       ListFooterComponent={
@@ -78,7 +87,9 @@ export function ExerciseList({
           <View className="pt-lg">
             <Button
               label={
-                query.isFetchingNextPage ? "Loading…" : "Load more exercises"
+                query.isFetchingNextPage
+                  ? t("Loading…")
+                  : t("Load more exercises")
               }
               disabled={query.isFetchingNextPage}
               variant="outline"
@@ -97,6 +108,7 @@ export function ExercisePicker({
   onSelect: (exercise: ExerciseRead) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(true);
   const pendingSelection = useRef<ExerciseRead | null>(null);
 
@@ -130,7 +142,7 @@ export function ExercisePicker({
               accessibilityRole="header"
               className="flex-1 font-body-bold text-title leading-10 text-text-primary"
             >
-              Add exercise
+              {t("Add exercise")}
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -138,7 +150,7 @@ export function ExercisePicker({
               className="min-h-12 justify-center px-md"
             >
               <Text className="font-body-semibold text-body text-text-primary">
-                Cancel
+                {t("Cancel")}
               </Text>
             </Pressable>
           </View>

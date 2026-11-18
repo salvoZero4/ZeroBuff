@@ -1,3 +1,5 @@
+import { errorText, localizedFieldErrors } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/provider/AuthProvider";
@@ -30,6 +32,7 @@ function validate(values: Record<Field, string>): FormErrors {
 }
 
 export function SignUpScreen() {
+  const { t } = useTranslation();
   const { signUp } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -43,13 +46,20 @@ export function SignUpScreen() {
     onError: (err) => {
       if (err instanceof ApiError) {
         if (err.fieldErrors) {
-          setErrors(err.fieldErrors);
+          setErrors(localizedFieldErrors(err.fieldErrors));
         } else {
-          setGeneralError(err.message || "Failed to create account.");
+          setGeneralError(
+            errorText(
+              err,
+              err.status === 409
+                ? "An account already exists with these details."
+                : "Failed to create account.",
+            ),
+          );
         }
       } else {
         setGeneralError(
-          "Unable to connect to the server. Check your connection.",
+          t("Unable to connect to the server. Check your connection."),
         );
       }
     },
@@ -71,25 +81,27 @@ export function SignUpScreen() {
 
   return (
     <AuthFormLayout
-      title="Create account"
-      subtitle="Create a training home for every set, session, and routine."
+      title={t("Create account")}
+      subtitle={t(
+        "Create a training home for every set, session, and routine.",
+      )}
       error={generalError}
-      submitLabel={isPending ? "Creating account..." : "Create account"}
+      submitLabel={isPending ? t("Creating account...") : t("Create account")}
       isPending={isPending}
       onSubmit={handleSubmit}
-      switchPrompt="Already training with us?"
-      switchLabel="Sign in"
+      switchPrompt={t("Already training with us?")}
+      switchLabel={t("Sign in")}
       switchHref="/(auth)/sign-in"
     >
       <TextField
-        label="Username"
+        label={t("Username")}
         value={username}
         onChangeText={(value) => {
           setUsername(value);
           clearError("username");
         }}
-        error={errors.username}
-        placeholder="How should we call you?"
+        error={errors.username ? t(errors.username) : undefined}
+        placeholder={t("How should we call you?")}
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="username"
@@ -98,14 +110,14 @@ export function SignUpScreen() {
       />
 
       <TextField
-        label="Email"
+        label={t("Email")}
         value={email}
         onChangeText={(value) => {
           setEmail(value);
           clearError("email");
         }}
-        error={errors.email}
-        placeholder="you@example.com"
+        error={errors.email ? t(errors.email) : undefined}
+        placeholder={t("you@example.com")}
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
@@ -115,15 +127,15 @@ export function SignUpScreen() {
       />
 
       <TextField
-        label="Password"
+        label={t("Password")}
         helperText={REGISTRATION_PASSWORD_HINT}
         value={password}
         onChangeText={(value) => {
           setPassword(value);
           clearError("password");
         }}
-        error={errors.password}
-        placeholder="Your password"
+        error={errors.password ? t(errors.password) : undefined}
+        placeholder={t("Your password")}
         secureTextEntry
         autoComplete="new-password"
         textContentType="newPassword"

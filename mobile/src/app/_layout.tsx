@@ -25,8 +25,10 @@ import {
 } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/features/auth/provider/AuthProvider";
+import { WorkoutSyncProvider } from "@/features/workout/sync/WorkoutSyncProvider";
 import { BackgroundRestTimerProvider } from "@/features/workout/notifications/BackgroundRestTimerProvider";
 import { queryClient } from "@/shared/api/queryClient";
+import { LanguageProvider, useLanguage } from "@/shared/i18n/LanguageProvider";
 import { APP_BACKGROUND } from "@/theme/tokens";
 
 const navigationTheme = {
@@ -48,19 +50,22 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider style={{ flex: 1, backgroundColor: APP_BACKGROUND }}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <BackgroundRestTimerProvider>
-            <KeyboardProvider
-              statusBarTranslucent
-              navigationBarTranslucent
-              preserveEdgeToEdge
-            >
-              <ThemeProvider value={navigationTheme}>
-                <RootNavigator />
-              </ThemeProvider>
-            </KeyboardProvider>
-          </BackgroundRestTimerProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <WorkoutSyncProvider />
+            <BackgroundRestTimerProvider>
+              <KeyboardProvider
+                statusBarTranslucent
+                navigationBarTranslucent
+                preserveEdgeToEdge
+              >
+                <ThemeProvider value={navigationTheme}>
+                  <RootNavigator />
+                </ThemeProvider>
+              </KeyboardProvider>
+            </BackgroundRestTimerProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
   );
@@ -68,6 +73,7 @@ export default function RootLayout() {
 
 function RootNavigator() {
   const { status } = useAuth();
+  const { ready } = useLanguage();
 
   const [loaded, error] = useFonts({
     WorkSans_400Regular,
@@ -83,19 +89,19 @@ function RootNavigator() {
       console.error("Failed to load app fonts.", error);
     }
 
-    if (loaded || error) {
+    if (ready && (loaded || error) && status !== "loading") {
       SplashScreen.hideAsync();
     }
-
-    if (status !== "loading") SplashScreen.hideAsync();
-  }, [loaded, error, status]);
+  }, [loaded, error, ready, status]);
 
   if (!loaded && !error) return null;
 
-  if (status === "loading") return null;
+  if (!ready || status === "loading") return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: APP_BACKGROUND }}>
+    <GestureHandlerRootView
+      style={{ flex: 1, backgroundColor: APP_BACKGROUND }}
+    >
       <StatusBar style="light" />
       <InterceptingGestureDetector>
         <SafeAreaView

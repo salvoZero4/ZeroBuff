@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Pressable, Text } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 
@@ -16,6 +17,7 @@ export function ExerciseStepPill({
   isCompleted,
   onPress,
 }: ExerciseStepPillProps) {
+  const { t } = useTranslation();
   const containerStyle = isActive
     ? "border-accent/40 bg-surface-raised"
     : isCompleted
@@ -30,7 +32,10 @@ export function ExerciseStepPill({
 
   return (
     <Pressable
-      accessibilityLabel={`Exercise ${index + 1}: ${name}`}
+      accessibilityLabel={t("Exercise {{number}}: {{name}}", {
+        number: index + 1,
+        name: name,
+      })}
       accessibilityRole="button"
       accessibilityState={{ selected: isActive }}
       onPress={onPress}

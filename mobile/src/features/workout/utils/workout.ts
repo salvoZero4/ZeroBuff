@@ -2,7 +2,9 @@ import type {
   ActiveSetLog,
   ActiveWorkoutSession,
 } from "../types/activeWorkout";
-import { getFinishBlocker } from "@/features/workout/utils/experience";
+import { getFinishBlocker, isSetSaved, type WorkoutSummary } from "@/features/workout/utils/experience";
+import { offlineWorkoutStorage } from "../storage/offlineWorkoutStorage";
+import type { CompletedWorkout, QueuedWorkout } from "../storage/offlineWorkoutTypes";
 import { tokenStore } from "@/features/auth/store/tokenStore";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { sessionKeys } from "@/features/workout/api/queryKeys";
@@ -25,6 +27,7 @@ import type {
 } from "@/features/workout/types/session";
 import {
   clearActiveWorkout,
+  waitForLocalWorkoutWrite,
   getActiveWorkout,
   restoreActiveWorkout,
   removeLocalSetFromExercise,
@@ -244,10 +247,11 @@ let initialization: {
 
 export async function initOrResumeWorkout(
   routine: RoutineRead,
+  offline = false,
 ): Promise<ActiveWorkoutSession | null> {
   const scope = tokenStore.getSessionScope();
   if (initialization?.scope === scope) return initialization.promise;
-  const promise = initializeWorkout(routine, scope).finally(() => {
+  const promise = initializeWorkout(routine, scope, offline).finally(() => {
     if (initialization?.promise === promise) initialization = null;
   });
   initialization = { scope, promise };
@@ -257,6 +261,7 @@ export async function initOrResumeWorkout(
 async function initializeWorkout(
   routine: RoutineRead,
   scope: string | null,
+  offline: boolean,
 ): Promise<ActiveWorkoutSession | null> {
   await restoreActiveWorkout();
   if (tokenStore.getSessionScope() !== scope) return null;
@@ -264,14 +269,19 @@ async function initializeWorkout(
   const activeSession = getActiveWorkout();
   if (activeSession) return activeSession;
 
-  const resumed = await resumeOngoingWorkout(routine);
+  const resumed = offline ? null : await resumeOngoingWorkout(routine);
   if (tokenStore.getSessionScope() !== scope) return null;
   if (resumed) return resumed;
   // Another caller or hydration may have installed a session during the request.
   if (getActiveWorkout()) return getActiveWorkout();
 
   const now = Date.now();
+  const account = tokenStore.getAccountId?.();
+  if (offlineWorkoutStorage && !account)
+    throw new Error("Connect to the server to prepare offline workouts.");
+  const localId = offlineWorkoutStorage?.createId();
   setActiveWorkout({
+    ...(localId ? { localId, routineSnapshot: routine, startedAtLocal: localTimestamp(now) } : {}),
     sessionId: null,
     routineId: routine.id,
     routineName: routine.name,
@@ -293,6 +303,16 @@ async function initializeWorkout(
       ]),
     ),
   });
+
+  if (localId) {
+    try {
+      await waitForLocalWorkoutWrite();
+    } catch (error) {
+      if (getActiveWorkout()?.localId === localId) clearActiveWorkout();
+      throw error;
+    }
+    return getActiveWorkout();
+  }
 
   sessionCreationKey = creationKey(getActiveWorkout()!);
   const key = sessionCreationKey;
@@ -331,6 +351,11 @@ async function initializeWorkout(
 
 /** Serialize each row, keep failed drafts, and reconcile uncertain writes before retrying. */
 async function saveSet(exerciseId: string, setIndex: number, deleting = false) {
+  if (getActiveWorkout()?.localId) {
+    await saveLocalSet(exerciseId, setIndex, deleting);
+    return;
+  }
+
   const session = getActiveWorkout();
   const before = session?.workoutLogs[exerciseId]?.[setIndex];
   if (
@@ -430,6 +455,60 @@ async function saveSet(exerciseId: string, setIndex: number, deleting = false) {
   }
 }
 
+async function saveLocalSet(exerciseId: string, index: number, deleting: boolean) {
+  const workout = getActiveWorkout();
+  const set = workout?.workoutLogs[exerciseId]?.[index];
+  if (!workout?.localId || workout.isFinishing || !set || set.saveStatus === "pending") return;
+  try {
+    if (!deleting) parseSetInputValues(set.weight, set.reps, set.rir);
+  } catch (error) {
+    updateLocalSetLog(exerciseId, index, {
+      saveStatus: "error", saveError: workoutErrorMessage(error), retryAction: "save",
+    });
+    return;
+  }
+
+  updateLocalSetLog(exerciseId, index, {
+    completed: !deleting, localSaved: !deleting, saveStatus: "pending", saveError: undefined,
+  });
+  try {
+    await waitForLocalWorkoutWrite();
+    if (getActiveWorkout()?.localId === workout.localId)
+      updateLocalSetLog(exerciseId, index, { saveStatus: deleting ? undefined : "saved", retryAction: undefined });
+  } catch {
+    if (getActiveWorkout()?.localId === workout.localId)
+      updateLocalSetLog(exerciseId, index, {
+        ...set,
+        saveStatus: "error",
+        saveError: "Changes couldn’t be backed up on this device. Keep the app open and try again.",
+        retryAction: deleting ? "delete" : "save",
+      });
+  }
+}
+
+function localTimestamp(timestamp: number) {
+  const offset = -new Date(timestamp).getTimezoneOffset();
+  const hours = String(Math.floor(Math.abs(offset) / 60)).padStart(2, "0");
+  const minutes = String(Math.abs(offset) % 60).padStart(2, "0");
+  return new Date(timestamp + offset * 60_000).toISOString().slice(0, -1)
+    + (offset < 0 ? "-" : "+") + hours + ":" + minutes;
+}
+
+export function completedWorkoutPayload(session: ActiveWorkoutSession, now: number): CompletedWorkout {
+  return {
+    id: session.localId!,
+    routine_id: session.routineId,
+    started_at: session.startedAtLocal!,
+    ended_at: new Date(Math.max(now, session.startedAtTimestamp)).toISOString(),
+    sets: Object.entries(session.workoutLogs).flatMap(([exercise_id, sets]) => sets
+      .filter(isSetSaved)
+      .map((set) => {
+        const { weightNum, repsNum, rirNum } = parseSetInputValues(set.weight, set.reps, set.rir);
+        return { exercise_id, set_number: set.setNumber, weight: weightNum, reps: repsNum, rir: rirNum };
+      })),
+  };
+}
+
 export async function logSetCompleted(
   exerciseId: string,
   setIndex: number,
@@ -507,6 +586,20 @@ export async function removeSetFromExercise(
   )
     return false;
   const key = creationKey(session);
+  if (session.localId) {
+    removeLocalSetFromExercise(exerciseId, setIndex);
+    const removed = getActiveWorkout()?.workoutLogs[exerciseId];
+    try {
+      await waitForLocalWorkoutWrite();
+    } catch {
+      const latest = getActiveWorkout();
+      if (latest?.localId === session.localId && latest.workoutLogs[exerciseId] === removed)
+        setActiveWorkout({ ...latest, workoutLogs: { ...latest.workoutLogs, [exerciseId]: sets } });
+      throw new Error("Your workout couldn’t be saved. Please try again.");
+    }
+    return true;
+  }
+
   if (set.backendId || set.needsReconcile) {
     updateLocalSetLog(exerciseId, setIndex, {
       saveStatus: "pending",
@@ -552,12 +645,40 @@ export async function removeSetFromExercise(
 
 export async function finishWorkoutSession(
   onConfirmed?: (sessionId: string) => void,
+  summary?: WorkoutSummary,
 ): Promise<boolean> {
   const session = getActiveWorkout();
   if (!session || session.isFinishing) return false;
   const blocker = getFinishBlocker(Object.values(session.workoutLogs).flat());
   if (blocker) throw new Error(blocker);
   setWorkoutFinishing(true);
+  if (session.localId && session.routineSnapshot && offlineWorkoutStorage) {
+    const scope = tokenStore.getSessionScope();
+    try {
+      const account = tokenStore.getAccountId();
+      if (!account || !summary) throw new Error("Your workout couldn’t be saved. Please try again.");
+      // Keep all previously submitted draft writes ahead of the state transition.
+      await waitForLocalWorkoutWrite();
+      const queued: QueuedWorkout = {
+        payload: completedWorkoutPayload(session, Date.now()),
+        summary,
+        routine: session.routineSnapshot,
+        error: null,
+      };
+      await offlineWorkoutStorage.finish(account, queued);
+      if (tokenStore.getSessionScope() !== scope) return false;
+      clearActiveWorkout();
+      queryClient.setQueryData<QueuedWorkout[]>(sessionKeys.queue(account), (previous) => [
+        ...(previous ?? []).filter((item) => item.payload.id !== queued.payload.id),
+        queued,
+      ]);
+      void queryClient.invalidateQueries({ queryKey: sessionKeys.queue(account) });
+      onConfirmed?.(session.localId);
+      return true;
+    } finally {
+      if (getActiveWorkout()?.localId === session.localId) setWorkoutFinishing(false);
+    }
+  }
   const key = creationKey(session);
   let sessionId = session.sessionId;
   try {

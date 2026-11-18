@@ -3,6 +3,8 @@ import type { GetExercisesParams } from "../types/exercise";
 // The current page offset belongs to pageParam, not the infinite query identity.
 export const exerciseKeys = {
   all: ["exercises"] as const,
+  translations: (language: string) =>
+    ["exercises", "translations", language] as const,
   infiniteLists: () => [...exerciseKeys.all, "infinite"] as const,
   infiniteList: (params: Omit<GetExercisesParams, "offset"> = {}) =>
     [...exerciseKeys.infiniteLists(), params] as const,

@@ -5,7 +5,8 @@ type API = typeof Notifications;
 export type RestNotificationData = Record<string, unknown>;
 export const REST_COMPLETE_CHANNEL = "zerobuff.rest.complete";
 export const REST_RUNNING_CHANNEL = "zerobuff.rest.ongoing";
-const REST_NOTIFICATION_PROMPT_KEY = "zerobuff.rest.notificationPromptRequested";
+const REST_NOTIFICATION_PROMPT_KEY =
+  "zerobuff.rest.notificationPromptRequested";
 
 type PromptStorage = {
   getItem(key: string): Promise<string | null>;
@@ -47,17 +48,17 @@ export function hasNotificationPermission(
 }
 
 export function createExpoRestNotifications(api: API, platform: string) {
-  const prepare = async () => {
+  const prepare = async (language = "en") => {
     if (platform !== "android") return;
     // Android channels must exist before requesting POST_NOTIFICATIONS.
     await api.setNotificationChannelAsync(REST_RUNNING_CHANNEL, {
-      name: "Rest countdown",
+      name: language === "it" ? "Conto alla rovescia" : "Rest countdown",
       importance: api.AndroidImportance.LOW,
       sound: null,
       enableVibrate: false,
     });
     await api.setNotificationChannelAsync(REST_COMPLETE_CHANNEL, {
-      name: "Rest complete",
+      name: language === "it" ? "Recupero completato" : "Rest complete",
       importance: api.AndroidImportance.DEFAULT,
       sound: "default",
     });
@@ -68,26 +69,32 @@ export function createExpoRestNotifications(api: API, platform: string) {
     canPresent: () => boolean,
     storage: PromptStorage,
     isAndroidPermissionUndetermined?: () => Promise<boolean>,
+    language = "en",
   ) => {
     if (requested || requesting || !canPresent()) return;
     requesting = true;
     try {
       if (await storage.getItem(REST_NOTIFICATION_PROMPT_KEY)) return;
       const permissions = await api.getPermissionsAsync();
-      if (hasNotificationPermission(permissions) || !permissions.canAskAgain) return;
+      if (hasNotificationPermission(permissions) || !permissions.canAskAgain)
+        return;
       const undetermined =
         platform === "android"
           ? await isAndroidPermissionUndetermined?.()
-          : permissions.ios?.status === api.IosAuthorizationStatus.NOT_DETERMINED;
+          : permissions.ios?.status ===
+            api.IosAuthorizationStatus.NOT_DETERMINED;
       if (!undetermined || !canPresent()) return;
-      await prepare();
+      await prepare(language);
       if (!canPresent()) return;
 
       requested = true;
       const request = api.requestPermissionsAsync({
         ios: { allowAlert: true, allowSound: true, allowBadge: false },
       });
-      await Promise.all([request, storage.setItem(REST_NOTIFICATION_PROMPT_KEY, "1")]);
+      await Promise.all([
+        request,
+        storage.setItem(REST_NOTIFICATION_PROMPT_KEY, "1"),
+      ]);
     } finally {
       requesting = false;
     }

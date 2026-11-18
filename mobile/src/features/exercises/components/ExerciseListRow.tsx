@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 export function ExerciseListRow({
@@ -13,10 +14,15 @@ export function ExerciseListRow({
   isLast: boolean;
   action?: "open" | "add";
 }) {
+  const { t } = useTranslation();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${action === "add" ? "Add" : "Open progress for"} ${name}`}
+      accessibilityLabel={
+        action === "add"
+          ? t("Add {{name}}", { name })
+          : t("Open progress for {{name}}", { name })
+      }
       onPress={onPress}
       className={`min-h-14 flex-row items-center gap-md py-lg active:bg-surface ${isLast ? "" : "border-b border-border"}`}
     >

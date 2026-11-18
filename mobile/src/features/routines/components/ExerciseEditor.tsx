@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { type RoutineExerciseDraft } from "@/features/routines/utils/routineDraft";
 import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { TargetInput } from "@/features/routines/components/TargetInput";
@@ -7,6 +8,7 @@ import { IconButton } from "@/components/ui/IconButton";
 
 type ExerciseEditorProps = {
   exercise: RoutineExerciseDraft;
+  displayName: string;
   onChange: (changes: Partial<RoutineExerciseDraft>) => void;
   onRemove: () => void;
   onEditRest: () => void;
@@ -20,6 +22,7 @@ type ExerciseEditorProps = {
 
 export function ExerciseEditor({
   exercise,
+  displayName,
   onChange,
   onRemove,
   onEditRest,
@@ -30,6 +33,7 @@ export function ExerciseEditor({
   disabled = false,
   isLast,
 }: ExerciseEditorProps) {
+  const { t } = useTranslation();
   const { fontScale } = useWindowDimensions();
   // Both native inputs and the rest selector share an explicit, text-scaled height.
   const fieldHeight = Math.max(48, Math.ceil(32 * fontScale));
@@ -65,7 +69,7 @@ export function ExerciseEditor({
             </View>
           </View>
           <Text className="flex-1 font-body-semibold text-body text-text-primary">
-            {exercise.name}
+            {displayName}
           </Text>
         </Pressable>
         {showReorderButtons && (
@@ -74,25 +78,33 @@ export function ExerciseEditor({
               variant="bare"
               icon="chevron-up"
               iconSize={16}
-              label={`Move up: ${exercise.name}`}
+              label={t("Move up: {{name}}", { name: displayName })}
               disabled={reorderDisabled || !onMoveUp}
-              iconClassName={reorderDisabled || !onMoveUp ? "text-text-disabled" : "text-text-primary"}
+              iconClassName={
+                reorderDisabled || !onMoveUp
+                  ? "text-text-disabled"
+                  : "text-text-primary"
+              }
               onPress={() => onMoveUp?.()}
             />
             <IconButton
               variant="bare"
               icon="chevron-down"
               iconSize={16}
-              label={`Move down: ${exercise.name}`}
+              label={t("Move down: {{name}}", { name: displayName })}
               disabled={reorderDisabled || !onMoveDown}
-              iconClassName={reorderDisabled || !onMoveDown ? "text-text-disabled" : "text-text-primary"}
+              iconClassName={
+                reorderDisabled || !onMoveDown
+                  ? "text-text-disabled"
+                  : "text-text-primary"
+              }
               onPress={() => onMoveDown?.()}
             />
           </View>
         )}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${exercise.name}`}
+          accessibilityLabel={t("Remove {{name}}", { name: displayName })}
           disabled={disabled || isActive}
           accessibilityState={{ disabled: disabled || isActive }}
           onPress={onRemove}
@@ -105,26 +117,32 @@ export function ExerciseEditor({
         <TargetInput
           height={fieldHeight}
           disabled={disabled || isActive}
-          label="Sets"
-          accessibilityLabel={`${exercise.name} sets`}
+          label={t("Sets")}
+          accessibilityLabel={t("{{name}} sets", { name: displayName })}
           value={exercise.sets}
           onChangeText={(sets) => onChange({ sets })}
         />
         <TargetInput
           height={fieldHeight}
           disabled={disabled || isActive}
-          label="Reps"
-          accessibilityLabel={`${exercise.name} reps`}
+          label={t("Reps")}
+          accessibilityLabel={t("{{name}} reps", { name: displayName })}
           value={exercise.reps}
           onChangeText={(reps) => onChange({ reps })}
         />
         <View className="flex-1 gap-xs">
           <Text className="font-body text-caption text-text-secondary">
-            Rest
+            {t("Rest")}
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${exercise.name} rest: ${formatRestDuration(Number(exercise.restSeconds))}, minutes and seconds`}
+            accessibilityLabel={t(
+              "{{name}} rest: {{duration}}, minutes and seconds",
+              {
+                name: displayName,
+                duration: formatRestDuration(Number(exercise.restSeconds)),
+              },
+            )}
             disabled={disabled || isActive}
             onPress={onEditRest}
             style={{ height: fieldHeight }}
