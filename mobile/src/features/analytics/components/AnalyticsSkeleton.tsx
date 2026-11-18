@@ -1,15 +1,17 @@
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { ScreenSkeleton } from "@/components/ui/ScreenState";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 export function AnalyticsSkeleton() {
+  const { t } = useTranslation();
   return (
-    <ScreenSkeleton label="Loading workout history…">
+    <ScreenSkeleton label={t("Loading workout history…")}>
       <View className="pb-sm">
         <ScreenHeader
-          title="Analytics"
-          subtitle="Review your workout history"
+          title={t("Analytics")}
+          subtitle={t("Review your workout history")}
         />
       </View>
       {[0, 1, 2, 3, 4].map((i) => (

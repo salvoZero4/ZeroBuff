@@ -1,3 +1,5 @@
+import { errorText, localizedFieldErrors } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Modal, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -27,6 +29,7 @@ export function SetEditor({
   sets: SetLogRead[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [weight, setWeight] = useState(
     target.set ? String(target.set.weight) : "",
   );
@@ -55,14 +58,17 @@ export function SetEditor({
     onError: (err: Error) => {
       setError(
         err instanceof NetworkError
-          ? "Save could not be confirmed. Close and check the session before trying again."
-          : err.message,
+          ? t(
+              "Save could not be confirmed. Close and check the session before trying again.",
+            )
+          : errorText(err, "Could not save your changes. Please try again."),
       );
       setNeedsReview(
         err instanceof NetworkError ||
           (err instanceof ApiError && err.status === 404),
       );
-      if (err instanceof ApiError) setFieldErrors(err.fieldErrors ?? {});
+      if (err instanceof ApiError)
+        setFieldErrors(localizedFieldErrors(err.fieldErrors ?? {}));
     },
     onSettled: () => {
       void refresh();
@@ -83,11 +89,15 @@ export function SetEditor({
         className="bg-black/75"
       >
         <View
-          className="gap-lg rounded-t-lg border border-border bg-surface p-xl"
-          style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+          accessibilityViewIsModal
+          className="gap-lg rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
-          <Text className="font-body-bold text-xl text-text-primary">
-            {target.set ? "Edit set" : "Add set"}
+          <Text
+            accessibilityRole="header"
+            className="font-body-bold text-xl text-text-primary"
+          >
+            {target.set ? t("Edit set") : t("Add set")}
           </Text>
           <Text className="font-body text-body text-text-secondary">
             {target.name}
@@ -95,7 +105,7 @@ export function SetEditor({
           <View className="flex-row gap-md">
             <View className="flex-1">
               <TextField
-                label="Set number"
+                label={t("Set number")}
                 error={fieldErrors.set_number}
                 value={number}
                 onChangeText={setNumber}
@@ -105,7 +115,7 @@ export function SetEditor({
             </View>
             <View className="flex-1">
               <TextField
-                label={`Load (${WEIGHT_UNIT})`}
+                label={t("Load ({{unit}})", { unit: WEIGHT_UNIT })}
                 error={fieldErrors.weight}
                 value={weight}
                 onChangeText={setWeight}
@@ -117,7 +127,7 @@ export function SetEditor({
           <View className="flex-row gap-md">
             <View className="flex-1">
               <TextField
-                label="Reps"
+                label={t("Reps")}
                 error={fieldErrors.reps}
                 value={reps}
                 onChangeText={setReps}
@@ -127,7 +137,7 @@ export function SetEditor({
             </View>
             <View className="flex-1">
               <TextField
-                label="RIR (optional)"
+                label={t("RIR (optional)")}
                 error={fieldErrors.rir}
                 value={rir}
                 onChangeText={setRir}
@@ -137,7 +147,7 @@ export function SetEditor({
             </View>
           </View>
           <Text className="font-body text-caption text-text-secondary">
-            Use 0 load for bodyweight. Leave RIR empty if unknown.
+            {t("Use 0 load for bodyweight. Leave RIR empty if unknown.")}
           </Text>
           {error && (
             <Text
@@ -148,7 +158,7 @@ export function SetEditor({
             </Text>
           )}
           <Button
-            label={save.isPending ? "Saving…" : "Save set"}
+            label={save.isPending ? t("Saving…") : t("Save set")}
             disabled={save.isPending || needsReview}
             onPress={() => {
               setError(null);
@@ -156,8 +166,8 @@ export function SetEditor({
             }}
           />
           <Button
-            label={needsReview ? "Close and review session" : "Cancel"}
-            variant="outline"
+            label={needsReview ? t("Close and review session") : t("Cancel")}
+            variant="ghost"
             disabled={save.isPending}
             onPress={onClose}
           />

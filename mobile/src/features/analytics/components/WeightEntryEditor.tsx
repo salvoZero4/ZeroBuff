@@ -1,3 +1,5 @@
+import { errorText } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Modal, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -16,7 +18,8 @@ import type { WeightLogRead } from "@/features/weight/types/weight";
 import { WEIGHT_UNIT } from "@/features/workout/utils/experience";
 import { toLocalDateString } from "@/shared/utils/dates";
 import { ApiError } from "@/shared/api/errors";
-import { dateLabel, parseWeight } from "../utils/progress";
+import { dateLabel } from "@/shared/i18n/i18n";
+import { parseWeight } from "../utils/progress";
 export function WeightEntryEditor({
   existing,
   onClose,
@@ -24,6 +27,7 @@ export function WeightEntryEditor({
   existing: WeightLogRead | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [log, setLog] = useState(existing);
   const [value, setValue] = useState(existing ? String(existing.weight) : "");
   const [date, setDate] = useState(existing?.date ?? toLocalDateString());
@@ -42,7 +46,9 @@ export function WeightEntryEditor({
       onClose();
     },
     onError: (err: Error) => {
-      setError(err.message);
+      setError(
+        errorText(err, "Could not save your changes. Please try again."),
+      );
       if (err instanceof ApiError && err.status === 409) setConflict(true);
     },
     onSettled: () => {
@@ -59,10 +65,13 @@ export function WeightEntryEditor({
         setError(null);
       } else {
         setConflict(false);
-        setError("The entry no longer exists. Try saving again.");
+        setError(t("The entry no longer exists. Try saving again."));
       }
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) =>
+      setError(
+        errorText(err, "Could not save your changes. Please try again."),
+      ),
   });
   const busy = mutation.isPending || loadConflict.isPending;
   return (
@@ -80,11 +89,15 @@ export function WeightEntryEditor({
         className="bg-black/75"
       >
         <View
-          className="gap-lg rounded-t-lg border border-border bg-surface p-xl"
-          style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+          accessibilityViewIsModal
+          className="gap-lg rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
-          <Text className="font-body-bold text-xl text-text-primary">
-            {log ? "Edit body weight" : "Log body weight"}
+          <Text
+            accessibilityRole="header"
+            className="font-body-bold text-xl text-text-primary"
+          >
+            {log ? t("Edit body weight") : t("Log body weight")}
           </Text>
           {log ? (
             <Text className="font-body text-body text-text-secondary">
@@ -103,7 +116,7 @@ export function WeightEntryEditor({
             />
           )}
           <TextField
-            label={`Body weight (${WEIGHT_UNIT})`}
+            label={t("Body weight ({{unit}})", { unit: WEIGHT_UNIT })}
             value={value}
             onChangeText={setValue}
             keyboardType="decimal-pad"
@@ -119,13 +132,15 @@ export function WeightEntryEditor({
           )}
           {conflict ? (
             <Button
-              label={busy ? "Loading…" : "Edit existing entry for this date"}
+              label={
+                busy ? t("Loading…") : t("Edit existing entry for this date")
+              }
               disabled={busy}
               onPress={() => loadConflict.mutate()}
             />
           ) : (
             <Button
-              label={busy ? "Saving…" : "Save weight"}
+              label={busy ? t("Saving…") : t("Save weight")}
               disabled={busy}
               onPress={() => {
                 setError(null);
@@ -134,8 +149,8 @@ export function WeightEntryEditor({
             />
           )}
           <Button
-            label="Cancel"
-            variant="outline"
+            label={t("Cancel")}
+            variant="ghost"
             disabled={busy}
             onPress={onClose}
           />

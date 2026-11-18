@@ -1,6 +1,7 @@
 # Workout notifications
 
-- `BackgroundRestTimerProvider.tsx`: session/auth lifecycle, Expo permissions, blocked-channel feedback, foreground reconciliation and completion-notification navigation.
+- The Today route triggers the first native notification permission request while it is focused and the app is active. The Expo adapter remembers the request per installation. Android uses the rest timer module to read the underlying permission and requires a rebuilt native app for this prompt.
+- `BackgroundRestTimerProvider.tsx`: session/auth lifecycle, permission status and blocked-channel feedback, foreground reconciliation and completion-notification navigation.
 - `restTimerSync.ts`: identity/version checks and serialized synchronization. Explicit retries republish active timers, including when metadata was saved before notification delivery failed. Completed alerts are preserved.
 - `nativeRestTimer.ts`: optional native bridge; Expo Go/web degrade safely.
 - `expoRestNotifications.ts`: Expo channels, permission interpretation and deduplicated cold/live response subscriptions. Taps are matched to the current timer and deadline.

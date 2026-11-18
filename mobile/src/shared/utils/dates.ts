@@ -6,7 +6,7 @@ export function toLocalDateString(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-export function getWeekDays(date: Date = new Date()) {
+export function getWeekDays(date: Date = new Date(), locale = "en-US") {
   const mondayOffset = (date.getDay() + 6) % 7;
   const monday = new Date(date);
   monday.setDate(date.getDate() - mondayOffset);
@@ -17,7 +17,7 @@ export function getWeekDays(date: Date = new Date()) {
 
     return {
       date: toLocalDateString(day),
-      label: new Intl.DateTimeFormat("en-US", {
+      label: new Intl.DateTimeFormat(locale, {
         weekday: "narrow",
       }).format(day),
       number: day.getDate(),

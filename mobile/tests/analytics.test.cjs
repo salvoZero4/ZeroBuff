@@ -49,9 +49,18 @@ test("two sessions on the same date follow their start time, not UUID order", ()
   assert.deepEqual(points.map(p => p.id), ["z", "a"]);
   assert.deepEqual(progress.chartGeometry(points, 200, 100).points.map(p => p.x), [0, 200]);
 });
-test("moving average uses calendar days, not last seven entries or zero-filled gaps", () => {
-  const points = [{ id: "1", date: "2026-10-01", value: 100 }, { id: "2", date: "2026-10-08", value: 80 }, { id: "3", date: "2026-10-10", value: 82 }];
-  assert.deepEqual(progress.rollingWeight(points).map(p => p.value), [100, 80, 81]);
+test("weekly averages use Monday through Sunday across year boundaries and skip empty weeks", () => {
+  const points = [
+    { id: "1", date: "2026-01-05", value: 79 },
+    { id: "2", date: "2026-01-04", value: 82 },
+    { id: "3", date: "2025-12-31", value: 80 },
+    { id: "4", date: "2026-01-19", value: 78 },
+  ];
+  assert.deepEqual(progress.weeklyWeightAverages(points), [
+    { id: "2025-12-29", date: "2025-12-29", endDate: "2026-01-04", value: 81, count: 2 },
+    { id: "2026-01-05", date: "2026-01-05", endDate: "2026-01-11", value: 79, count: 1 },
+    { id: "2026-01-19", date: "2026-01-19", endDate: "2026-01-25", value: 78, count: 1 },
+  ]);
 });
 test("single and constant measurements produce finite chart coordinates", () => {
   for (const points of [[{ id: "1", date: "2026-11-01", value: 80 }], [{ id: "1", date: "2026-11-01", value: 0 }, { id: "2", date: "2026-11-02", value: 0 }]]) {

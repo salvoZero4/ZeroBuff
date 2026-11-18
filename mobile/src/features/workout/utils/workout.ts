@@ -2,6 +2,7 @@ import type {
   ActiveSetLog,
   ActiveWorkoutSession,
 } from "../types/activeWorkout";
+import { getFinishBlocker } from "@/features/workout/utils/experience";
 import { tokenStore } from "@/features/auth/store/tokenStore";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { sessionKeys } from "@/features/workout/api/queryKeys";
@@ -554,21 +555,8 @@ export async function finishWorkoutSession(
 ): Promise<boolean> {
   const session = getActiveWorkout();
   if (!session || session.isFinishing) return false;
-  const sets = Object.values(session.workoutLogs).flat();
-  if (sets.some((set) => set.saveStatus === "pending"))
-    throw new Error("Wait for your sets to finish saving.");
-  if (
-    sets.some(
-      (set) =>
-        set.saveStatus === "error" ||
-        set.saveStatus === "dirty" ||
-        set.needsReconcile,
-    )
-  ) {
-    throw new Error(
-      "Save or retry the highlighted sets before finishing your workout.",
-    );
-  }
+  const blocker = getFinishBlocker(Object.values(session.workoutLogs).flat());
+  if (blocker) throw new Error(blocker);
   setWorkoutFinishing(true);
   const key = creationKey(session);
   let sessionId = session.sessionId;

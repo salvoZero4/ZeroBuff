@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { routineKeys } from "@/features/routines/api/queryKeys";
 import { scheduleKeys } from "@/features/schedule/api/queryKeys";
 import { router } from "expo-router";
@@ -27,6 +28,7 @@ function openRoutine(routineId: string) {
 }
 
 export function RoutinesScreen() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedRoutine, setSelectedRoutine] =
     useState<RoutineListRead | null>(null);
@@ -54,7 +56,7 @@ export function RoutinesScreen() {
       setDeleteError(null);
     },
     onError: () =>
-      setDeleteError("Could not delete this routine. Please try again."),
+      setDeleteError(t("Could not delete this routine. Please try again.")),
   });
 
   if (isLoading) {
@@ -69,12 +71,16 @@ export function RoutinesScreen() {
     return (
       <View className="flex-1 items-center justify-center gap-md bg-bg p-xl">
         <Text className="font-body-bold text-xl text-text-primary">
-          Unable to load routines
+          {t("Unable to load routines")}
         </Text>
         <Text className="text-center font-body text-caption text-text-secondary">
-          Could not retrieve your routines from the server.
+          {t("Could not retrieve your routines from the server.")}
         </Text>
-        <Button label="Try again" variant="primary" onPress={() => refetch()} />
+        <Button
+          label={t("Try again")}
+          variant="primary"
+          onPress={() => refetch()}
+        />
       </View>
     );
   }
@@ -97,19 +103,22 @@ export function RoutinesScreen() {
       >
         <View className="flex-row items-center justify-between gap-md">
           <View className="flex-1">
-            <ScreenHeader title="Your routines" subtitle="Plan your workouts" />
+            <ScreenHeader
+              title={t("Your routines")}
+              subtitle={t("Plan your workouts")}
+            />
           </View>
           <IconButton
             variant="accent"
             icon="plus"
             iconSize={24}
-            label="Create a new routine"
+            label={t("Create a new routine")}
             onPress={() => openRoutine("new")}
           />
         </View>
 
         <Text className="font-body text-caption text-text-secondary">
-          {routines.length} {routines.length === 1 ? "routine" : "routines"}
+          {t("routineCount", { count: routines.length })}
         </Text>
 
         {/* Lista Routine */}
@@ -120,7 +129,7 @@ export function RoutinesScreen() {
                 key={routine.id}
                 name={routine.name}
                 muscleGroups={routine.muscle_groups.map((m) =>
-                  m.replace(/_/g, " "),
+                  t(`exercise.${m}`),
                 )}
                 exerciseCount={routine.exercises_count}
                 onPress={() => openRoutine(routine.id)}
@@ -137,14 +146,14 @@ export function RoutinesScreen() {
           <View className="gap-lg py-xl">
             <View className="gap-xs">
               <Text className="font-body-bold text-xl text-text-primary">
-                No routines yet
+                {t("No routines yet")}
               </Text>
               <Text className="font-body text-body leading-6 text-text-secondary">
-                Create a routine to keep your next workout ready.
+                {t("Create a routine to keep your next workout ready.")}
               </Text>
             </View>
             <Button
-              label="Create routine"
+              label={t("Create routine")}
               icon="plus"
               onPress={() => openRoutine("new")}
             />
@@ -154,12 +163,12 @@ export function RoutinesScreen() {
 
       <ActionSheet
         visible={selectedRoutine !== null}
-        title="Routine actions"
+        title={t("Routine actions")}
         subtitle={selectedRoutine?.name ?? ""}
         onClose={() => setSelectedRoutine(null)}
         actions={[
           {
-            label: "Edit routine",
+            label: t("Edit routine"),
             icon: "pen-to-square",
             onPress: () => {
               if (selectedRoutine) openRoutine(selectedRoutine.id);
@@ -167,7 +176,7 @@ export function RoutinesScreen() {
             },
           },
           {
-            label: "Delete routine",
+            label: t("Delete routine"),
             icon: "trash",
             destructive: true,
             onPress: () => {
@@ -180,14 +189,17 @@ export function RoutinesScreen() {
       />
       <ConfirmModal
         visible={routineToDelete !== null}
-        title="Delete routine"
+        title={t("Delete routine")}
         isPending={isDeleting}
         description={
           deleteError ??
-          `Are you sure you want to delete "${routineToDelete?.name}"? This action cannot be undone.`
+          t(
+            'Are you sure you want to delete "{{name}}"? This action cannot be undone.',
+            { name: routineToDelete?.name },
+          )
         }
-        confirmLabel={isDeleting ? "Deleting..." : "Delete"}
-        cancelLabel="Cancel"
+        confirmLabel={isDeleting ? t("Deleting...") : t("Delete")}
+        cancelLabel={t("Cancel")}
         isDestructive
         onConfirm={() => {
           if (routineToDelete && !isDeleting) {

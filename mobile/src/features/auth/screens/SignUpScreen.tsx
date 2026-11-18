@@ -1,17 +1,18 @@
-import { Link } from "expo-router";
+import { errorText, localizedFieldErrors } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/provider/AuthProvider";
 import { ApiError } from "@/shared/api/errors";
-import { Button } from "@/components/ui/Button";
+import { AuthFormLayout } from "@/features/auth/components/AuthFormLayout";
 import { TextField } from "@/components/ui/TextField";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import {
+  getRegistrationPasswordError,
+  REGISTRATION_PASSWORD_HINT,
+} from "@/features/auth/utils/registrationPassword";
 
 type Field = "username" | "email" | "password";
 type FormErrors = Partial<Record<Field, string>>;
-
-const MIN_PASSWORD_LENGTH = 8;
 
 function validate(values: Record<Field, string>): FormErrors {
   const username = (values.username ?? "").trim();
@@ -25,13 +26,13 @@ function validate(values: Record<Field, string>): FormErrors {
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     errors.email = "Enter a valid email address.";
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
-  }
+  const passwordError = getRegistrationPasswordError(password);
+  if (passwordError) errors.password = passwordError;
   return errors;
 }
 
 export function SignUpScreen() {
+  const { t } = useTranslation();
   const { signUp } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -45,13 +46,20 @@ export function SignUpScreen() {
     onError: (err) => {
       if (err instanceof ApiError) {
         if (err.fieldErrors) {
-          setErrors(err.fieldErrors);
+          setErrors(localizedFieldErrors(err.fieldErrors));
         } else {
-          setGeneralError(err.message || "Failed to create account.");
+          setGeneralError(
+            errorText(
+              err,
+              err.status === 409
+                ? "An account already exists with these details."
+                : "Failed to create account.",
+            ),
+          );
         }
       } else {
         setGeneralError(
-          "Unable to connect to the server. Check your connection.",
+          t("Unable to connect to the server. Check your connection."),
         );
       }
     },
@@ -72,112 +80,67 @@ export function SignUpScreen() {
   }
 
   return (
-    <KeyboardAwareScrollView
-      style={{ flex: 1, backgroundColor: "#0B0B0B" }}
-      contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: "space-between",
-        padding: 16,
-      }}
-      keyboardShouldPersistTaps="handled"
-      mode="layout"
-      bottomOffset={20}
-      extraKeyboardSpace={12}
+    <AuthFormLayout
+      title={t("Create account")}
+      subtitle={t(
+        "Create a training home for every set, session, and routine.",
+      )}
+      error={generalError}
+      submitLabel={isPending ? t("Creating account...") : t("Create account")}
+      isPending={isPending}
+      onSubmit={handleSubmit}
+      switchPrompt={t("Already training with us?")}
+      switchLabel={t("Sign in")}
+      switchHref="/(auth)/sign-in"
     >
-      <View className="gap-xl">
-          <View className="gap-sm">
-            <Text className="font-body-semibold text-caption uppercase tracking-[1.6px] text-accent">
-              Get started
-            </Text>
-            <Text className="font-body-bold text-title text-text-primary">
-              Build your baseline.
-            </Text>
-            <Text className="font-body text-body leading-6 text-text-secondary">
-              Create a training home for every set, session, and routine.
-            </Text>
-          </View>
+      <TextField
+        label={t("Username")}
+        value={username}
+        onChangeText={(value) => {
+          setUsername(value);
+          clearError("username");
+        }}
+        error={errors.username ? t(errors.username) : undefined}
+        placeholder={t("How should we call you?")}
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="username"
+        textContentType="username"
+        editable={!isPending}
+      />
 
-          <View className="gap-lg">
-            <TextField
-              label="Username"
-              value={username}
-              onChangeText={(value) => {
-                setUsername(value);
-                clearError("username");
-              }}
-              error={errors.username}
-              placeholder="How should we call you?"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="username"
-              textContentType="username"
-              editable={!isPending}
-            />
+      <TextField
+        label={t("Email")}
+        value={email}
+        onChangeText={(value) => {
+          setEmail(value);
+          clearError("email");
+        }}
+        error={errors.email ? t(errors.email) : undefined}
+        placeholder={t("you@example.com")}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="email"
+        textContentType="emailAddress"
+        editable={!isPending}
+      />
 
-            <TextField
-              label="Email"
-              value={email}
-              onChangeText={(value) => {
-                setEmail(value);
-                clearError("email");
-              }}
-              error={errors.email}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="emailAddress"
-              editable={!isPending}
-            />
-
-            <TextField
-              label="Password"
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                clearError("password");
-              }}
-              error={errors.password}
-              placeholder="Your password"
-              secureTextEntry
-              autoComplete="new-password"
-              textContentType="newPassword"
-              editable={!isPending}
-            />
-
-            {generalError ? (
-              <View className="rounded-sm border border-danger/40 bg-danger/10 p-md">
-                <Text className="font-body text-caption text-danger">
-                  {generalError}
-                </Text>
-              </View>
-            ) : null}
-
-            <Button
-              label={isPending ? "Creating account..." : "Create account"}
-              onPress={handleSubmit}
-              disabled={isPending}
-            />
-          </View>
-      </View>
-
-      <View className="flex-row items-center justify-center gap-xs pb-md">
-        <Text className="font-body text-caption text-text-secondary">
-          Already training with us?
-        </Text>
-        <Link href="/(auth)/sign-in" replace asChild>
-          <Pressable
-            accessibilityRole="link"
-            className="min-h-12 justify-center px-sm"
-            disabled={isPending}
-          >
-            <Text className="font-body-semibold text-caption text-accent">
-              Sign in
-            </Text>
-          </Pressable>
-        </Link>
-      </View>
-    </KeyboardAwareScrollView>
+      <TextField
+        label={t("Password")}
+        helperText={REGISTRATION_PASSWORD_HINT}
+        value={password}
+        onChangeText={(value) => {
+          setPassword(value);
+          clearError("password");
+        }}
+        error={errors.password ? t(errors.password) : undefined}
+        placeholder={t("Your password")}
+        secureTextEntry
+        autoComplete="new-password"
+        textContentType="newPassword"
+        editable={!isPending}
+      />
+    </AuthFormLayout>
   );
 }

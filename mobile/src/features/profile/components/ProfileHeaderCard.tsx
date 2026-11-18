@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 import { IconButton } from "@/components/ui/IconButton";
 
@@ -12,20 +13,21 @@ export function ProfileHeaderCard({
   email,
   onPress,
 }: ProfileHeaderCardProps) {
+  const { t } = useTranslation();
   return (
     <View className="min-h-14 flex-row items-center gap-md py-lg">
       <View className="flex-1 gap-xs">
         <Text className="font-body-bold text-xl text-text-primary">
-          {username || "ZeroBuff Athlete"}
+          {username || t("ZeroBuff Athlete")}
         </Text>
         <Text className="font-body text-caption text-text-secondary">
-          {email || "Tap to edit your username"}
+          {email || t("Tap to edit your username")}
         </Text>
       </View>
 
       <IconButton
         icon="pen-to-square"
-        label="Edit username"
+        label={t("Edit username")}
         variant="bare"
         onPress={onPress}
       />

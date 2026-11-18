@@ -12,6 +12,7 @@ export interface NativeRestTimerModule {
     version: number,
   ): Promise<string | null>;
   canScheduleExactAlarms?(): Promise<boolean>;
+  isNotificationPermissionUndetermined?(): Promise<boolean>;
   openAlarmSettings?(): Promise<void>;
   addListener(
     name: "onRestTimerChanged",

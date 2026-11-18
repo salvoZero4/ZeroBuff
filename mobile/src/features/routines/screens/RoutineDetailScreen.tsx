@@ -1,3 +1,6 @@
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { errorText } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { routineKeys } from "@/features/routines/api/queryKeys";
 import { router, usePreventRemove } from "expo-router";
 import { useRef, useState } from "react";
@@ -39,7 +42,14 @@ import { Section } from "@/components/ui/Section";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 
-export function RoutineDetailScreen({ routineId }: { routineId: string }) {
+export function RoutineDetailScreen({
+  routineId,
+  offerWorkoutAfterSave,
+}: {
+  routineId: string;
+  offerWorkoutAfterSave: boolean;
+}) {
+  const { t } = useTranslation();
   const isNewRoutine = routineId === "new";
 
   const {
@@ -64,11 +74,11 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
     return (
       <View className="flex-1 items-center justify-center gap-lg bg-bg p-xl">
         <Text className="font-body-bold text-xl text-text-primary">
-          Routine not found
+          {t("Routine not found")}
         </Text>
         <Button
           variant="outline"
-          label="Go back"
+          label={t("Go back")}
           onPress={() => router.back()}
         />
       </View>
@@ -80,6 +90,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
       routineId={routineId}
       isNewRoutine={isNewRoutine}
       initialRoutine={routine}
+      offerWorkoutAfterSave={isNewRoutine && offerWorkoutAfterSave}
     />
   );
 }
@@ -88,11 +99,15 @@ function RoutineEditorForm({
   routineId,
   isNewRoutine,
   initialRoutine,
+  offerWorkoutAfterSave,
 }: {
   routineId: string;
   isNewRoutine: boolean;
   initialRoutine?: RoutineRead;
+  offerWorkoutAfterSave: boolean;
 }) {
+  const { t } = useTranslation();
+  const exerciseName = useExerciseNames();
   const {
     draft,
     setName,
@@ -113,6 +128,7 @@ function RoutineEditorForm({
   const [baseline] = useState(() => routineDraftSignature(draft));
   const [leaving, setLeaving] = useState(false);
   const [pendingExit, setPendingExit] = useState<(() => void) | null>(null);
+  const [savedRoutine, setSavedRoutine] = useState<RoutineRead | null>(null);
   const saveInFlight = useRef(false);
   const dragInFlight = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -134,17 +150,22 @@ function RoutineEditorForm({
         return await updateRoutine(routineId, payload);
       }
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       setLeaving(true);
       disableExitProtection();
       queryClient.invalidateQueries({ queryKey: routineKeys.all });
-      router.back();
+      if (offerWorkoutAfterSave) {
+        Keyboard.dismiss();
+        setSavedRoutine(saved);
+      } else {
+        router.back();
+      }
     },
     onError: (err) => {
       if (err instanceof ApiError) {
-        setGeneralError(err.message || "Failed to save routine.");
+        setGeneralError(errorText(err, "Failed to save routine."));
       } else {
-        setGeneralError("Network error. Please try again.");
+        setGeneralError(t("Network error. Please try again."));
       }
     },
     onSettled: () => {
@@ -164,11 +185,11 @@ function RoutineEditorForm({
     if (saveInFlight.current || dragInFlight.current) return;
     const name = draft.name.trim();
     if (!name) {
-      setNameError("Add a name before saving this routine.");
+      setNameError(t("Add a name before saving this routine."));
       return;
     }
     if (draft.exercises.length === 0) {
-      setGeneralError("Add at least one exercise to your routine.");
+      setGeneralError(t("Add at least one exercise to your routine."));
       return;
     }
     setGeneralError(null);
@@ -189,14 +210,20 @@ function RoutineEditorForm({
     drag,
     isActive,
   }: RenderItemParams<RoutineExerciseDraft>) {
-    const index = draft.exercises.findIndex((exercise) => exercise.id === item.id);
+    const index = draft.exercises.findIndex(
+      (exercise) => exercise.id === item.id,
+    );
     const isLast = index === draft.exercises.length - 1;
 
     function move(direction: -1 | 1) {
       if (saveInFlight.current || dragInFlight.current) return;
       moveExercise(item.id, direction);
       AccessibilityInfo.announceForAccessibility(
-        `${item.name} moved to position ${index + direction + 1} of ${draft.exercises.length}.`,
+        t("{{name}} moved to position {{position}} of {{total}}.", {
+          name: exerciseName(item.exercise_id, item.name),
+          position: index + direction + 1,
+          total: draft.exercises.length,
+        }),
       );
     }
 
@@ -206,6 +233,7 @@ function RoutineEditorForm({
           disabled={isSaving || (isDragging && !isActive)}
           isLast={isLast}
           exercise={item}
+          displayName={exerciseName(item.exercise_id, item.name)}
           onMoveUp={index > 0 ? () => move(-1) : undefined}
           onMoveDown={index >= 0 && !isLast ? () => move(1) : undefined}
           onEditRest={() => {
@@ -229,6 +257,30 @@ function RoutineEditorForm({
     );
   }
 
+  if (savedRoutine) {
+    return (
+      <View className="flex-1 gap-lg bg-bg p-lg">
+        <ScreenHeader title={t("Routine saved")} subtitle={savedRoutine.name} />
+        <Button
+          variant="primary"
+          label={t("Start workout")}
+          onPress={() => {
+            router.back();
+            router.push({
+              pathname: "/workout/[routineId]",
+              params: { routineId: savedRoutine.id },
+            });
+          }}
+        />
+        <Button
+          variant="ghost"
+          label={t("Back to Today")}
+          onPress={() => router.back()}
+        />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-bg"
@@ -239,20 +291,20 @@ function RoutineEditorForm({
         <View className="flex-row items-center gap-md">
           <IconButton
             icon="arrow-left"
-            label="Go back to routines"
+            label={t("Go back to routines")}
             onPress={() => router.back()}
             disabled={isSaving || isDragging}
           />
           <View className="flex-1">
             <ScreenHeader
-              title={isNewRoutine ? "New routine" : "Edit routine"}
-              subtitle="Hold and drag exercises to reorder."
+              title={isNewRoutine ? t("New routine") : t("Edit routine")}
+              subtitle={t("Hold and drag exercises to reorder.")}
             />
           </View>
 
           <IconButton
             icon="check"
-            label={isSaving ? "Saving routine" : "Save routine"}
+            label={isSaving ? t("Saving routine") : t("Save routine")}
             variant="accent"
             onPress={save}
             disabled={isSaving || isDragging}
@@ -269,7 +321,7 @@ function RoutineEditorForm({
         ) : null}
 
         <TextField
-          label="Routine name"
+          label={t("Routine name")}
           error={nameError}
           editable={!isSaving}
           onChangeText={(name) => {
@@ -277,12 +329,12 @@ function RoutineEditorForm({
             setName(name);
             if (name.trim()) setNameError(null);
           }}
-          placeholder="e.g. Push Day"
+          placeholder={t("e.g. Push Day")}
           value={draft.name}
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Set rest for all exercises"
+          accessibilityLabel={t("Set rest for all exercises")}
           disabled={isSaving || isDragging}
           onPress={() => {
             Keyboard.dismiss();
@@ -291,15 +343,15 @@ function RoutineEditorForm({
           className="min-h-12 flex-row items-center justify-between gap-md"
         >
           <Text className="font-body-semibold text-sm text-text-primary">
-            Rest for all
+            {t("Rest for all")}
           </Text>
           <View className="flex-row items-center gap-sm">
             <Text className="font-numeric text-body text-text-secondary">
               {uniformRest
                 ? formatRestDuration(Number(draft.exercises[0].restSeconds))
                 : draft.exercises.length
-                  ? "Mixed"
-                  : "Set"}
+                  ? t("Mixed")
+                  : t("Set")}
             </Text>
             <Icon
               name="chevron-down"
@@ -312,7 +364,7 @@ function RoutineEditorForm({
 
       <View className="flex-1 px-lg pt-sm">
         <Section
-          title={`Exercises (${draft.exercises.length})`}
+          title={t("Exercises ({{total}})", { total: draft.exercises.length })}
           className="flex-1"
         >
           {draft.exercises.length > 0 ? (
@@ -359,8 +411,9 @@ function RoutineEditorForm({
           ) : (
             <View className="py-lg">
               <Text className="font-body text-body leading-6 text-text-secondary">
-                This routine is empty. Add exercises to create a complete
-                workout.
+                {t(
+                  "This routine is empty. Add exercises to create a complete workout.",
+                )}
               </Text>
             </View>
           )}
@@ -371,7 +424,7 @@ function RoutineEditorForm({
         <Button
           variant="outline"
           icon="plus"
-          label="Add exercise"
+          label={t("Add exercise")}
           disabled={isSaving || isDragging}
           onPress={handleOpenExercisePicker}
         />
@@ -396,10 +449,10 @@ function RoutineEditorForm({
       )}
       <ConfirmModal
         visible={pendingExit !== null}
-        title="Discard changes?"
-        description="Your changes to this routine have not been saved."
-        confirmLabel="Discard changes"
-        cancelLabel="Keep editing"
+        title={t("Discard changes?")}
+        description={t("Your changes to this routine have not been saved.")}
+        confirmLabel={t("Discard changes")}
+        cancelLabel={t("Keep editing")}
         isDestructive
         onConfirm={() => {
           const resume = pendingExit;

@@ -86,13 +86,13 @@ object RestTimerEngine {
     context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
   }
 
-  private fun channels(context: Context) {
+  private fun channels(context: Context, italian: Boolean) {
     if (Build.VERSION.SDK_INT < 26) return
     manager(context).createNotificationChannel(NotificationChannel(
-      RUNNING_CHANNEL, "Rest countdown", NotificationManager.IMPORTANCE_LOW
+      RUNNING_CHANNEL, if (italian) "Conto alla rovescia" else "Rest countdown", NotificationManager.IMPORTANCE_LOW
     ).apply { setSound(null, null); enableVibration(false) })
     manager(context).createNotificationChannel(NotificationChannel(
-      RestCompletionAlerts.CHANNEL, "Rest complete", NotificationManager.IMPORTANCE_DEFAULT
+      RestCompletionAlerts.CHANNEL, if (italian) "Recupero completato" else "Rest complete", NotificationManager.IMPORTANCE_DEFAULT
     ))
   }
 
@@ -110,7 +110,7 @@ object RestTimerEngine {
   }
 
   private fun present(context: Context, state: JSONObject) {
-    channels(context)
+    channels(context, state.optString("language") == "it")
     if (state.getString("status") != "active" || state.getDouble("endAt") <= System.currentTimeMillis()) {
       manager(context).cancel(RUNNING_ID)
       if (state.getString("status") == "skipped") RestCompletionAlerts.clear(context)
@@ -143,17 +143,18 @@ object RestTimerEngine {
     val open = PendingIntent.getActivity(context, RUNNING_ID, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     val deadline = state.getDouble("endAt").toLong()
     val routineTitle = state.getString("title")
+    val italian = state.optString("language") == "it"
     @Suppress("DEPRECATION")
     val builder = (if (Build.VERSION.SDK_INT >= 26) Notification.Builder(context, RUNNING_CHANNEL)
       else Notification.Builder(context).setPriority(Notification.PRIORITY_LOW).setSound(null))
       .setSmallIcon(R.drawable.zerobuff_rest_timer)
-      .setContentTitle("Rest timer").setContentText(routineTitle)
+      .setContentTitle(if (italian) "Timer di recupero" else "Rest timer").setContentText(routineTitle)
       .setContentIntent(open).setDeleteIntent(actionIntent(context, state, "dismiss"))
       .setOngoing(true).setAutoCancel(false).setOnlyAlertOnce(true)
       .setCategory(Notification.CATEGORY_STOPWATCH)
       .setVisibility(Notification.VISIBILITY_PUBLIC)
       .setShowWhen(true).setWhen(deadline).setUsesChronometer(true).setChronometerCountDown(true)
-      .addAction(Notification.Action.Builder(null, "Skip rest", actionIntent(context, state, "skip")).build())
+      .addAction(Notification.Action.Builder(null, if (italian) "Salta recupero" else "Skip rest", actionIntent(context, state, "skip")).build())
       .addAction(Notification.Action.Builder(null, "+30s", actionIntent(context, state, "add")).build())
     if (Build.VERSION.SDK_INT >= 26) builder.setTimeoutAfter(maxOf(1, deadline - System.currentTimeMillis()))
     if (Build.VERSION.SDK_INT >= 36) {

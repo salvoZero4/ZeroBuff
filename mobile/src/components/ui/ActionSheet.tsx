@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IconButton } from "./IconButton";
@@ -22,6 +23,7 @@ export function ActionSheet({
   actions: SheetAction[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   return (
     <Modal
@@ -33,7 +35,7 @@ export function ActionSheet({
       <View className="flex-1 justify-end bg-black/75">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close actions"
+          accessibilityLabel={t("Close actions")}
           className="absolute inset-0"
           onPress={onClose}
         />
@@ -56,7 +58,7 @@ export function ActionSheet({
             </View>
             <IconButton
               icon="xmark"
-              label="Close actions"
+              label={t("Close actions")}
               variant="bare"
               onPress={onClose}
             />

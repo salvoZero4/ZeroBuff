@@ -1,3 +1,5 @@
+import { errorText } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { userKeys } from "@/features/profile/api/queryKeys";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
@@ -69,6 +71,7 @@ export function EditProfileFieldModal({
   user,
   onClose,
 }: EditProfileFieldModalProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [username, setUsername] = useState(
@@ -117,10 +120,10 @@ export function EditProfileFieldModal({
 
   const monthOptions: PickerOption[] = useMemo(() => {
     return MONTH_NAMES.map((name, idx) => ({
-      label: name,
+      label: t(name),
       value: String(idx + 1),
     }));
-  }, []);
+  }, [t]);
 
   const dayOptions: PickerOption[] = useMemo(() => {
     const daysInMonth = new Date(dobYear, dobMonth, 0).getDate();
@@ -158,9 +161,9 @@ export function EditProfileFieldModal({
     },
     onError: (err) => {
       if (err instanceof ApiError) {
-        setError(err.message || "Could not update value.");
+        setError(errorText(err, "Could not update value."));
       } else {
-        setError("Network error. Please try again.");
+        setError(t("Network error. Please try again."));
       }
     },
   });
@@ -170,7 +173,7 @@ export function EditProfileFieldModal({
     if (field === "username") {
       const trimmed = username.trim();
       if (trimmed.length < 3) {
-        setError("Username must be at least 3 characters.");
+        setError(t("Username must be at least 3 characters."));
         return;
       }
       saveField({ username: trimmed });
@@ -192,13 +195,13 @@ export function EditProfileFieldModal({
         const f = Number.parseInt(feetInput, 10) || 0;
         const i = Number.parseInt(inchesInput, 10) || 0;
         if (i < 0 || i >= 12) {
-          setError("Inches must be between 0 and 11.");
+          setError(t("Inches must be between 0 and 11."));
           return;
         }
         finalCm = feetInchesToCm(f, i);
       }
       if (!Number.isFinite(finalCm) || finalCm <= 50 || finalCm >= 250) {
-        setError("Enter a valid height (between 50 and 249 cm).");
+        setError(t("Enter a valid height (between 50 and 249 cm)."));
         return;
       }
       saveField({ height_cm: finalCm });
@@ -207,17 +210,17 @@ export function EditProfileFieldModal({
 
   const modalTitle =
     field === "username"
-      ? "Edit username"
+      ? t("Edit username")
       : field === "height"
-        ? "Edit height"
-        : "Date of birth";
+        ? t("Edit height")
+        : t("Date of birth");
 
   const modalSubtitle =
     field === "username"
-      ? "How should we call you?"
+      ? t("How should we call you?")
       : field === "height"
-        ? "Choose centimeters or feet & inches"
-        : "Select your birth date details";
+        ? t("Choose centimeters or feet & inches")
+        : t("Select your birth date details");
 
   return (
     <Modal
@@ -235,7 +238,7 @@ export function EditProfileFieldModal({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close modal"
+          accessibilityLabel={t("Close modal")}
           className="absolute inset-0"
           disabled={isPending}
           onPress={onClose}
@@ -257,7 +260,7 @@ export function EditProfileFieldModal({
             </View>
             <IconButton
               icon="xmark"
-              label="Close"
+              label={t("Close")}
               variant="bare"
               disabled={isPending}
               onPress={onClose}
@@ -267,8 +270,8 @@ export function EditProfileFieldModal({
           {/* Username Input */}
           {field === "username" ? (
             <TextField
-              label="Username"
-              placeholder="Your username"
+              label={t("Username")}
+              placeholder={t("Your username")}
               autoCapitalize="none"
               value={username}
               onChangeText={(val) => {
@@ -284,7 +287,7 @@ export function EditProfileFieldModal({
           {field === "dob" ? (
             <View className="gap-md">
               <Text className="font-body-semibold text-caption text-text-primary">
-                Date of birth
+                {t("Date of birth")}
               </Text>
 
               <View className="flex-row gap-xs">
@@ -296,7 +299,7 @@ export function EditProfileFieldModal({
                 >
                   <View>
                     <Text className="font-body text-[10px] uppercase text-text-secondary">
-                      Day
+                      {t("Day")}
                     </Text>
                     <Text className="font-body-bold text-body text-text-primary">
                       {dobDay}
@@ -317,13 +320,13 @@ export function EditProfileFieldModal({
                 >
                   <View>
                     <Text className="font-body text-[10px] uppercase text-text-secondary">
-                      Month
+                      {t("Month")}
                     </Text>
                     <Text
                       className="font-body-bold text-body text-text-primary"
                       numberOfLines={1}
                     >
-                      {MONTH_NAMES[dobMonth - 1]}
+                      {t(MONTH_NAMES[dobMonth - 1])}
                     </Text>
                   </View>
                   <Icon
@@ -341,7 +344,7 @@ export function EditProfileFieldModal({
                 >
                   <View>
                     <Text className="font-body text-[10px] uppercase text-text-secondary">
-                      Year
+                      {t("Year")}
                     </Text>
                     <Text className="font-body-bold text-body text-text-primary">
                       {dobYear}
@@ -369,8 +372,8 @@ export function EditProfileFieldModal({
               <View className="flex-row rounded-sm border border-border bg-surface-raised p-xs">
                 {(
                   [
-                    { key: "cm", label: "Centimeters (cm)" },
-                    { key: "ft", label: "Feet & Inches (ft/in)" },
+                    { key: "cm", label: t("Centimeters (cm)") },
+                    { key: "ft", label: t("Feet & Inches (ft/in)") },
                   ] as const
                 ).map((item) => {
                   const selected = heightUnit === item.key;
@@ -397,8 +400,8 @@ export function EditProfileFieldModal({
               </View>
               {heightUnit === "cm" ? (
                 <TextField
-                  label="Height (cm)"
-                  placeholder="e.g. 178"
+                  label={t("Height (cm)")}
+                  placeholder={t("e.g. 178")}
                   keyboardType="decimal-pad"
                   value={cmInput}
                   onChangeText={(val) => {
@@ -413,7 +416,7 @@ export function EditProfileFieldModal({
                   <View className="flex-row gap-md">
                     <View className="flex-1">
                       <TextField
-                        label="Feet (ft)"
+                        label={t("Feet (ft)")}
                         placeholder="5"
                         keyboardType="number-pad"
                         value={feetInput}
@@ -426,7 +429,7 @@ export function EditProfileFieldModal({
                     </View>
                     <View className="flex-1">
                       <TextField
-                        label="Inches (in)"
+                        label={t("Inches (in)")}
                         placeholder="10"
                         keyboardType="number-pad"
                         value={inchesInput}
@@ -449,7 +452,7 @@ export function EditProfileFieldModal({
           ) : null}
 
           <Button
-            label={isPending ? "Saving..." : "Save"}
+            label={isPending ? t("Saving...") : t("Save")}
             onPress={handleSubmit}
             disabled={isPending}
           />
@@ -458,7 +461,7 @@ export function EditProfileFieldModal({
         {/* Modali di Selezione Singola per Giorno, Mese e Anno */}
         <SelectPickerModal
           visible={activeDobPicker === "day"}
-          title="Select Day"
+          title={t("Select Day")}
           options={dayOptions}
           selectedValues={[String(dobDay)]}
           multiSelect={false}
@@ -471,7 +474,7 @@ export function EditProfileFieldModal({
 
         <SelectPickerModal
           visible={activeDobPicker === "month"}
-          title="Select Month"
+          title={t("Select Month")}
           options={monthOptions}
           selectedValues={[String(dobMonth)]}
           multiSelect={false}
@@ -490,7 +493,7 @@ export function EditProfileFieldModal({
 
         <SelectPickerModal
           visible={activeDobPicker === "year"}
-          title="Select Year"
+          title={t("Select Year")}
           options={yearOptions}
           selectedValues={[String(dobYear)]}
           multiSelect={false}

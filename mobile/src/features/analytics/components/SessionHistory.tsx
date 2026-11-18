@@ -1,3 +1,6 @@
+import { errorText } from "@/shared/i18n/errors";
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Alert, FlatList, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
@@ -19,16 +22,14 @@ import {
   useRoutineNames,
   useRefreshTraining,
 } from "../hooks/useAnalytics";
-import {
-  dateLabel,
-  numberLabel,
-  periodStart,
-  type Period,
-} from "../utils/progress";
+import { dateLabel, dateLocale, numberLabel } from "@/shared/i18n/i18n";
+import { periodStart, type Period } from "../utils/progress";
 import { Empty, PeriodControl, QueryNotice } from "./AnalyticsControls";
 import { SessionActionsModal } from "./SessionActionsModal";
 
 function RoutineComparison({ id }: { id: string }) {
+  const exerciseName = useExerciseNames();
+  const { t } = useTranslation();
   const query = useQuery({
     queryKey: routineKeys.stats(id),
     queryFn: () => getRoutineStats(id),
@@ -36,11 +37,12 @@ function RoutineComparison({ id }: { id: string }) {
   return (
     <View className="gap-sm border-b border-border py-lg">
       <Text className="font-body-semibold text-body text-text-primary">
-        Latest routine comparison
+        {t("Latest routine comparison")}
       </Text>
       <Text className="font-body text-caption text-text-secondary">
-        Latest top-set loads across workouts containing these exercises ·
-        independent of the history filter
+        {t(
+          "Latest top-set loads across workouts containing these exercises · independent of the history filter",
+        )}
       </Text>
       <QueryNotice
         pending={query.isPending}
@@ -50,7 +52,7 @@ function RoutineComparison({ id }: { id: string }) {
       {query.data?.exercises_stats.map((item) => (
         <View key={item.exercise_id} className="gap-xs py-sm">
           <Text className="font-body text-sm text-text-primary">
-            {item.name}
+            {exerciseName(item.exercise_id, item.name)}
           </Text>
           <Text className="font-numeric text-xl text-text-primary">
             {item.previous_weight === null
@@ -77,6 +79,7 @@ function RoutineComparison({ id }: { id: string }) {
   );
 }
 export function SessionHistory() {
+  const { t } = useTranslation();
   const sessions = useHistory(),
     routines = useRoutineNames(),
     refresh = useRefreshTraining();
@@ -95,7 +98,10 @@ export function SessionHistory() {
     },
     onError: (error: Error) => {
       setRemoving(null);
-      Alert.alert("Could not delete session", error.message);
+      Alert.alert(
+        t("Could not delete session"),
+        errorText(error, "Repeat the action to try again."),
+      );
     },
     onSettled: () => {
       void refresh();
@@ -134,16 +140,16 @@ export function SessionHistory() {
             <Pressable
               accessibilityRole="button"
               onPress={() => setPicker(true)}
-              accessibilityLabel="Filter sessions by routine"
+              accessibilityLabel={t("Filter sessions by routine")}
               accessibilityState={{ expanded: picker }}
               className="min-h-12 flex-row items-center justify-between gap-md rounded-sm bg-surface px-md"
             >
               <Text className="flex-1 font-body text-sm text-text-primary">
                 {routine === "all"
-                  ? "All routines"
+                  ? t("All routines")
                   : routine === "custom"
-                    ? "Custom workouts"
-                    : (names.get(routine) ?? "Routine")}
+                    ? t("Custom workouts")
+                    : (names.get(routine) ?? t("Routine"))}
               </Text>
               <Icon
                 name="chevron-down"
@@ -168,7 +174,7 @@ export function SessionHistory() {
                   className="min-h-12 flex-row items-center justify-between gap-md"
                 >
                   <Text className="flex-1 font-body-semibold text-sm text-text-primary">
-                    Latest routine comparison
+                    {t("Latest routine comparison")}
                   </Text>
                   <Icon
                     name={showComparison ? "chevron-up" : "chevron-down"}
@@ -181,8 +187,10 @@ export function SessionHistory() {
             )}
             {sessions.data && (
               <Text className="font-body text-caption text-text-secondary">
-                {data.length} sessions
-                {period !== "All" ? " in this period" : " in your history"}
+                {t("sessionCount", { count: data.length })}
+                {period !== "All"
+                  ? t(" in this period")
+                  : t(" in your history")}
               </Text>
             )}
           </View>
@@ -204,7 +212,7 @@ export function SessionHistory() {
               {month !== previousMonth && (
                 <Text className="pb-sm font-body-semibold text-sm text-text-secondary">
                   {new Date(`${month}-01T12:00:00`).toLocaleDateString(
-                    "en-GB",
+                    dateLocale(),
                     { month: "long", year: "numeric" },
                   )}
                 </Text>
@@ -219,19 +227,21 @@ export function SessionHistory() {
                 >
                   <Text className="font-body-semibold text-body text-text-primary">
                     {item.routine_id
-                      ? (names.get(item.routine_id) ?? "Workout")
-                      : "Custom workout"}
+                      ? (names.get(item.routine_id) ?? t("Workout"))
+                      : t("Custom workout")}
                   </Text>
                   <Text className="font-body text-caption text-text-secondary">
                     {dateLabel(item.date)}
                     {duration !== null
-                      ? ` · ${duration} min`
-                      : ` · ${item.status === "paused" ? "Paused" : "In progress"}`}
+                      ? t(" · {{minutes}} min", { minutes: duration })
+                      : ` · ${item.status === "paused" ? t("Paused") : t("In progress")}`}
                   </Text>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Session actions for ${dateLabel(item.date)}`}
+                  accessibilityLabel={t("Session actions for {{date}}", {
+                    date: dateLabel(item.date),
+                  })}
                   className="min-h-12 min-w-12 items-center justify-center"
                   onPress={() => setActions(item)}
                 >
@@ -248,11 +258,13 @@ export function SessionHistory() {
         ListEmptyComponent={
           !sessions.isPending && !sessions.error ? (
             <Empty
-              title="No sessions here yet"
+              title={t("No sessions here yet")}
               message={
                 sessions.data?.length
-                  ? "Try another period or routine."
-                  : "Your workouts will appear here after you start training."
+                  ? t("Try another period or routine.")
+                  : t(
+                      "Your workouts will appear here after you start training.",
+                    )
               }
             />
           ) : undefined
@@ -260,9 +272,9 @@ export function SessionHistory() {
       />
       <SelectPickerModal
         visible={picker}
-        title="Filter by routine"
+        title={t("Filter by routine")}
         options={[
-          { label: "All routines", value: "all" },
+          { label: t("All routines"), value: "all" },
           ...(routines.data ?? []).map((r) => ({ label: r.name, value: r.id })),
         ]}
         selectedValues={[routine]}
@@ -287,11 +299,14 @@ export function SessionHistory() {
       />
       <ConfirmModal
         visible={!!removing}
-        title="Delete session?"
-        description={`The session from ${removing ? dateLabel(removing.date) : ""} and all its sets will be permanently removed. Its statistics will update too.`}
+        title={t("Delete session?")}
+        description={t(
+          "The session from {{date}} and all its sets will be permanently removed. Its statistics will update too.",
+          { date: removing ? dateLabel(removing.date) : "" },
+        )}
         isDestructive
         isPending={remove.isPending}
-        confirmLabel={remove.isPending ? "Deleting…" : "Delete session"}
+        confirmLabel={remove.isPending ? t("Deleting…") : t("Delete session")}
         onConfirm={() => {
           if (removing) remove.mutate(removing.id);
         }}

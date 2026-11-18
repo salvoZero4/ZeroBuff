@@ -5,6 +5,23 @@ const path = require("node:path");
 const vm = require("node:vm");
 const ts = require("typescript");
 
+test("finish confirmation counts saved and incomplete sets and flags blocked saves", () => {
+  const { experience, row } = setup();
+  const incomplete = row();
+  const saved = { ...incomplete, completed: true, backendId: "saved" };
+  assert.equal(experience.describeWorkoutFinish([]), "This workout will be saved without any sets.");
+  assert.equal(experience.describeWorkoutFinish([saved, saved]), "2 sets saved.");
+  assert.equal(
+    experience.describeWorkoutFinish([saved, incomplete, incomplete]),
+    "1 set saved. 2 incomplete sets won’t be included.",
+  );
+  assert.equal(experience.getFinishBlocker([saved, incomplete]), null);
+  assert.match(experience.getFinishBlocker([{ ...saved, saveStatus: "pending" }]), /Wait/);
+  for (const changes of [{ saveStatus: "dirty" }, { saveStatus: "error" }, { needsReconcile: true }]) {
+    assert.match(experience.getFinishBlocker([{ ...saved, ...changes }]), /retry/);
+  }
+});
+
 // Execute the actual TypeScript modules with only network/native boundaries stubbed.
 function setup(overrides = {}) {
   const calls = [];

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Tabs } from "expo-router";
 import { Text, View } from "react-native";
 
@@ -40,6 +41,7 @@ function TabLabel({
 }
 
 export default function TabsLayout() {
+  const { t } = useTranslation();
   return (
     <Tabs
       screenOptions={{
@@ -63,9 +65,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Today",
+          title: t("Today"),
           tabBarLabel: ({ focused }) => (
-            <TabLabel focused={focused}>Today</TabLabel>
+            <TabLabel focused={focused}>{t("Today")}</TabLabel>
           ),
           tabBarIcon: ({ focused, size }) => (
             <TabIcon focused={focused} name="house" size={size} />
@@ -75,9 +77,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="routines"
         options={{
-          title: "Routines",
+          title: t("Routines"),
           tabBarLabel: ({ focused }) => (
-            <TabLabel focused={focused}>Routines</TabLabel>
+            <TabLabel focused={focused}>{t("Routines")}</TabLabel>
           ),
           tabBarIcon: ({ focused, size }) => (
             <TabIcon focused={focused} name="calendar-day" size={size} />
@@ -87,9 +89,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="analytics"
         options={{
-          title: "Analytics",
+          title: t("Analytics"),
           tabBarLabel: ({ focused }) => (
-            <TabLabel focused={focused}>Analytics</TabLabel>
+            <TabLabel focused={focused}>{t("Analytics")}</TabLabel>
           ),
           tabBarIcon: ({ focused, size }) => (
             <TabIcon focused={focused} name="chart-simple" size={size} />
@@ -99,9 +101,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t("Profile"),
           tabBarLabel: ({ focused }) => (
-            <TabLabel focused={focused}>Profile</TabLabel>
+            <TabLabel focused={focused}>{t("Profile")}</TabLabel>
           ),
           tabBarIcon: ({ focused, size }) => (
             <TabIcon focused={focused} name="user" size={size} />

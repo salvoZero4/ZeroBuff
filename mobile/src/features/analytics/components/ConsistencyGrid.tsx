@@ -1,3 +1,5 @@
+import { dateLocale } from "@/shared/i18n/i18n";
+import { useTranslation } from "react-i18next";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   PixelRatio,
@@ -50,6 +52,7 @@ export function ConsistencyGrid({
   showWeekdayLabels = false,
   framed = true,
 }: ConsistencyGridProps) {
+  const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(year ?? currentYear);
 
@@ -81,16 +84,19 @@ export function ConsistencyGrid({
 
   const sessionCount = useMemo(() => countSessions(weeks), [weeks]);
   const period =
-    mode === "recent" ? `last ${RECENT_WEEKS} weeks` : String(selectedYear);
-  const accessibilityLabel = `${sessionCount} ${
-    sessionCount === 1 ? "day" : "days"
-  } trained, ${period}`;
+    mode === "recent"
+      ? t("last {{weeks}} weeks", { weeks: RECENT_WEEKS })
+      : String(selectedYear);
+  const accessibilityLabel = t("trainingDaysInPeriod", {
+    count: sessionCount,
+    period,
+  });
 
   return (
     <View className="gap-sm">
       <View className="flex-row items-center justify-between">
         <Text className="font-body-semibold text-body text-text-primary">
-          {title}
+          {t(title)}
         </Text>
         {mode === "year" ? (
           <YearPicker
@@ -100,7 +106,7 @@ export function ConsistencyGrid({
           />
         ) : (
           <Text className="font-body text-caption text-text-secondary">
-            {`Last ${RECENT_WEEKS} weeks`}
+            {t("Last {{weeks}} weeks", { weeks: RECENT_WEEKS })}
           </Text>
         )}
       </View>
@@ -125,11 +131,13 @@ export function ConsistencyGrid({
       {mode === "year" && (
         <View className="gap-xs">
           <Text className="font-body text-caption text-text-secondary">
-            {sessionCount} {sessionCount === 1 ? "day" : "days"} trained in{" "}
-            {selectedYear}
+            {t("trainingDaysInPeriod", {
+              count: sessionCount,
+              period: selectedYear,
+            })}
           </Text>
           <Text className="font-body text-caption text-text-secondary">
-            Swipe to explore the year
+            {t("Swipe to explore the year")}
           </Text>
         </View>
       )}
@@ -190,6 +198,7 @@ function YearGrid({
   const scrollRef = useRef<ScrollViewInstance>(null);
   const viewportWidth = useRef(0);
   const todayWeekIndex = useMemo(() => findTodayWeekIndex(weeks), [weeks]);
+  const { t } = useTranslation();
   const monthLabels = useMemo(() => getMonthLabels(year, weeks), [year, weeks]);
   const stride = YEAR_CELL + YEAR_GAP;
 
@@ -241,7 +250,7 @@ function YearGrid({
                   includeFontPadding: false,
                 }}
               >
-                {label}
+                {t(label === "May" ? "month.short.May" : label)}
               </Text>
             ))}
           </View>
@@ -266,6 +275,9 @@ function WeekdayLabels({
   gap: number;
   topOffset?: number;
 }) {
+  const { i18n } = useTranslation();
+  const locale = dateLocale(i18n.resolvedLanguage);
+  const formatter = new Intl.DateTimeFormat(locale, { weekday: "narrow" });
   return (
     <View
       style={{
@@ -275,7 +287,7 @@ function WeekdayLabels({
         gap,
       }}
     >
-      {WEEKDAY_LABELS.map((label, index) => (
+      {WEEKDAY_LABELS.map((_, index) => (
         <View
           key={index}
           style={{
@@ -289,7 +301,9 @@ function WeekdayLabels({
             maxFontSizeMultiplier={1}
             style={{ includeFontPadding: false, textAlignVertical: "center" }}
           >
-            {label}
+            {formatter
+              .format(new Date(2024, 0, index + 1))
+              .toLocaleUpperCase(locale)}
           </Text>
         </View>
       ))}

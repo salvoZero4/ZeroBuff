@@ -6,7 +6,7 @@ Expo / React Native app for **ZeroBuff**, a science-based progressive overload s
 
 ## 0. How to work
 
-- **Language:** code, identifiers, comments and commit messages in English. All UI strings in English.
+- **Language:** code, identifiers, comments and commit messages in English. Localize UI strings in English and Italian.
 - **Think first:** for any non-trivial feature, give a short plan with alternatives and trade-offs, then code.
 - **Conflicts:** if a request conflicts with this file or with the project decision log (`decisioni`), say so BEFORE implementing.
 - **Missing info:** if a contract detail, design detail or copy is missing, ask. Do not invent it.
@@ -55,7 +55,7 @@ npx expo install --fix      # fix incompatible package versions
 ## 2. Product decisions (do not contradict)
 
 - **Online-only.** No offline sync, no persisted mutation queue. Optimistic updates are allowed (see §3.4).
-- **UI entirely in English.**
+- **UI supports English and Italian.** Use shared i18n resources and localize catalog exercise names by ID.
 - **Bottom nav:** Today / Routines / Analytics / Profile.
 - **Analytics** holds both routine statistics and session history (with a selector to filter quickly). No separate "History" tab.
 - **Home (final order):** day squares → today's routine card → body-weight banner (only if no weight logged today) → consistency grid → last-session card → "Edit your schedule" button → "Start workout" CTA fixed near the navbar. The "weekly summary" block was removed; do not re-add it.

@@ -1,3 +1,5 @@
+import { dateLocale, formatNumber } from "@/shared/i18n/i18n";
+import { useTranslation } from "react-i18next";
 import { routineKeys } from "@/features/routines/api/queryKeys";
 import { scheduleKeys } from "@/features/schedule/api/queryKeys";
 import { weightKeys } from "@/features/weight/api/queryKeys";
@@ -13,8 +15,8 @@ import {
 import { LoadingNotice } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { AppState, ScrollView, Text, View } from "react-native";
 import { RefreshControl } from "react-native-gesture-handler";
 import { useQuery } from "@tanstack/react-query";
 import { ConsistencyGrid } from "@/features/analytics/components/ConsistencyGrid";
@@ -60,17 +62,21 @@ function SectionLoadError({
   retrying: boolean;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View className="gap-sm rounded-md border border-border bg-surface p-md">
-      <Text accessibilityLiveRegion="polite" className="font-body-semibold text-body text-text-primary">
+      <Text
+        accessibilityLiveRegion="polite"
+        className="font-body-semibold text-body text-text-primary"
+      >
         {title}
       </Text>
       <Text className="font-body text-caption text-text-secondary">
-        {loadErrorMessage(error)}
+        {t(loadErrorMessage(error))}
       </Text>
       <Button
         variant="outline"
-        label={retrying ? "Retrying…" : "Try again"}
+        label={retrying ? t("Retrying…") : t("Try again")}
         accessibilityHint={title}
         disabled={retrying}
         onPress={onRetry}
@@ -80,18 +86,41 @@ function SectionLoadError({
 }
 
 export function TodayScreen() {
+  const { t } = useTranslation();
   const [startButtonHeight, setStartButtonHeight] = useState(0);
   const [isRefetching, setIsRefetching] = useState(false);
-  const [showBodyWeightModal, setShowBodyWeightModal] = useState(false);
+  const [weightEditor, setWeightEditor] = useState<{
+    date: string;
+    existingLog: WeightLogRead | null;
+  } | null>(null);
   const [showWorkoutPicker, setShowWorkoutPicker] = useState(false);
+  const [todayDateStr, setTodayDateStr] = useState(toLocalDateString);
 
-  const todayLongStr = new Intl.DateTimeFormat("en-US", {
+  const todayLongStr = new Intl.DateTimeFormat(dateLocale(), {
     weekday: "long",
     month: "long",
     day: "numeric",
-  }).format(new Date());
+  }).format(new Date(`${todayDateStr}T12:00:00`));
 
-  const todayDateStr = toLocalDateString();
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    function updateDay() {
+      clearTimeout(timeout);
+      const now = new Date();
+      setTodayDateStr(toLocalDateString(now));
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 0, 0);
+      timeout = setTimeout(updateDay, nextMidnight.getTime() - now.getTime());
+    }
+    updateDay();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") updateDay();
+    });
+    return () => {
+      clearTimeout(timeout);
+      subscription.remove();
+    };
+  }, []);
 
   const activeSession = useActiveWorkout();
 
@@ -124,12 +153,15 @@ export function TodayScreen() {
   );
 
   const {
-    data: routines = [],
+    data: routineList,
+    isPending: pendingRoutines,
     refetch: refetchRoutines,
   } = useQuery({
     queryKey: routineKeys.list(),
     queryFn: () => getRoutines(),
   });
+  const routines = useMemo(() => routineList ?? [], [routineList]);
+  const needsFirstRoutine = routineList?.length === 0 && !todaySchedule;
 
   const {
     data: todayWeight,
@@ -160,10 +192,13 @@ export function TodayScreen() {
   }, [sessions, todayDateStr]);
 
   const canResumeWorkout = Boolean(activeSession || ongoingSession?.routine_id);
-  const loadingWorkout = !canResumeWorkout &&
-    (pendingSessions || pendingTodaySchedule);
+  const loadingWorkout =
+    !canResumeWorkout &&
+    (pendingSessions ||
+      pendingTodaySchedule ||
+      (pendingRoutines && !todaySchedule));
   const showStartWorkoutButton =
-    canResumeWorkout || (sessions !== undefined && !hasCompletedSessionToday);
+    canResumeWorkout || needsFirstRoutine || sessions !== undefined;
 
   const scheduledRoutine = routines.find(
     (routine) => routine.id === todaySchedule?.routine_id,
@@ -204,12 +239,12 @@ export function TodayScreen() {
 
   const lastSessionRoutineName = useMemo(() => {
     if (!lastCompletedSession) return undefined;
-    if (!lastCompletedSession.routine_id) return "Custom Workout";
+    if (!lastCompletedSession.routine_id) return t("Custom Workout");
     return (
       routines.find((r) => r.id === lastCompletedSession.routine_id)?.name ??
-      "Completed Routine"
+      t("Completed Routine")
     );
-  }, [lastCompletedSession, routines]);
+  }, [lastCompletedSession, routines, t]);
 
   function handleStartWorkout() {
     if (activeSession) {
@@ -229,9 +264,9 @@ export function TodayScreen() {
       return;
     }
 
-    if (!sessions) return;
-
-    if (todaySchedule) {
+    if (needsFirstRoutine) {
+      handleCreateRoutine();
+    } else if (todaySchedule && !hasCompletedSessionToday) {
       router.push({
         pathname: "/workout/[routineId]",
         params: { routineId: todaySchedule.routine_id },
@@ -240,6 +275,29 @@ export function TodayScreen() {
       setShowWorkoutPicker(true);
     }
   }
+
+  function handleCreateRoutine() {
+    setShowWorkoutPicker(false);
+    router.push({
+      pathname: "/(tabs)/routines/[routineId]",
+      params: { routineId: "new", fromWorkout: "true" },
+    });
+  }
+
+  const workoutActionLabel = activeSession
+    ? t("Resume {{name}}{{pausedLabel}}", {
+        name: activeSession.routineName,
+        pausedLabel: activeSession.isPaused ? t(" (Paused)") : "",
+      })
+    : ongoingSession?.routine_id
+      ? t("Resume {{name}}", { name: ongoingRoutineName ?? t("workout") })
+      : needsFirstRoutine
+        ? t("Create your first routine")
+        : hasCompletedSessionToday
+          ? t("Start another workout")
+          : todaySchedule
+            ? t("Start workout")
+            : t("Choose a workout");
 
   return (
     <View className="flex-1 bg-bg">
@@ -255,7 +313,7 @@ export function TodayScreen() {
           />
         }
       >
-        <ScreenHeader title="This week" subtitle={todayLongStr} />
+        <ScreenHeader title={t("This week")} subtitle={todayLongStr} />
         <LoadingNotice
           loading={
             pendingWeekSchedule ||
@@ -269,7 +327,7 @@ export function TodayScreen() {
           <WeekStripSkeleton />
         ) : errorWeekSchedule && !weekSchedule ? (
           <SectionLoadError
-            title="Week schedule couldn’t load"
+            title={t("Week schedule couldn’t load")}
             error={errorWeekSchedule}
             retrying={fetchingWeekSchedule}
             onRetry={() => void refetchWeekSchedule()}
@@ -283,12 +341,12 @@ export function TodayScreen() {
           />
         )}
 
-        <Section title="Today's routine">
+        <Section title={t("Today's routine")}>
           {pendingTodaySchedule ? (
             <RoutineCardSkeleton />
           ) : errorTodaySchedule && todaySchedule === undefined ? (
             <SectionLoadError
-              title="Today’s routine couldn’t load"
+              title={t("Today’s routine couldn’t load")}
               error={errorTodaySchedule}
               retrying={fetchingTodaySchedule}
               onRetry={() => void refetchTodaySchedule()}
@@ -298,15 +356,29 @@ export function TodayScreen() {
               title={todaySchedule.routine_name}
               description={
                 scheduledRoutine
-                  ? `${scheduledRoutine.exercises_count} ${scheduledRoutine.exercises_count === 1 ? "exercise" : "exercises"}`
-                  : "Your scheduled workout for today"
+                  ? t("exerciseCount", {
+                      count: scheduledRoutine.exercises_count,
+                    })
+                  : t("Your scheduled workout for today")
               }
+            />
+          ) : needsFirstRoutine ? (
+            <InfoCard
+              title={t("No routines yet")}
+              description={t(
+                "Add the exercises you want to track in your first workout.",
+              )}
             />
           ) : (
             <InfoCard
-              title="Rest day"
-              description="No routine is scheduled for today. Rest and recover or pick a routine manually."
+              title={t("Rest day")}
+              description={t("No routine is scheduled for today.")}
             />
+          )}
+          {hasCompletedSessionToday && (
+            <Text className="font-body-semibold text-caption text-text-secondary">
+              {t("Workout completed today")}
+            </Text>
           )}
         </Section>
 
@@ -314,31 +386,38 @@ export function TodayScreen() {
           <WeightBannerSkeleton />
         ) : errorWeight && todayWeight === undefined ? (
           <SectionLoadError
-            title="Body weight couldn’t load"
+            title={t("Body weight couldn’t load")}
             error={errorWeight}
             retrying={fetchingWeight}
             onRetry={() => void refetchWeight()}
           />
         ) : (
-          !todayWeight && (
-            <View className="flex-row items-center gap-md border-y border-border py-md">
-              <View className="flex-1 gap-xs">
-                <Text className="font-body-semibold text-body text-text-primary">
-                  Track body weight
-                </Text>
-                <Text className="font-body text-caption leading-5 text-text-secondary">
-                  Keep your progress context up to date.
-                </Text>
-              </View>
-              <IconButton
-                variant="bare"
-                icon="plus"
-                iconSize={16}
-                label="Log body weight"
-                onPress={() => setShowBodyWeightModal(true)}
-              />
+          <View className="flex-row items-center gap-md border-y border-border py-md">
+            <View className="flex-1 gap-xs">
+              <Text className="font-body-semibold text-body text-text-primary">
+                {todayWeight ? t("Today’s weight") : t("Track body weight")}
+              </Text>
+              <Text className="font-body text-caption leading-5 text-text-secondary">
+                {todayWeight
+                  ? `${formatNumber(todayWeight.weight, { maximumFractionDigits: 2 })} kg`
+                  : t("Keep your progress context up to date.")}
+              </Text>
             </View>
-          )
+            <IconButton
+              variant="bare"
+              icon={todayWeight ? "pen-to-square" : "plus"}
+              iconSize={16}
+              label={
+                todayWeight ? t("Edit today’s weight") : t("Log body weight")
+              }
+              onPress={() =>
+                setWeightEditor({
+                  date: todayDateStr,
+                  existingLog: todayWeight ?? null,
+                })
+              }
+            />
+          </View>
         )}
 
         {pendingSessions ? (
@@ -347,12 +426,12 @@ export function TodayScreen() {
           <ConsistencyGrid sessions={sessions} mode="recent" framed={false} />
         ) : null}
 
-        <Section title="Last session">
+        <Section title={t("Last session")}>
           {pendingSessions ? (
             <LastSessionSkeleton />
           ) : errorSessions && !sessions ? (
             <SectionLoadError
-              title="Workout sessions couldn’t load"
+              title={t("Workout sessions couldn’t load")}
               error={errorSessions}
               retrying={fetchingSessions}
               onRetry={() => void refetchSessions()}
@@ -368,7 +447,7 @@ export function TodayScreen() {
         <Button
           variant="ghost"
           icon="pen-to-square"
-          label="Edit your schedule"
+          label={t("Edit your schedule")}
           onPress={() => router.push("/schedule")}
         />
         {(loadingWorkout || showStartWorkoutButton) && (
@@ -394,32 +473,25 @@ export function TodayScreen() {
           >
             <Button
               variant="primary"
-              label={
-                activeSession
-                  ? `Resume ${activeSession.routineName}${
-                      activeSession.isPaused ? " (Paused)" : ""
-                    }`
-                  : ongoingSession?.routine_id
-                    ? `Resume ${ongoingRoutineName ?? "workout"}`
-                    : todaySchedule
-                      ? "Start workout"
-                      : "Choose a workout"
-              }
+              label={workoutActionLabel}
               onPress={handleStartWorkout}
             />
           </View>
         )
       )}
 
-      <WeightLogModal
-        visible={showBodyWeightModal}
-        existingLog={todayWeight}
-        onClose={() => setShowBodyWeightModal(false)}
-      />
+      {weightEditor && (
+        <WeightLogModal
+          date={weightEditor.date}
+          existingLog={weightEditor.existingLog}
+          onClose={() => setWeightEditor(null)}
+        />
+      )}
 
       <StartWorkoutPickerModal
         visible={showWorkoutPicker}
         onClose={() => setShowWorkoutPicker(false)}
+        onCreateRoutine={handleCreateRoutine}
         onSelectRoutine={(routineId) => {
           router.push({
             pathname: "/workout/[routineId]",

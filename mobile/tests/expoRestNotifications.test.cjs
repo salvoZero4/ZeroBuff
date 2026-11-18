@@ -104,6 +104,70 @@ test("iOS does not call Android channel APIs", async () => {
   await t.prepare();
   assert.equal(t.channels.length, 0);
 });
+
+function setupPermissionPrompt(platform, options = {}) {
+  const entries = options.entries ?? new Map();
+  const events = [];
+  const api = {
+    IosAuthorizationStatus: { NOT_DETERMINED: 0 },
+    AndroidImportance: { LOW: 2, DEFAULT: 3 },
+    getPermissionsAsync: async () => ({
+      canAskAgain: true,
+      ios: { status: 0 },
+      ...options.permissions,
+    }),
+    setNotificationChannelAsync: async (id) => events.push(id),
+    requestPermissionsAsync: async () => events.push("request"),
+  };
+  return {
+    ...createExpoRestNotifications(api, platform),
+    storage: {
+      getItem: async (key) => entries.get(key) ?? null,
+      setItem: async (key, value) => entries.set(key, value),
+    },
+    entries,
+    events,
+  };
+}
+
+test("the Today prompt is not duplicated after a dismissal or a relaunch", async () => {
+  const first = setupPermissionPrompt("ios");
+  await Promise.all([
+    first.requestOnToday(() => true, first.storage),
+    first.requestOnToday(() => true, first.storage),
+  ]);
+  assert.deepEqual(first.events, ["request"]);
+  const reopened = setupPermissionPrompt("ios", { entries: first.entries });
+  await reopened.requestOnToday(() => true, reopened.storage);
+  assert.deepEqual(reopened.events, []);
+});
+
+test("Android distinguishes an initial permission from a prior denial and prepares channels first", async () => {
+  const prompt = setupPermissionPrompt("android", {
+    permissions: { status: "denied", granted: false },
+  });
+  await prompt.requestOnToday(() => true, prompt.storage, async () => false);
+  assert.deepEqual(prompt.events, []);
+  await prompt.requestOnToday(() => true, prompt.storage, async () => true);
+  assert.deepEqual(prompt.events, [
+    "zerobuff.rest.ongoing",
+    "zerobuff.rest.complete",
+    "request",
+  ]);
+});
+
+test("losing focus before requesting leaves the prompt available for the next visit", async () => {
+  const prompt = setupPermissionPrompt("android");
+  let focused = true;
+  await prompt.requestOnToday(() => focused, prompt.storage, async () => {
+    focused = false;
+    return true;
+  });
+  assert.deepEqual(prompt.events, []);
+  assert.equal(prompt.entries.size, 0);
+  await prompt.requestOnToday(() => true, prompt.storage, async () => true);
+  assert.equal(prompt.events.at(-1), "request");
+});
 test("rest completion is silent and hidden while the app is visible", () => {
   assert.deepEqual(getNotificationBehavior(data, false), {
     shouldShowBanner: false,

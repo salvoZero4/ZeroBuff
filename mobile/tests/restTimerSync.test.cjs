@@ -243,6 +243,20 @@ test("retry preserves a completed alert instead of clearing or restarting it", a
   assert.equal(t.native().status, "complete");
 });
 
+test("a language update keeps the native deadline and avoids restarting an expired timer", async () => {
+  const t = setup(nativeState({ endAt: 130_000, version: 2 }));
+  await t.sync.update(snapshot({ language: "it" }));
+  assert.equal(t.native().endAt, 130_000);
+  assert.equal(t.native().language, "it");
+
+  t.change({ ...t.native(), status: "complete", version: 4 });
+  await t.sync.refresh();
+  const published = t.calls.length;
+  await t.sync.update(snapshot({ language: "en" }));
+  assert.equal(t.calls.length, published);
+  assert.equal(t.native().status, "complete");
+});
+
 test("invalid native payloads are rejected", () => {
   assert.equal(parseNativeTimer(null), null);
   assert.equal(parseNativeTimer("malformed"), null);

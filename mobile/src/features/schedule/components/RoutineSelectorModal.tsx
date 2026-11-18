@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IconButton } from "@/components/ui/IconButton";
@@ -25,6 +26,7 @@ export function RoutineSelectorModal({
   error,
   onClose,
 }: RoutineSelectorModalProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const close = () => {
     if (!isPending) onClose();
@@ -38,7 +40,7 @@ export function RoutineSelectorModal({
     >
       <View className="flex-1 justify-end bg-black/75">
         <Pressable
-          accessibilityLabel="Close routine selector"
+          accessibilityLabel={t("Close routine selector")}
           accessibilityRole="button"
           className="absolute inset-0"
           disabled={isPending}
@@ -55,12 +57,12 @@ export function RoutineSelectorModal({
                 {dayLabel}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
-                Choose a routine or make this a rest day.
+                {t("Choose a routine or make this a rest day.")}
               </Text>
             </View>
             <IconButton
               icon="xmark"
-              label="Close routine selector"
+              label={t("Close routine selector")}
               variant="bare"
               disabled={isPending}
               onPress={close}
@@ -71,7 +73,7 @@ export function RoutineSelectorModal({
               accessibilityLiveRegion="polite"
               className="font-body text-caption text-text-secondary"
             >
-              Saving schedule…
+              {t("Saving schedule…")}
             </Text>
           )}
           {error && (
@@ -95,7 +97,7 @@ export function RoutineSelectorModal({
             <RoutineOptionItem
               disabled={isPending}
               isLast
-              label="Rest"
+              label={t("Rest")}
               selected={selectedRoutineId === null}
               onPress={() => onSelect(null)}
             />

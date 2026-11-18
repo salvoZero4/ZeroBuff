@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -30,6 +31,7 @@ export function LoadingNotice({
   loading?: boolean;
   label?: string;
 }) {
+  const { t } = useTranslation();
   const [slow, setSlow] = useState(false);
   useEffect(() => {
     if (!loading) return;
@@ -46,8 +48,8 @@ export function LoadingNotice({
       className="font-body text-caption text-text-secondary"
     >
       {slow
-        ? "This is taking longer than usual. The server may be waking up."
-        : label}
+        ? t("This is taking longer than usual. The server may be waking up.")
+        : t(label)}
     </Text>
   );
 }
@@ -65,6 +67,7 @@ export function ScreenError({
   busy?: boolean;
   onBack?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View className="flex-1 justify-center gap-lg bg-bg p-lg">
       <Text
@@ -80,12 +83,12 @@ export function ScreenError({
         {message}
       </Text>
       <Button
-        label={busy ? "Retrying…" : "Try again"}
+        label={busy ? t("Retrying…") : t("Try again")}
         disabled={busy}
         onPress={onRetry}
       />
       {onBack ? (
-        <Button label="Back to Today" variant="outline" onPress={onBack} />
+        <Button label={t("Back to Today")} variant="outline" onPress={onBack} />
       ) : null}
     </View>
   );

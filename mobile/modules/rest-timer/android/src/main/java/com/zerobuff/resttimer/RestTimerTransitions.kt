@@ -13,7 +13,11 @@ internal object RestTimerTransitions {
     val next = JSONObject(incoming.toString())
     if (current != null && current.getString("id") == next.getString("id")) {
       if (current.getInt("version") != expectedVersion) return current
-      if (current.getDouble("endAt") == next.getDouble("endAt") && current.getString("status") == next.getString("status")) return current
+      if (
+        current.getDouble("endAt") == next.getDouble("endAt") &&
+        current.getString("status") == next.getString("status") &&
+        current.optString("language", "en") == next.optString("language", "en")
+      ) return current
       next.put("version", current.getInt("version") + 1)
       next.put("surfaceDismissed", current.optBoolean("surfaceDismissed"))
     } else {

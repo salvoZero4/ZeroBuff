@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
@@ -17,6 +18,7 @@ export function SessionHeader({
   onTogglePause,
   onFinish,
 }: SessionHeaderProps) {
+  const { t } = useTranslation();
   const hours = Math.floor(durationSeconds / 3600);
   const mins = Math.floor((durationSeconds % 3600) / 60);
   const secs = durationSeconds % 60;
@@ -28,14 +30,14 @@ export function SessionHeader({
     <View className="flex-row items-center justify-between border-b border-border bg-bg px-md py-xs">
       <IconButton
         icon="arrow-left"
-        label="go back to today page"
+        label={t("go back to today page")}
         iconSize={18}
         onPress={onBack}
       />
 
       {/* Controllo Timer e Pausa */}
       <Pressable
-        accessibilityLabel={isPaused ? "Resume workout" : "Pause workout"}
+        accessibilityLabel={isPaused ? t("Resume workout") : t("Pause workout")}
         accessibilityRole="button"
         onPress={onTogglePause}
         className={`flex-row items-center gap-sm min-h-12 rounded-sm px-md py-xs active:bg-surface-raised ${
@@ -49,7 +51,7 @@ export function SessionHeader({
         />
         <View className="items-center">
           <Text className="font-body text-caption text-text-secondary">
-            {isPaused ? "Workout paused" : "Workout time"}
+            {isPaused ? t("Workout paused") : t("Workout time")}
           </Text>
           <Text className="font-numeric text-body text-text-secondary">
             {formattedDuration}
@@ -64,7 +66,7 @@ export function SessionHeader({
         className="min-h-12 justify-center px-md"
       >
         <Text className="font-body-semibold text-caption text-text-secondary">
-          Finish
+          {t("Finish")}
         </Text>
       </Pressable>
     </View>

@@ -1,21 +1,17 @@
+import { errorText } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { useState } from "react";
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError } from "@/shared/api/errors";
-import {
-  createExercise,
-} from "@/features/exercises/api/exercise";
+import { createExercise } from "@/features/exercises/api/exercise";
 import {
   EQUIPMENT_LIST,
   MUSCLE_GROUPS,
@@ -38,29 +34,24 @@ type CreateExerciseModalProps = {
   onCreated: (exercise: ExerciseRead) => void;
 };
 
-function formatLabel(val: string): string {
-  return val
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-const MUSCLE_OPTIONS: PickerOption[] = MUSCLE_GROUPS.map((mg) => ({
-  value: mg,
-  label: formatLabel(mg),
-}));
-
-const EQUIPMENT_OPTIONS: PickerOption[] = EQUIPMENT_LIST.map((eq) => ({
-  value: eq,
-  label: formatLabel(eq),
-}));
-
 export function CreateExerciseModal({
   visible,
   initialName = "",
   onClose,
   onCreated,
 }: CreateExerciseModalProps) {
+  const { t } = useTranslation();
+  const MUSCLE_OPTIONS: PickerOption[] = MUSCLE_GROUPS.map((mg) => ({
+    value: mg,
+    label: t(`exercise.${mg}`),
+  }));
+
+  const EQUIPMENT_OPTIONS: PickerOption[] = EQUIPMENT_LIST.map((eq) => ({
+    value: eq,
+    label: t(`exercise.${eq}`),
+  }));
+
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState(initialName);
   const [primaryMuscle, setPrimaryMuscle] = useState<MuscleGroup>("chest");
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroup[]>([]);
@@ -83,9 +74,16 @@ export function CreateExerciseModal({
     },
     onError: (err) => {
       if (err instanceof ApiError) {
-        setErrorMessage(err.message || "Failed to create exercise.");
+        setErrorMessage(
+          errorText(
+            err,
+            err.status === 409
+              ? "An exercise with a similar name already exists."
+              : "Failed to create exercise.",
+          ),
+        );
       } else {
-        setErrorMessage("Network error. Please try again.");
+        setErrorMessage(t("Network error. Please try again."));
       }
     },
   });
@@ -93,7 +91,7 @@ export function CreateExerciseModal({
   function handleSubmit() {
     const trimmed = name.trim();
     if (!trimmed) {
-      setErrorMessage("Enter an exercise name.");
+      setErrorMessage(t("Enter an exercise name."));
       return;
     }
 
@@ -115,36 +113,39 @@ export function CreateExerciseModal({
       <KeyboardAvoidingView
         behavior="padding"
         automaticOffset
-        className="flex-1 justify-end bg-bg/65"
+        className="flex-1 justify-end bg-black/75"
       >
         <Pressable
-          accessibilityLabel="Close modal"
+          accessibilityLabel={t("Close modal")}
           accessibilityRole="button"
           className="absolute inset-0"
           onPress={onClose}
         />
 
         <View
+          accessibilityViewIsModal
           onStartShouldSetResponder={() => true}
-          className="max-h-[95%] gap-lg rounded-t-lg border border-border bg-surface p-xl"
+          className="max-h-[95%] gap-lg rounded-t-lg border-t border-border bg-bg p-lg"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
-          <View className="flex-row items-center justify-between">
-            <View className="gap-xs">
-              <Text className="font-body-bold text-body text-text-primary">
-                New custom exercise
+          <View className="flex-row items-center gap-md">
+            <View className="flex-1 gap-xs">
+              <Text
+                accessibilityRole="header"
+                className="font-body-bold text-xl text-text-primary"
+              >
+                {t("New custom exercise")}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
-                Will be added to the shared catalog
+                {t("Will be added to the shared catalog")}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
+            <IconButton
+              icon="xmark"
+              label={t("Close")}
+              variant="bare"
               onPress={onClose}
-              className="h-9 w-9 items-center justify-center rounded-full bg-surface-raised active:bg-surface"
-            >
-              <Icon name="xmark" size={14} className="text-text-secondary" />
-            </Pressable>
+            />
           </View>
 
           <ScrollView
@@ -153,8 +154,8 @@ export function CreateExerciseModal({
             contentContainerClassName="gap-lg pb-md"
           >
             <TextField
-              label="Exercise name"
-              placeholder="e.g. Incline Smith Machine Press"
+              label={t("Exercise name")}
+              placeholder={t("e.g. Incline Smith Machine Press")}
               value={name}
               onChangeText={(val) => {
                 setName(val);
@@ -166,7 +167,7 @@ export function CreateExerciseModal({
 
             <View className="gap-xs">
               <Text className="font-body-semibold text-caption text-text-primary">
-                Primary muscle group
+                {t("Primary muscle group")}
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -174,7 +175,7 @@ export function CreateExerciseModal({
                 className="min-h-14 flex-row items-center justify-between rounded-sm border border-border bg-surface-raised px-lg active:bg-surface"
               >
                 <Text className="font-body-medium text-body text-text-primary">
-                  {formatLabel(primaryMuscle)}
+                  {t(`exercise.${primaryMuscle}`)}
                 </Text>
                 <Icon
                   name="chevron-down"
@@ -186,7 +187,7 @@ export function CreateExerciseModal({
 
             <View className="gap-xs">
               <Text className="font-body-semibold text-caption text-text-primary">
-                Secondary muscle groups (optional)
+                {t("Secondary muscle groups (optional)")}
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -202,8 +203,10 @@ export function CreateExerciseModal({
                   }`}
                 >
                   {secondaryMuscles.length > 0
-                    ? secondaryMuscles.map(formatLabel).join(", ")
-                    : "None selected"}
+                    ? secondaryMuscles
+                        .map((muscle) => t(`exercise.${muscle}`))
+                        .join(", ")
+                    : t("None selected")}
                 </Text>
                 <Icon
                   name="chevron-down"
@@ -215,7 +218,7 @@ export function CreateExerciseModal({
 
             <View className="gap-xs">
               <Text className="font-body-semibold text-caption text-text-primary">
-                Equipment
+                {t("Equipment")}
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -223,7 +226,7 @@ export function CreateExerciseModal({
                 className="min-h-14 flex-row items-center justify-between rounded-sm border border-border bg-surface-raised px-lg active:bg-surface"
               >
                 <Text className="font-body-medium text-body text-text-primary">
-                  {formatLabel(equipment)}
+                  {t(`exercise.${equipment}`)}
                 </Text>
                 <Icon
                   name="chevron-down"
@@ -234,7 +237,7 @@ export function CreateExerciseModal({
             </View>
 
             <Button
-              label={isPending ? "Saving..." : "Create exercise"}
+              label={isPending ? t("Saving...") : t("Create exercise")}
               onPress={handleSubmit}
               disabled={isPending}
             />
@@ -243,7 +246,7 @@ export function CreateExerciseModal({
 
         <SelectPickerModal
           visible={activePicker === "primary_muscle"}
-          title="Primary muscle"
+          title={t("Primary muscle")}
           options={MUSCLE_OPTIONS}
           selectedValues={[primaryMuscle]}
           multiSelect={false}
@@ -253,7 +256,7 @@ export function CreateExerciseModal({
 
         <SelectPickerModal
           visible={activePicker === "secondary_muscles"}
-          title="Secondary muscles"
+          title={t("Secondary muscles")}
           options={MUSCLE_OPTIONS.filter((opt) => opt.value !== primaryMuscle)}
           selectedValues={secondaryMuscles}
           multiSelect={true}
@@ -263,7 +266,7 @@ export function CreateExerciseModal({
 
         <SelectPickerModal
           visible={activePicker === "equipment"}
-          title="Equipment"
+          title={t("Equipment")}
           options={EQUIPMENT_OPTIONS}
           selectedValues={[equipment]}
           multiSelect={false}

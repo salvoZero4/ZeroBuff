@@ -1,3 +1,6 @@
+import { errorText } from "@/shared/i18n/errors";
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
@@ -22,8 +25,11 @@ import {
 import { ExercisePicker } from "@/features/analytics/components/ExercisePicker";
 import { QueryNotice } from "@/features/analytics/components/AnalyticsControls";
 import { useRefreshTraining } from "@/features/analytics/hooks/useAnalytics";
-import { dateLabel, numberLabel } from "@/features/analytics/utils/progress";
+import { dateLabel, numberLabel } from "@/shared/i18n/i18n";
+
 export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
+  const exerciseName = useExerciseNames();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [editing, setEditing] = useState(false);
   const [picker, setPicker] = useState(false);
@@ -44,7 +50,10 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
     },
     onError: (error: Error) => {
       setRemoving(null);
-      Alert.alert("Could not delete set", error.message);
+      Alert.alert(
+        t("Could not delete set"),
+        errorText(error, "Repeat the action to try again."),
+      );
     },
     onSettled: () => {
       void refresh();
@@ -62,13 +71,13 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
       >
         <View className="flex-row items-center gap-md">
-          <IconButton icon="arrow-left" label="Back" onPress={back} />
+          <IconButton icon="arrow-left" label={t("Back")} onPress={back} />
           <View className="flex-1">
             <ScreenHeader
-              title="Session details"
+              title={t("Session details")}
               subtitle={
                 data
-                  ? `${dateLabel(data.date)} · ${exerciseIds.length} exercises · ${data.sets.length} sets`
+                  ? `${dateLabel(data.date)} · ${t("exerciseCount", { count: exerciseIds.length })} · ${t("setCount", { count: data.sets.length })}`
                   : ""
               }
             />
@@ -76,7 +85,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
           {data?.status === "completed" && (
             <IconButton
               icon={editing ? "check" : "pen-to-square"}
-              label={editing ? "Done editing session" : "Edit session"}
+              label={editing ? t("Done editing session") : t("Edit session")}
               onPress={() => setEditing(!editing)}
             />
           )}
@@ -90,14 +99,14 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
           <>
             {data.status !== "completed" && (
               <Button
-                label="Go to Today to resume"
+                label={t("Go to Today to resume")}
                 variant="outline"
                 onPress={() => router.replace("/(tabs)")}
               />
             )}
             {editing && (
               <Text className="font-body text-sm text-text-secondary">
-                Tap a set to correct it. Each change is saved separately.
+                {t("Tap a set to correct it. Each change is saved separately.")}
               </Text>
             )}
             {exerciseIds.map((id) => {
@@ -117,7 +126,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                     className="min-h-12 flex-row items-center gap-md"
                   >
                     <Text className="flex-1 font-body-semibold text-xl text-text-primary">
-                      {sets[0].exercise_name}
+                      {exerciseName(id, sets[0].exercise_name)}
                     </Text>
                     <Icon
                       name="chevron-right"
@@ -127,22 +136,31 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                   </Pressable>
                   <View className="flex-row gap-sm">
                     <Text className="w-12 font-body text-caption text-text-secondary">
-                      SET
+                      {t("SET")}
                     </Text>
                     <Text className="flex-1 font-body text-caption text-text-secondary">
-                      LOAD × REPS
+                      {t("LOAD × REPS")}
                     </Text>
                     <Text className="w-12 font-body text-caption text-text-secondary">
                       RIR
                     </Text>
                     {editing && <View className="w-12" />}
                   </View>
-                  {sets.map((set) => (
+                  {sets.map((set, index) => (
                     <View key={set.id} className="flex-row items-center">
                       <Pressable
                         disabled={!editing}
                         accessibilityRole={editing ? "button" : undefined}
-                        accessibilityLabel={`Edit set ${set.set_number}, ${set.weight} ${WEIGHT_UNIT}, ${set.reps} reps, RIR ${set.rir ?? "not recorded"}`}
+                        accessibilityLabel={t(
+                          "Edit set {{number}}, {{weight}} {{unit}}, {{reps}} reps, RIR {{rir}}",
+                          {
+                            number: set.set_number,
+                            weight: set.weight,
+                            unit: WEIGHT_UNIT,
+                            reps: set.reps,
+                            rir: set.rir ?? t("not recorded"),
+                          },
+                        )}
                         onPress={() =>
                           setTarget({
                             exerciseId: id,
@@ -151,7 +169,11 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                             set,
                           })
                         }
-                        className="min-h-14 flex-1 flex-row items-center gap-sm border-b border-border"
+                        className={`min-h-14 flex-1 flex-row items-center gap-sm ${
+                          index < sets.length - 1
+                            ? "border-b border-border"
+                            : ""
+                        }`}
                       >
                         <Text className="w-12 font-numeric text-xl text-text-secondary">
                           {set.set_number}
@@ -166,7 +188,9 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                       {editing && (
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={`Delete set ${set.set_number}`}
+                          accessibilityLabel={t("Delete set {{number}}", {
+                            number: set.set_number,
+                          })}
                           onPress={() => setRemoving(set)}
                           className="min-h-12 w-12 items-center justify-center"
                         >
@@ -181,7 +205,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                   ))}
                   {editing && (
                     <Button
-                      label="Add set"
+                      label={t("Add set")}
                       variant="outline"
                       onPress={() =>
                         setTarget({
@@ -198,12 +222,14 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
             })}
             {!data.sets.length && (
               <Text className="font-body text-body text-text-secondary">
-                No sets recorded. Edit this session to add your first exercise.
+                {t(
+                  "No sets recorded. Edit this session to add your first exercise.",
+                )}
               </Text>
             )}
             {editing && (
               <Button
-                label="Add exercise"
+                label={t("Add exercise")}
                 icon="plus"
                 onPress={() => setPicker(true)}
               />
@@ -233,18 +259,23 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
       {target && (
         <SetEditor
           sessionId={sessionId}
-          target={target}
+          target={{
+            ...target,
+            name: exerciseName(target.exerciseId, target.name),
+          }}
           sets={data?.sets ?? []}
           onClose={() => setTarget(null)}
         />
       )}
       <ConfirmModal
         visible={!!removing}
-        title="Delete set?"
-        description="This set will be removed from the session and its progress statistics."
+        title={t("Delete set?")}
+        description={t(
+          "This set will be removed from the session and its progress statistics.",
+        )}
         isDestructive
         isPending={remove.isPending}
-        confirmLabel={remove.isPending ? "Deleting…" : "Delete set"}
+        confirmLabel={remove.isPending ? t("Deleting…") : t("Delete set")}
         onConfirm={() => {
           if (removing) remove.mutate(removing.id);
         }}
