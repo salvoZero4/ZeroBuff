@@ -1,3 +1,5 @@
+import { errorText } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { weightKeys } from "@/features/weight/api/queryKeys";
 import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
@@ -8,10 +10,7 @@ import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { parseWeight } from "@/features/analytics/utils/progress";
-import {
-  createWeight,
-  updateWeight,
-} from "@/features/weight/api/weight";
+import { createWeight, updateWeight } from "@/features/weight/api/weight";
 import type { WeightLogRead } from "@/features/weight/types/weight";
 
 type WeightLogModalProps = {
@@ -25,6 +24,7 @@ export function WeightLogModal({
   existingLog,
   onClose,
 }: WeightLogModalProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [weightInput, setWeightInput] = useState(() =>
     existingLog ? String(existingLog.weight) : "",
@@ -48,7 +48,9 @@ export function WeightLogModal({
       onClose();
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Network error. Please try again.");
+      setError(
+        errorText(err, "Could not save your changes. Please try again."),
+      );
     },
   });
 
@@ -75,7 +77,7 @@ export function WeightLogModal({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close weight modal"
+          accessibilityLabel={t("Close weight modal")}
           className="absolute inset-0"
           disabled={isPending}
           onPress={onClose}
@@ -93,15 +95,17 @@ export function WeightLogModal({
                 accessibilityRole="header"
                 className="font-body-bold text-xl text-text-primary"
               >
-                {existingLog ? "Update today's weight" : "Log body weight"}
+                {existingLog
+                  ? t("Update today's weight")
+                  : t("Log body weight")}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
-                Track your daily weight in kilograms
+                {t("Track your daily weight in kilograms")}
               </Text>
             </View>
             <IconButton
               icon="xmark"
-              label="Close"
+              label={t("Close")}
               variant="bare"
               disabled={isPending}
               onPress={onClose}
@@ -109,8 +113,8 @@ export function WeightLogModal({
           </View>
 
           <TextField
-            label="Weight (kg)"
-            placeholder="e.g. 78.5"
+            label={t("Weight (kg)")}
+            placeholder={t("e.g. 78.5")}
             keyboardType="decimal-pad"
             value={weightInput}
             onChangeText={(val) => {
@@ -124,10 +128,10 @@ export function WeightLogModal({
           <Button
             label={
               isPending
-                ? "Saving..."
+                ? t("Saving...")
                 : existingLog
-                  ? "Update weight"
-                  : "Save weight"
+                  ? t("Update weight")
+                  : t("Save weight")
             }
             onPress={handleSubmit}
             disabled={isPending}

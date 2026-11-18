@@ -20,8 +20,10 @@ object RestCompletionAlerts {
       .put("routineId", state.getString("routineId"))
       .put("version", state.getInt("version").toString())
       .put("endAt", state.getDouble("endAt").toString())
+    val italian = state.optString("language") == "it"
     val content = NotificationContent.Builder()
-      .setTitle("Rest complete").setText("Your next set is ready.")
+      .setTitle(if (italian) "Recupero completato" else "Rest complete")
+      .setText(if (italian) "Puoi iniziare la prossima serie." else "Your next set is ready.")
       .setBody(data).setAutoDismiss(true).build()
     // Expo presents local requests under (identifier, 0).
     context.getSystemService(NotificationManager::class.java).cancel(ID, 0)

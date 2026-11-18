@@ -1,3 +1,5 @@
+import { errorText } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { Alert, FlatList, Pressable, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,14 +10,18 @@ import { deleteWeight, getWeights } from "@/features/weight/api/weight";
 import { weightKeys } from "@/features/weight/api/queryKeys";
 import type { WeightLogRead } from "@/features/weight/types/weight";
 import { WEIGHT_UNIT } from "@/features/workout/utils/experience";
+import { dateLabel, numberLabel } from "@/shared/i18n/i18n";
 import {
-  dateLabel,
-  numberLabel,
   periodStart,
   weeklyWeightAverages,
   type Period,
 } from "../utils/progress";
-import { Choices, Empty, PeriodControl, QueryNotice } from "./AnalyticsControls";
+import {
+  Choices,
+  Empty,
+  PeriodControl,
+  QueryNotice,
+} from "./AnalyticsControls";
 import { ProgressChart } from "./ProgressChart";
 import { WeightEntryEditor } from "./WeightEntryEditor";
 
@@ -23,6 +29,7 @@ const CHART_VIEWS = ["Weekly average", "Daily"] as const;
 type ChartView = (typeof CHART_VIEWS)[number];
 
 export function BodyWeightHistory() {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("3M");
   const [chartView, setChartView] = useState<ChartView>("Weekly average");
   const [editor, setEditor] = useState<{ log: WeightLogRead | null } | null>(
@@ -52,7 +59,7 @@ export function BodyWeightHistory() {
         .filter((week) => week.endDate >= start)
         .map((week) => ({
           ...week,
-          label: `${dateLabel(week.date)} – ${dateLabel(week.endDate)} · ${week.count} ${week.count === 1 ? "weigh-in" : "weigh-ins"}`,
+          label: `${dateLabel(week.date)} – ${dateLabel(week.endDate)} · ${t("weighInCount", { count: week.count })}`,
         }))
     : points.filter((point) => point.date >= start);
   const change =
@@ -64,7 +71,10 @@ export function BodyWeightHistory() {
     onSuccess: () => setRemoving(null),
     onError: (err: Error) => {
       setRemoving(null);
-      Alert.alert("Could not delete weight", err.message);
+      Alert.alert(
+        t("Could not delete weight"),
+        errorText(err, "Repeat the action to try again."),
+      );
     },
     onSettled: () => {
       void client.invalidateQueries({ queryKey: weightKeys.all });
@@ -95,7 +105,7 @@ export function BodyWeightHistory() {
                 />
                 {weekly && (
                   <Text className="font-body text-caption text-text-secondary">
-                    Monday to Sunday · average of logged weights
+                    {t("Monday to Sunday · average of logged weights")}
                   </Text>
                 )}
                 <ProgressChart
@@ -106,27 +116,27 @@ export function BodyWeightHistory() {
                 />
                 {change !== null && (
                   <Text className="font-body text-sm text-text-secondary">
-                    Period change: {change > 0 ? "+" : ""}
+                    {t("Period change:")} {change > 0 ? "+" : ""}
                     {numberLabel(change)} {WEIGHT_UNIT} ·{" "}
                     {weekly
-                      ? "first to last weekly average"
-                      : "first to last recorded weight"}
+                      ? t("first to last weekly average")
+                      : t("first to last recorded weight")}
                   </Text>
                 )}
               </>
             )}
             <Button
-              label="Log weight"
+              label={t("Log weight")}
               icon="plus"
               onPress={() => setEditor({ log: null })}
             />
             <View className="flex-row flex-wrap items-center justify-between gap-sm pb-sm pt-lg">
               <Text className="font-body-semibold text-xl text-text-primary">
-                Measurements
+                {t("Measurements")}
               </Text>
               {query.data && !query.error && (
                 <Text className="font-body text-caption text-text-secondary">
-                  {visible.length} in this period
+                  {visible.length} {t("in this period")}
                 </Text>
               )}
             </View>
@@ -136,7 +146,9 @@ export function BodyWeightHistory() {
           <View className="flex-row items-center border-b border-border">
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Edit weight from ${dateLabel(item.date)}`}
+              accessibilityLabel={t("Edit weight from {{date}}", {
+                date: dateLabel(item.date),
+              })}
               onPress={() => setEditor({ log: item })}
               className="min-h-14 flex-1 flex-row flex-wrap items-center justify-between gap-md py-lg"
             >
@@ -149,7 +161,9 @@ export function BodyWeightHistory() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Delete weight from ${dateLabel(item.date)}`}
+              accessibilityLabel={t("Delete weight from {{date}}", {
+                date: dateLabel(item.date),
+              })}
               onPress={() => setRemoving(item)}
               className="min-h-12 min-w-12 items-center justify-center"
             >
@@ -160,8 +174,10 @@ export function BodyWeightHistory() {
         ListEmptyComponent={
           !query.isPending && !query.error ? (
             <Empty
-              title="No measurements here yet"
-              message="Log your body weight or choose a longer period to see your trend."
+              title={t("No measurements here yet")}
+              message={t(
+                "Log your body weight or choose a longer period to see your trend.",
+              )}
             />
           ) : undefined
         }
@@ -174,11 +190,14 @@ export function BodyWeightHistory() {
       )}
       <ConfirmModal
         visible={!!removing}
-        title="Delete measurement?"
-        description={`Remove the weight recorded on ${removing ? dateLabel(removing.date) : ""}? Your trend will update.`}
+        title={t("Delete measurement?")}
+        description={t(
+          "Remove the weight recorded on {{date}}? Your trend will update.",
+          { date: removing ? dateLabel(removing.date) : "" },
+        )}
         isDestructive
         isPending={remove.isPending}
-        confirmLabel={remove.isPending ? "Deleting…" : "Delete weight"}
+        confirmLabel={remove.isPending ? t("Deleting…") : t("Delete weight")}
         onConfirm={() => {
           if (removing) remove.mutate(removing.id);
         }}

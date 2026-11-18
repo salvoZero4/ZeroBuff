@@ -1,3 +1,5 @@
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
   FadeIn,
@@ -103,6 +105,8 @@ const KEYBOARD_TOOLBAR_THEME = {
 };
 
 export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
+  const { t } = useTranslation();
+  const exerciseName = useExerciseNames();
   const reduceMotion = useReducedMotion();
   const {
     data: routine,
@@ -257,8 +261,8 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   if (isError || !routineId)
     return (
       <ScreenError
-        title="Workout couldn’t load"
-        message={loadErrorMessage(error)}
+        title={t("Workout couldn’t load")}
+        message={t(loadErrorMessage(error))}
         onRetry={() => {
           void refetch();
         }}
@@ -269,10 +273,10 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   if (initError)
     return (
       <ScreenError
-        title="Workout recovery couldn’t finish"
+        title={t("Workout recovery couldn’t finish")}
         message={
-          persistenceError ??
-          "Your saved workout couldn’t be restored. Please try again."
+          (persistenceError ? t(persistenceError) : null) ??
+          t("Your saved workout couldn’t be restored. Please try again.")
         }
         onRetry={() => {
           setInitError(false);
@@ -286,8 +290,8 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   if (!activeExercise)
     return (
       <ScreenError
-        title="No exercises in this routine"
-        message="Add exercises to your routine before starting a workout."
+        title={t("No exercises in this routine")}
+        message={t("Add exercises to your routine before starting a workout.")}
         onRetry={() => {
           void refetch();
         }}
@@ -450,7 +454,9 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     }
   }
 
-  const finishSets = showFinishModal ? Object.values(session.workoutLogs).flat() : [];
+  const finishSets = showFinishModal
+    ? Object.values(session.workoutLogs).flat()
+    : [];
   const finishBlocker = getFinishBlocker(finishSets);
 
   return (
@@ -470,8 +476,9 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           className="bg-surface px-lg py-sm"
         >
           <Text className="font-body text-caption text-text-secondary">
-            You are offline. Reconnect to save your sets and finish this
-            workout.
+            {t(
+              "You are offline. Reconnect to save your sets and finish this workout.",
+            )}
           </Text>
         </View>
       ) : null}
@@ -482,7 +489,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           className="gap-xs bg-surface px-lg py-sm"
         >
           <Text className="font-body text-caption text-danger">
-            {persistenceError}
+            {t(persistenceError)}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -492,7 +499,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             className="min-h-12 justify-center"
           >
             <Text className="font-body-medium text-caption text-text-primary">
-              Try again
+              {t("Try again")}
             </Text>
           </Pressable>
         </View>
@@ -532,7 +539,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               <ExerciseStepPill
                 key={exItem.exercise_id}
                 index={idx}
-                name={exItem.name}
+                name={exerciseName(exItem.exercise_id, exItem.name)}
                 isActive={idx === session.currentExerciseIndex}
                 isCompleted={isCompleted}
                 onPress={() => selectExercise(idx)}
@@ -548,7 +555,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           className="flex-row items-center gap-md"
         >
           <Text className="flex-1 font-body-semibold text-xl text-text-primary">
-            {ex.name}
+            {exerciseName(ex.exercise_id, ex.name)}
           </Text>
           <Text className="font-body text-caption text-text-secondary">
             {session.currentExerciseIndex + 1} / {routine.exercises.length}
@@ -655,7 +662,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             >
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Add set"
+                accessibilityLabel={t("Add set")}
                 onPress={handleAddSet}
                 style={
                   setCardHeight > 0 ? { minHeight: setCardHeight } : undefined
@@ -664,10 +671,10 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               >
                 <Icon name="plus" size={28} className="text-text-secondary" />
                 <Text className="font-body-semibold text-body text-text-secondary">
-                  Add set
+                  {t("Add set")}
                 </Text>
                 <Text className="font-body text-caption text-text-secondary">
-                  Swipe here to add the next set
+                  {t("Swipe here to add the next set")}
                 </Text>
               </Pressable>
             </View>
@@ -678,8 +685,10 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               accessibilityLiveRegion="polite"
               className="font-body text-caption text-text-secondary"
             >
-              {activeExerciseLogs.filter(isSetSaved).length} of{" "}
-              {activeExerciseLogs.length} saved
+              {t("{{saved}} of {{total}} saved", {
+                saved: activeExerciseLogs.filter(isSetSaved).length,
+                total: activeExerciseLogs.length,
+              })}
             </Text>
           </View>
 
@@ -688,7 +697,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               accessibilityLiveRegion="polite"
               className="font-body text-caption text-danger"
             >
-              Could not remove the set. {removeError}
+              {t("Could not remove the set.")} {t(removeError)}
             </Text>
           ) : null}
         </View>
@@ -703,19 +712,21 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           className="w-full min-h-14 items-center justify-center rounded-md bg-accent active:bg-accent-pressed"
         >
           <Text className="font-body-semibold text-body text-on-accent">
-            {isLastExercise ? "Complete workout" : "Next exercise"}
+            {isLastExercise ? t("Complete workout") : t("Next exercise")}
           </Text>
         </Pressable>
       </View>
 
       <ConfirmModal
         visible={showRemoveModal}
-        title="Remove saved set?"
+        title={t("Remove saved set?")}
         description={
           removeError ??
-          "This removes the last set and its saved performance from this workout."
+          t(
+            "This removes the last set and its saved performance from this workout.",
+          )
         }
-        confirmLabel="Remove set"
+        confirmLabel={t("Remove set")}
         isDestructive
         isPending={activeExerciseLogs.at(-1)?.saveStatus === "pending"}
         onConfirm={() => {
@@ -726,25 +737,33 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
       <ConfirmModal
         visible={showFinishModal}
-        title="Finish workout"
+        title={t("Finish workout")}
         description={
-          finishBlocker ?? finishError ?? describeWorkoutFinish(finishSets)
+          finishBlocker
+            ? t(finishBlocker)
+            : finishError
+              ? t(finishError)
+              : describeWorkoutFinish(finishSets, (key, options) =>
+                  t(key, options ?? {}),
+                )
         }
         confirmLabel={
           session.isFinishing
-            ? "Saving…"
+            ? t("Saving…")
             : finishError
-              ? "Retry"
-              : "Finish & Save"
+              ? t("Retry")
+              : t("Finish & Save")
         }
         isPending={session.isFinishing}
         confirmDisabled={finishBlocker !== null}
-        cancelLabel="Keep training"
+        cancelLabel={t("Keep training")}
         onConfirm={confirmFinish}
         onCancel={() => setShowFinishModal(false)}
       />
 
-      <KeyboardToolbar theme={KEYBOARD_TOOLBAR_THEME} />
+      <KeyboardToolbar theme={KEYBOARD_TOOLBAR_THEME}>
+        <KeyboardToolbar.Done text={t("Done")} />
+      </KeyboardToolbar>
     </View>
   );
 }

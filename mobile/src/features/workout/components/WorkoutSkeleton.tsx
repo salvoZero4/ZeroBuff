@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { ScreenSkeleton } from "@/components/ui/ScreenState";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 export function WorkoutSkeleton() {
+  const { t } = useTranslation();
   return (
     <View className="flex-1 bg-bg">
       <View className="flex-row items-center justify-between border-b border-border px-md py-xs">
@@ -10,7 +12,7 @@ export function WorkoutSkeleton() {
         <Skeleton className="h-8 w-24" />
         <Skeleton className="h-5 w-12" />
       </View>
-      <ScreenSkeleton label="Preparing your workout…">
+      <ScreenSkeleton label={t("Preparing your workout…")}>
         <View className="flex-row gap-xs">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-12 flex-1" />

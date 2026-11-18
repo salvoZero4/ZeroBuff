@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
   FadeIn,
@@ -29,6 +30,7 @@ export function RestTimerControl({
   autoRestEnabled,
   onToggleAutoRest,
 }: RestTimerControlProps) {
+  const { t } = useTranslation();
   const background = useBackgroundRestTimerFeedback();
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
@@ -83,14 +85,18 @@ export function RestTimerControl({
         className="font-body text-body text-text-secondary"
       >
         {isRunning
-          ? "Resting"
+          ? t("Resting")
           : secondsLeft === 0
-            ? "Rest complete"
-            : "Rest timer"}
+            ? t("Rest complete")
+            : t("Rest timer")}
       </Animated.Text>
+      {/* Allow enough line height for Oswald’s tall digits. */}
       <Text
-        accessibilityLabel={`${mins} minutes ${secs} seconds`}
-        className="font-numeric-bold text-8xl text-text-primary"
+        accessibilityLabel={t("{{minutes}} minutes {{seconds}} seconds", {
+          minutes: mins,
+          seconds: secs,
+        })}
+        className="font-numeric-bold text-[96px] leading-[120px] text-text-primary"
       >
         {timeFormatted}
       </Text>
@@ -98,7 +104,7 @@ export function RestTimerControl({
         {isRunning ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Remove 15 seconds"
+            accessibilityLabel={t("Remove 15 seconds")}
             onPress={() => adjustTime(-15)}
             className="min-h-12 min-w-16 items-center justify-center rounded-sm border border-border"
           >
@@ -109,7 +115,7 @@ export function RestTimerControl({
         ) : null}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isRunning ? "Skip rest" : "Start rest"}
+          accessibilityLabel={isRunning ? t("Skip rest") : t("Start rest")}
           onPress={isRunning ? stopTimer : () => startTimer()}
           className="min-h-12 min-w-24 flex-row items-center justify-center gap-sm rounded-sm border border-border px-lg"
         >
@@ -119,13 +125,13 @@ export function RestTimerControl({
             className="text-text-primary"
           />
           <Text className="font-body-semibold text-body text-text-primary">
-            {isRunning ? "Skip" : "Start"}
+            {isRunning ? t("Skip") : t("Start")}
           </Text>
         </Pressable>
         {isRunning ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Add 30 seconds"
+            accessibilityLabel={t("Add 30 seconds")}
             onPress={() => adjustTime(30)}
             className="min-h-12 min-w-16 items-center justify-center rounded-sm border border-border"
           >
@@ -136,8 +142,8 @@ export function RestTimerControl({
         ) : null}
       </View>
       <ToggleSwitch
-        label="Auto rest"
-        accessibilityHint="Automatically start rest after saving a set"
+        label={t("Auto rest")}
+        accessibilityHint={t("Automatically start rest after saving a set")}
         value={autoRestEnabled}
         onValueChange={onToggleAutoRest}
       />

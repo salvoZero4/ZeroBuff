@@ -1,3 +1,6 @@
+import { numberLabel } from "@/shared/i18n/i18n";
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
   FadeInDown,
@@ -20,9 +23,6 @@ const savedEntrance = ZoomIn.duration(220)
   .easing(Easing.out(Easing.cubic))
   .reduceMotion(ReduceMotion.System);
 
-const formatNumber = (value: number) =>
-  value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-
 export function WorkoutSummaryScreen({
   summary,
   onDone,
@@ -32,15 +32,17 @@ export function WorkoutSummaryScreen({
   onDone: () => void;
   onViewWorkout: () => void;
 }) {
+  const { t } = useTranslation();
+  const exerciseName = useExerciseNames();
   const insets = useSafeAreaInsets();
   const empty = summary.sets === 0;
   const minutes = Math.floor(summary.durationSeconds / 60);
   const seconds = summary.durationSeconds % 60;
   const stats = empty
-    ? [["Duration", `${minutes}m ${seconds}s`]]
+    ? [[t("Duration"), `${minutes}m ${seconds}s`]]
     : [
-        ["Completed sets", String(summary.sets)],
-        ["Duration", `${minutes}m ${seconds}s`],
+        [t("Completed sets"), String(summary.sets)],
+        [t("Duration"), `${minutes}m ${seconds}s`],
       ];
 
   return (
@@ -66,14 +68,16 @@ export function WorkoutSummaryScreen({
               accessibilityLiveRegion="polite"
               className="font-body text-body text-text-secondary"
             >
-              {empty ? "Workout ended · No sets recorded" : "Workout saved"}
+              {empty
+                ? t("Workout ended · No sets recorded")
+                : t("Workout saved")}
             </Text>
           </View>
         </Animated.View>
         <View className="flex-row flex-wrap gap-lg">
           {stats.map(([label, value]) => (
             <View key={label} className="min-w-32 flex-1 gap-xs">
-              <Text className="font-numeric-bold text-4xl text-text-primary">
+              <Text className="font-numeric-bold text-[36px] text-text-primary">
                 {value}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
@@ -85,13 +89,13 @@ export function WorkoutSummaryScreen({
         {!empty ? (
           <View className="gap-md border-t border-border pt-lg">
             {[
-              ["Exercises", summary.exercises],
-              ["Total reps", summary.reps],
+              [t("Exercises"), summary.exercises],
+              [t("Total reps"), summary.reps],
               ...(summary.hasAddedLoad
                 ? [
                     [
-                      "Load volume",
-                      `${formatNumber(summary.volume)} ${WEIGHT_UNIT}`,
+                      t("Load volume"),
+                      `${numberLabel(summary.volume)} ${WEIGHT_UNIT}`,
                     ],
                   ]
                 : []),
@@ -110,8 +114,10 @@ export function WorkoutSummaryScreen({
             ))}
             <Text className="font-body text-caption text-text-secondary">
               {summary.hasAddedLoad
-                ? "Load volume is added weight × reps. Bodyweight is not included."
-                : "Bodyweight sets are tracked by reps, with no added load."}
+                ? t(
+                    "Load volume is added weight × reps. Bodyweight is not included.",
+                  )
+                : t("Bodyweight sets are tracked by reps, with no added load.")}
             </Text>
           </View>
         ) : null}
@@ -121,7 +127,7 @@ export function WorkoutSummaryScreen({
               accessibilityRole="header"
               className="font-body-semibold text-xl text-text-primary"
             >
-              Compared with last time
+              {t("Compared with last time")}
             </Text>
             {summary.improvements.map((improvement) => (
               <View
@@ -129,24 +135,42 @@ export function WorkoutSummaryScreen({
                 className="gap-xs border-b border-border pb-md"
               >
                 <Text className="font-body-semibold text-body text-text-primary">
-                  {improvement.name}
+                  {exerciseName(improvement.exerciseId, improvement.name)}
                 </Text>
                 <Text className="font-body text-caption text-text-secondary">
                   {improvement.metric === "reps"
-                    ? "Best set reps"
-                    : "Best set load volume"}
+                    ? t("Best set reps")
+                    : t("Best set load volume")}
                 </Text>
-                <Text className="font-numeric text-2xl text-accent">
-                  {formatNumber(improvement.previous)} →{" "}
-                  {formatNumber(improvement.current)}{" "}
-                  {improvement.metric === "reps" ? "reps" : WEIGHT_UNIT}
+                <Text className="font-numeric text-[24px] text-accent">
+                  {numberLabel(improvement.previous)} →{" "}
+                  {numberLabel(improvement.current)}{" "}
+                  {improvement.metric === "reps" ? t("reps") : WEIGHT_UNIT}
                 </Text>
               </View>
             ))}
             <Text className="font-body text-caption text-text-secondary">
               {summary.comparedExercises === 0
-                ? "No previous performance available to compare for this workout."
-                : `${summary.improvements.length === 0 ? "No best-set increases in the available comparisons. " : ""}Compared ${summary.comparedExercises} of ${summary.exercises} exercises using available previous sessions.${summary.comparedExercises < summary.exercises ? " Comparison is partial." : ""}`}
+                ? t(
+                    "No previous performance available to compare for this workout.",
+                  )
+                : t(
+                    "{{noIncreases}}Compared {{compared}} of {{total}} exercises using available previous sessions.{{partial}}",
+                    {
+                      noIncreases:
+                        summary.improvements.length === 0
+                          ? t(
+                              "No best-set increases in the available comparisons. ",
+                            )
+                          : "",
+                      compared: summary.comparedExercises,
+                      total: summary.exercises,
+                      partial:
+                        summary.comparedExercises < summary.exercises
+                          ? t(" Comparison is partial.")
+                          : "",
+                    },
+                  )}
             </Text>
           </View>
         ) : null}
@@ -157,12 +181,12 @@ export function WorkoutSummaryScreen({
       >
         {summary.sessionId ? (
           <Button
-            label="View workout"
+            label={t("View workout")}
             variant="outline"
             onPress={onViewWorkout}
           />
         ) : null}
-        <Button label="Back to Today" onPress={onDone} />
+        <Button label={t("Back to Today")} onPress={onDone} />
       </View>
     </View>
   );

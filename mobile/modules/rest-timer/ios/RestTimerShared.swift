@@ -48,7 +48,7 @@ actor RestTimerEngine {
     var next = try JSONDecoder().decode(RestTimerState.self, from: Data(json.utf8))
     if let current = read(), current.id == next.id {
       guard current.version == expectedVersion else { return current.json }
-      if current.endAt == next.endAt && current.status == next.status {
+      if current.endAt == next.endAt && current.status == next.status && current.language == next.language {
         try await present(current)
         return current.json
       }

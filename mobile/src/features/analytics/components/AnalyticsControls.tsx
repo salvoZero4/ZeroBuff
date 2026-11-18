@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ export function Choices<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <View className="flex-row gap-sm">
@@ -25,7 +27,7 @@ export function Choices<T extends string>({
             <Text
               className={`font-body-semibold text-sm ${item === value ? "text-text-primary" : "text-text-secondary"}`}
             >
-              {item}
+              {t(String(item))}
             </Text>
           </Pressable>
         ))}
@@ -40,6 +42,7 @@ export function PeriodControl({
   value: Period;
   onChange: (period: Period) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View className="flex-row flex-wrap gap-xs border-b border-border pb-sm">
       {PERIODS.map((period) => (
@@ -48,10 +51,12 @@ export function PeriodControl({
           accessibilityRole="button"
           accessibilityLabel={
             period === "All"
-              ? "All time"
+              ? t("All time")
               : period === "1M"
-                ? "Last month"
-                : `Last ${period.slice(0, -1)} months`
+                ? t("Last month")
+                : t("Last {{count}} months", {
+                    count: Number(period.slice(0, -1)),
+                  })
           }
           accessibilityState={{ selected: period === value }}
           onPress={() => onChange(period)}
@@ -60,7 +65,7 @@ export function PeriodControl({
           <Text
             className={`font-body-semibold text-sm ${period === value ? "text-text-primary" : "text-text-secondary"}`}
           >
-            {period === "All" ? "All time" : period}
+            {period === "All" ? t("All time") : period}
           </Text>
         </Pressable>
       ))}
@@ -86,13 +91,14 @@ export function QueryNotice({
   error: Error | null;
   retry: () => void;
 }) {
+  const { t } = useTranslation();
   if (error)
     return (
       <View className="gap-sm py-lg">
         <Text className="font-body text-body text-text-secondary">
-          {loadErrorMessage(error)}
+          {t(loadErrorMessage(error))}
         </Text>
-        <Button label="Try again" variant="outline" onPress={retry} />
+        <Button label={t("Try again")} variant="outline" onPress={retry} />
       </View>
     );
   return pending ? (
@@ -100,7 +106,7 @@ export function QueryNotice({
       accessibilityLiveRegion="polite"
       className="py-xl font-body text-body text-text-secondary"
     >
-      Loading your history… The server may take a moment.
+      {t("Loading your history… The server may take a moment.")}
     </Text>
   ) : null;
 }

@@ -4,24 +4,27 @@ from uuid import UUID
 from app.db.session import sessionDep
 from app.features.auth.dependencies import currentUserDep
 from app.models.exercise import Equipment, MuscleGroup
+from app.features.exercises.languages import preferred_language
 from app.features.exercises.schemas import (
     ExerciseCreated,
     ExerciseListResponse,
     ExerciseModified,
     ExerciseRead,
     ExerciseStatsResponse,
+    ExerciseTranslationsResponse,
     SearchResponse,
 )
 from app.features.exercises.service import (
     create_custom_exercise,
     delete_exercise,
     exercise_details,
+    exercise_translations,
     exercises_list,
     get_stats,
     search,
     update_exercise,
 )
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Header, Query, Response, status
 
 router = APIRouter(prefix="/v1/exercises", tags=["Exercises"])
 
@@ -30,6 +33,7 @@ router = APIRouter(prefix="/v1/exercises", tags=["Exercises"])
     "/", response_model=ExerciseListResponse
 )  # rotta per ottenere lista di esercizi disponibili con filtri e paginazione
 def get_exercises(
+    response: Response,
     session: sessionDep,
     current_user: currentUserDep,
     name: str | None = None,
@@ -37,8 +41,10 @@ def get_exercises(
     offset: int = Query(default=0, ge=0),
     muscle_group: MuscleGroup | None = None,
     equipment: Equipment | None = None,
+    accept_language: Annotated[str | None, Header()] = None,
 ):
     """Get a list of exercises with optional filters and pagination."""
+    response.headers.append("Vary", "Accept-Language")
     return exercises_list(
         session,
         name=name,
@@ -46,6 +52,7 @@ def get_exercises(
         offset=offset,
         muscle_group=muscle_group,
         equipment=equipment,
+        language=preferred_language(accept_language),
     )
 
 
@@ -53,12 +60,25 @@ def get_exercises(
     "/search", response_model=SearchResponse
 )  # rotta per cercare esercizi per similarità di nome
 def search_exercises(
+    response: Response,
     session: sessionDep,
     current_user: currentUserDep,
     query: Annotated[str, Query(min_length=3)],
+    accept_language: Annotated[str | None, Header()] = None,
 ):
     """Search for exercises for similarity by name."""
-    return search(session, query=query)
+    response.headers.append("Vary", "Accept-Language")
+    return search(session, query=query, language=preferred_language(accept_language))
+
+
+@router.get("/translations", response_model=ExerciseTranslationsResponse)
+def get_exercise_translations(
+    session: sessionDep,
+    current_user: currentUserDep,
+    language: Annotated[str, Query(pattern=r"^[a-z]{2,8}(-[a-z0-9]{1,8})*$", max_length=63)],
+):
+    """Get the translated display names for global exercises."""
+    return exercise_translations(session, language)
 
 
 @router.post(

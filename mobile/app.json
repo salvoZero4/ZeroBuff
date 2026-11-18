@@ -51,7 +51,8 @@
           "enablePushNotifications": false,
           "frequentUpdates": false
         }
-      ]
+      ],
+      ["expo-localization", { "supportedLocales": ["en", "it"] }]
     ],
     "experiments": {
       "typedRoutes": true,

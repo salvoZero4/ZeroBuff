@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -18,6 +19,7 @@ export function RestDurationModal({
   onApply: (seconds: number) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [minutes, setMinutes] = useState(
     String(Math.floor(initialSeconds / 60)),
@@ -33,7 +35,7 @@ export function RestDurationModal({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close rest duration"
+          accessibilityLabel={t("Close rest duration")}
           className="absolute inset-0"
           onPress={onClose}
         />
@@ -48,17 +50,19 @@ export function RestDurationModal({
                 accessibilityRole="header"
                 className="font-body-bold text-xl text-text-primary"
               >
-                {all ? "Rest for all exercises" : "Rest duration"}
+                {all ? t("Rest for all exercises") : t("Rest duration")}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
                 {all
-                  ? "Replaces existing rest times. Individual changes are still available."
-                  : "Time between sets for this exercise."}
+                  ? t(
+                      "Replaces existing rest times. Individual changes are still available.",
+                    )
+                  : t("Time between sets for this exercise.")}
               </Text>
             </View>
             <IconButton
               icon="xmark"
-              label="Close rest duration"
+              label={t("Close rest duration")}
               variant="bare"
               onPress={onClose}
             />
@@ -68,7 +72,10 @@ export function RestDurationModal({
               <Pressable
                 key={value}
                 accessibilityRole="button"
-                accessibilityLabel={`${Math.floor(value / 60)} minutes ${value % 60} seconds rest`}
+                accessibilityLabel={t(
+                  "{{minutes}} minutes {{seconds}} seconds rest",
+                  { minutes: Math.floor(value / 60), seconds: value % 60 },
+                )}
                 accessibilityState={{
                   selected:
                     String(Math.floor(value / 60)) === minutes &&
@@ -90,7 +97,7 @@ export function RestDurationModal({
           <View className="flex-row gap-md">
             <View className="flex-1">
               <TextField
-                label="Minutes"
+                label={t("Minutes")}
                 value={minutes}
                 keyboardType="number-pad"
                 onChangeText={(value) => {
@@ -101,7 +108,7 @@ export function RestDurationModal({
             </View>
             <View className="flex-1">
               <TextField
-                label="Seconds"
+                label={t("Seconds")}
                 value={seconds}
                 keyboardType="number-pad"
                 onChangeText={(value) => {
@@ -120,7 +127,7 @@ export function RestDurationModal({
             </Text>
           )}
           <Button
-            label={all ? "Apply to all" : "Apply rest"}
+            label={all ? t("Apply to all") : t("Apply rest")}
             onPress={() => {
               try {
                 onApply(parseRestDuration(minutes, seconds));

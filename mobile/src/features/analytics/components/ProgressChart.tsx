@@ -1,11 +1,8 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import {
-  chartGeometry,
-  dateLabel,
-  numberLabel,
-  type Point,
-} from "../utils/progress";
+import { dateLabel, numberLabel } from "@/shared/i18n/i18n";
+import { chartGeometry, type Point } from "../utils/progress";
 import { Icon } from "@/components/ui/Icon";
 
 export function ProgressChart({
@@ -19,12 +16,13 @@ export function ProgressChart({
   onOpen?: (id: string) => void;
   pointName?: "measurement" | "weekly average";
 }) {
+  const { t } = useTranslation();
   const [width, setWidth] = useState(240);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   if (!points.length)
     return (
       <Text className="py-xl font-body text-body text-text-secondary">
-        No measurements in this period.
+        {t("No measurements in this period.")}
       </Text>
     );
   if (points.length === 1) {
@@ -42,8 +40,10 @@ export function ProgressChart({
         </Text>
         <Text className="font-body text-caption text-text-secondary">
           {pointName === "weekly average"
-            ? "Log weight in another week to compare averages."
-            : "One measurement. A trend will appear after more records are added."}
+            ? t("Log weight in another week to compare averages.")
+            : t(
+                "One measurement. A trend will appear after more records are added.",
+              )}
         </Text>
         {onOpen && (
           <Pressable
@@ -52,7 +52,7 @@ export function ProgressChart({
             className="min-h-12 justify-center"
           >
             <Text className="font-body-semibold text-sm text-text-primary">
-              Open selected session
+              {t("Open selected session")}
             </Text>
           </Pressable>
         )}
@@ -87,7 +87,7 @@ export function ProgressChart({
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Previous ${pointName}`}
+          accessibilityLabel={t("Previous {{point}}", { point: t(pointName) })}
           disabled={selected === 0}
           onPress={() => setSelectedId(points[selected - 1].id)}
           className="min-h-12 min-w-12 items-center justify-center"
@@ -102,7 +102,7 @@ export function ProgressChart({
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Next ${pointName}`}
+          accessibilityLabel={t("Next {{point}}", { point: t(pointName) })}
           disabled={selected === points.length - 1}
           onPress={() => setSelectedId(points[selected + 1].id)}
           className="min-h-12 min-w-12 items-center justify-center"
@@ -133,7 +133,10 @@ export function ProgressChart({
           onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
           onStartShouldSetResponder={() => true}
           onResponderRelease={(event) => selectAt(event.nativeEvent.locationX)}
-          accessibilityLabel={`Progress chart. Use previous and next ${pointName} buttons to inspect values.`}
+          accessibilityLabel={t(
+            "Progress chart. Use previous and next {{point}} buttons to inspect values.",
+            { point: t(pointName) },
+          )}
         >
           {[0, 80, 160].map((top) => (
             <View
@@ -184,7 +187,7 @@ export function ProgressChart({
         <Text className="font-body text-caption text-text-secondary">
           {points.length > 1
             ? dateLabel(points[points.length - 1].date)
-            : "One measurement"}
+            : t("One measurement")}
         </Text>
       </View>
       {onOpen && (
@@ -194,7 +197,7 @@ export function ProgressChart({
           className="min-h-12 justify-center"
         >
           <Text className="font-body-semibold text-sm text-text-primary">
-            Open selected session
+            {t("Open selected session")}
           </Text>
         </Pressable>
       )}

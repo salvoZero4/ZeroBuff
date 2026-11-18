@@ -1,3 +1,5 @@
+import { errorText } from "@/shared/i18n/errors";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -18,6 +20,7 @@ export function ChangePasswordModal({
   visible,
   onClose,
 }: ChangePasswordModalProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -37,20 +40,20 @@ export function ChangePasswordModal({
     },
     onError: (err) => {
       if (err instanceof ApiError) {
-        setError(err.message || "Could not update password.");
+        setError(errorText(err, "Could not update password."));
       } else {
-        setError("Network error. Please try again.");
+        setError(t("Network error. Please try again."));
       }
     },
   });
 
   function handleSubmit() {
     if (newPassword.length < 8) {
-      setError("Use at least 8 characters.");
+      setError(t("Use at least 8 characters."));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t("Passwords do not match."));
       return;
     }
     setError(null);
@@ -73,7 +76,7 @@ export function ChangePasswordModal({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close password modal"
+          accessibilityLabel={t("Close password modal")}
           className="absolute inset-0"
           disabled={isPending}
           onPress={handleClose}
@@ -87,15 +90,15 @@ export function ChangePasswordModal({
           <View className="flex-row items-center gap-md">
             <View className="flex-1 gap-xs">
               <Text className="font-body-bold text-xl text-text-primary">
-                Change password
+                {t("Change password")}
               </Text>
               <Text className="font-body text-caption text-text-secondary">
-                Choose a new password for your account
+                {t("Choose a new password for your account")}
               </Text>
             </View>
             <IconButton
               icon="xmark"
-              label="Close"
+              label={t("Close")}
               variant="bare"
               disabled={isPending}
               onPress={handleClose}
@@ -103,8 +106,8 @@ export function ChangePasswordModal({
           </View>
 
           <TextField
-            label="New password"
-            placeholder="At least 8 characters"
+            label={t("New password")}
+            placeholder={t("At least 8 characters")}
             secureTextEntry
             value={newPassword}
             onChangeText={(val) => {
@@ -115,8 +118,8 @@ export function ChangePasswordModal({
           />
 
           <TextField
-            label="Confirm password"
-            placeholder="Repeat new password"
+            label={t("Confirm password")}
+            placeholder={t("Repeat new password")}
             secureTextEntry
             value={confirmPassword}
             onChangeText={(val) => {
@@ -128,7 +131,7 @@ export function ChangePasswordModal({
           />
 
           <Button
-            label={isPending ? "Updating..." : "Update password"}
+            label={isPending ? t("Updating...") : t("Update password")}
             onPress={handleSubmit}
             disabled={isPending}
           />

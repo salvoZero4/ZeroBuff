@@ -7,12 +7,14 @@ export type NativeRestTimer = {
   version: number;
   status: "active" | "complete" | "skipped";
   surfaceDismissed?: boolean;
+  language?: "en" | "it";
 };
 
 export type RestTimerSnapshot = {
   workoutKey: string;
   routineId: string;
   title: string;
+  language?: "en" | "it";
   id: string | null;
   endAt: number | null;
 };
@@ -21,7 +23,7 @@ export interface RestTimerAdapter {
   getState(): Promise<string | null>;
   setTimer(json: string, expectedVersion: number): Promise<string>;
   clear(): Promise<void>;
-  authorize(): Promise<void>;
+  authorize(language?: RestTimerSnapshot["language"]): Promise<void>;
 }
 
 export function parseNativeTimer(json: string | null): NativeRestTimer | null {
@@ -51,6 +53,7 @@ export function timerSnapshot(state: NativeRestTimer): RestTimerSnapshot {
     workoutKey: state.workoutKey,
     routineId: state.routineId,
     title: state.title,
+    ...(state.language ? { language: state.language } : {}),
     id: state.id,
     endAt: state.status === "skipped" ? null : state.endAt,
   };
@@ -93,6 +96,7 @@ export class RestTimerSync {
     )
       return this.tail;
     this.initialized = true;
+    const previous = this.desired;
     this.desired = snapshot;
     const generation = ++this.generation;
     return this.enqueue(async () => {
@@ -104,10 +108,20 @@ export class RestTimerSync {
       }
       const current = parseNativeTimer(await this.adapter.getState());
       if (generation !== this.generation) return;
+      const languageChanged =
+        snapshot.language !== undefined &&
+        snapshot.language !== (current?.language ?? "en");
+      const languageOnly =
+        languageChanged &&
+        (current?.status !== "active" ||
+          (previous?.workoutKey === snapshot.workoutKey &&
+            previous.id === snapshot.id &&
+            previous.endAt === snapshot.endAt));
       if (
         current?.workoutKey === snapshot.workoutKey &&
         (snapshot.id === null || snapshot.id === current.id) &&
         (republish ||
+          languageOnly ||
           !this.versions.has(current.id) ||
           current.version > this.versions.get(current.id)!)
       ) {
@@ -115,14 +129,18 @@ export class RestTimerSync {
         // A saved timer does not prove that its notifications were published.
         // Retry active timers using the latest native deadline, never revive a
         // completed/skipped timer or remove its completion alert.
-        if (!republish || current.status !== "active") return;
-        snapshot = timerSnapshot(current);
+        if ((!republish && !languageChanged) || current.status !== "active")
+          return;
+        snapshot = {
+          ...timerSnapshot(current),
+          ...(snapshot.language ? { language: snapshot.language } : {}),
+        };
       }
       if (!snapshot.id || snapshot.endAt === null) {
         await this.adapter.clear();
         return;
       }
-      await this.adapter.authorize();
+      await this.adapter.authorize(snapshot.language);
       if (generation !== this.generation) return;
       const expected = current?.id === snapshot.id ? current.version : 0;
       const result = parseNativeTimer(

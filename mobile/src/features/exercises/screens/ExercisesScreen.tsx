@@ -1,3 +1,6 @@
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { useLanguage } from "@/shared/i18n/LanguageProvider";
+import { useTranslation } from "react-i18next";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -37,30 +40,26 @@ import { ExerciseListRow } from "../components/ExerciseListRow";
 
 const PAGE_SIZE = 20;
 
-function formatLabel(val: string): string {
-  return val
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-const MUSCLE_OPTIONS: readonly PickerOption[] = [
-  { label: "All muscles", value: "all" },
-  ...MUSCLE_GROUPS.map((mg) => ({
-    value: mg,
-    label: formatLabel(mg),
-  })),
-];
-
-const EQUIPMENT_OPTIONS: readonly PickerOption[] = [
-  { label: "All equipment", value: "all" },
-  ...EQUIPMENT_LIST.map((eq) => ({
-    value: eq,
-    label: formatLabel(eq),
-  })),
-];
-
 export function ExercisesScreen() {
+  const { t } = useTranslation();
+  const MUSCLE_OPTIONS: readonly PickerOption[] = [
+    { label: t("All muscles"), value: "all" },
+    ...MUSCLE_GROUPS.map((mg) => ({
+      value: mg,
+      label: t(`exercise.${mg}`),
+    })),
+  ];
+
+  const EQUIPMENT_OPTIONS: readonly PickerOption[] = [
+    { label: t("All equipment"), value: "all" },
+    ...EQUIPMENT_LIST.map((eq) => ({
+      value: eq,
+      label: t(`exercise.${eq}`),
+    })),
+  ];
+
+  const exerciseName = useExerciseNames();
+  const { language } = useLanguage();
   const pickerMounted = useRef(false);
   useEffect(() => {
     pickerMounted.current = true;
@@ -96,6 +95,7 @@ export function ExercisesScreen() {
 
   const exerciseParams = {
     name: debouncedSearch || undefined,
+    language: debouncedSearch ? language : undefined,
     muscle_group:
       selectedMuscle === "all" ? undefined : (selectedMuscle as MuscleGroup),
     equipment:
@@ -153,10 +153,11 @@ export function ExercisesScreen() {
   }
 
   const selectedMuscleLabel =
-    MUSCLE_OPTIONS.find((o) => o.value === selectedMuscle)?.label ?? "Muscle";
+    MUSCLE_OPTIONS.find((o) => o.value === selectedMuscle)?.label ??
+    t("Muscle");
   const selectedEquipmentLabel =
     EQUIPMENT_OPTIONS.find((o) => o.value === selectedEquipment)?.label ??
-    "Equipment";
+    t("Equipment");
 
   return (
     <View className="flex-1 bg-bg px-lg pt-lg">
@@ -164,16 +165,16 @@ export function ExercisesScreen() {
       <View className="flex-row items-center gap-md pb-md">
         <IconButton
           icon="arrow-left"
-          label="Back"
+          label={t("Back")}
           iconSize={18}
           onPress={() => router.back()}
         />
         <View className="flex-1">
           <Text className="font-body-bold text-title text-text-primary">
-            Exercises
+            {t("Exercises")}
           </Text>
           <Text className="font-body text-caption text-text-secondary">
-            Select a movement for your routine
+            {t("Select a movement for your routine")}
           </Text>
         </View>
       </View>
@@ -181,8 +182,8 @@ export function ExercisesScreen() {
       {/* Input di ricerca */}
       <View className="mb-sm">
         <TextField
-          label="Find an exercise"
-          placeholder="Search by name"
+          label={t("Find an exercise")}
+          placeholder={t("Search by name")}
           value={search}
           onChangeText={setSearch}
         />
@@ -240,12 +241,15 @@ export function ExercisesScreen() {
         </View>
       ) : error && !data ? (
         <View className="flex-1 justify-center gap-md p-lg">
-          <Text accessibilityLiveRegion="polite" className="font-body text-body text-text-secondary">
-            {loadErrorMessage(error)}
+          <Text
+            accessibilityLiveRegion="polite"
+            className="font-body text-body text-text-secondary"
+          >
+            {t(loadErrorMessage(error))}
           </Text>
           <Button
             variant="outline"
-            label={isFetching ? "Retrying…" : "Try again"}
+            label={isFetching ? t("Retrying…") : t("Try again")}
             disabled={isFetching}
             onPress={() => void refetch()}
           />
@@ -266,18 +270,20 @@ export function ExercisesScreen() {
             >
               <View className="gap-xs">
                 <Text className="font-body-bold text-body text-accent">
-                  + Create exercise
+                  {t("+ Create exercise")}
                 </Text>
                 <Text className="font-body text-caption text-text-secondary">
-                  If you cannot find an exercise add a new public exercise!
+                  {t(
+                    "If you cannot find an exercise add a new public exercise!",
+                  )}
                 </Text>
               </View>
             </Pressable>
           }
           renderItem={({ item, index }) => (
             <ExerciseListRow
-              name={item.name}
-              detail={`${item.muscle_group.replaceAll("_", " ")} · ${item.equipment.replaceAll("_", " ")}`}
+              name={exerciseName(item.id, item.name)}
+              detail={`${t(`exercise.${item.muscle_group}`)} · ${t(`exercise.${item.equipment}`)}`}
               isLast={index === exercises.length - 1}
               action="add"
               onPress={() => handleSelect(item)}
@@ -291,7 +297,7 @@ export function ExercisesScreen() {
             ) : isFetchNextPageError ? (
               <Button
                 variant="outline"
-                label="Retry loading more exercises"
+                label={t("Retry loading more exercises")}
                 disabled={isFetching}
                 onPress={() => void fetchNextPage()}
               />
@@ -301,11 +307,15 @@ export function ExercisesScreen() {
             <View className="items-center gap-md p-xl">
               <Text className="text-center font-body text-caption text-text-secondary">
                 {hasFilters
-                  ? "No exercises found matching your filters."
-                  : "No exercises available."}
+                  ? t("No exercises found matching your filters.")
+                  : t("No exercises available.")}
               </Text>
               {hasFilters && (
-                <Button variant="outline" label="Clear filters" onPress={clearFilters} />
+                <Button
+                  variant="outline"
+                  label={t("Clear filters")}
+                  onPress={clearFilters}
+                />
               )}
             </View>
           }
@@ -315,7 +325,7 @@ export function ExercisesScreen() {
       {/* Modale Selezione Gruppo Muscolare */}
       <SelectPickerModal
         visible={activePicker === "muscle"}
-        title="Filter by muscle"
+        title={t("Filter by muscle")}
         options={MUSCLE_OPTIONS}
         selectedValues={[selectedMuscle]}
         multiSelect={false}
@@ -329,7 +339,7 @@ export function ExercisesScreen() {
       {/* Modale Selezione Attrezzatura */}
       <SelectPickerModal
         visible={activePicker === "equipment"}
-        title="Filter by equipment"
+        title={t("Filter by equipment")}
         options={EQUIPMENT_OPTIONS}
         selectedValues={[selectedEquipment]}
         multiSelect={false}

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/ui/Icon";
@@ -17,9 +18,10 @@ export function SettingRow({
   isLast = false,
   onPress,
 }: SettingRowProps) {
+  const { t } = useTranslation();
   return (
     <Pressable
-      accessibilityLabel={`${title}: ${detail || "Not set"}`}
+      accessibilityLabel={`${title}: ${detail || t("Not set")}`}
       accessibilityRole="button"
       disabled={!onPress}
       onPress={onPress}
@@ -32,7 +34,7 @@ export function SettingRow({
           {title}
         </Text>
         <Text className="font-body text-caption text-text-secondary">
-          {detail || "Not set"}
+          {detail || t("Not set")}
         </Text>
       </View>
 

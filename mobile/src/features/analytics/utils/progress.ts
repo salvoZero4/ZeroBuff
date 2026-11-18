@@ -28,16 +28,6 @@ export function periodStart(period: Period, now = new Date()): string {
   date.setDate(Math.min(day, lastDay));
   return toLocalDateString(date);
 }
-export function dateLabel(date: string): string {
-  return new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-export function numberLabel(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
 export function metricValue(
   sets: ExerciseSessionLog["sets"],
   metric: Metric,

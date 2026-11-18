@@ -1,3 +1,5 @@
+import { dateLocale, formatNumber } from "@/shared/i18n/i18n";
+import { useTranslation } from "react-i18next";
 import { sessionKeys } from "@/features/workout/api/queryKeys";
 import { Button } from "@/components/ui/Button";
 import { loadErrorMessage } from "@/shared/api/loadError";
@@ -32,7 +34,7 @@ function formatSessionDate(dateStr: string): string {
   const [year, month, day] = dateStr.split("-").map(Number);
   if (!year || !month || !day) return dateStr;
   const date = new Date(year, month - 1, day);
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(dateLocale(), {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -43,6 +45,7 @@ export function LastSessionCard({
   session,
   routineName,
 }: LastSessionCardProps) {
+  const { t } = useTranslation();
   const {
     data: detail,
     isLoading,
@@ -77,8 +80,8 @@ export function LastSessionCard({
   if (!session) {
     return (
       <InfoCard
-        title="No sessions yet"
-        description="Your completed workouts will appear here."
+        title={t("No sessions yet")}
+        description={t("Your completed workouts will appear here.")}
       />
     );
   }
@@ -89,7 +92,7 @@ export function LastSessionCard({
       <View className="flex-row items-start justify-between gap-md">
         <View className="flex-1 gap-xs">
           <Text className="font-body-bold text-xl text-text-primary">
-            {routineName || "Workout Session"}
+            {routineName || t("Workout Session")}
           </Text>
           <Text className="font-body text-caption text-text-secondary">
             {formatSessionDate(session.date)}
@@ -108,11 +111,11 @@ export function LastSessionCard({
       {error ? (
         <View className="gap-sm">
           <Text className="font-body text-caption text-text-secondary">
-            {loadErrorMessage(error)}
+            {t(loadErrorMessage(error))}
           </Text>
           <Button
             variant="outline"
-            label={isFetching ? "Retrying…" : "Try again"}
+            label={isFetching ? t("Retrying…") : t("Try again")}
             disabled={isFetching}
             onPress={() => {
               void refetch();
@@ -128,7 +131,7 @@ export function LastSessionCard({
               {stats.uniqueExercises}
             </Text>
             <Text className="font-body text-caption text-text-secondary">
-              {stats.uniqueExercises === 1 ? "exercise" : "exercises"}
+              {t("exerciseLabel", { count: stats.uniqueExercises })}
             </Text>
           </View>
 
@@ -137,20 +140,20 @@ export function LastSessionCard({
               {stats.totalSets}
             </Text>
             <Text className="font-body text-caption text-text-secondary">
-              {stats.totalSets === 1 ? "set" : "sets"}
+              {t("setLabel", { count: stats.totalSets })}
             </Text>
           </View>
 
           <View className="flex-1 gap-xs">
             <Text className="font-numeric-bold text-xl text-text-primary">
-              {stats.totalVolume.toLocaleString()}
+              {formatNumber(stats.totalVolume)}
               <Text className="font-body text-caption text-text-secondary">
                 {" "}
                 {WEIGHT_UNIT}
               </Text>
             </Text>
             <Text className="font-body text-caption text-text-secondary">
-              volume
+              {t("volume")}
             </Text>
           </View>
         </View>

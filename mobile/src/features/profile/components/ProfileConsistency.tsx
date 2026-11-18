@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 import { Button } from "@/components/ui/Button";
 import { Section } from "@/components/ui/Section";
@@ -11,22 +12,23 @@ export function ProfileConsistency({
 }: {
   history: ReturnType<typeof useHistory>;
 }) {
+  const { t } = useTranslation();
   if (history.isPending)
     return (
-      <Section title="Consistency">
-        <LoadingNotice label="Loading your training year…" />
+      <Section title={t("Consistency")}>
+        <LoadingNotice label={t("Loading your training year…")} />
       </Section>
     );
 
   if (history.error)
     return (
-      <Section title="Consistency">
+      <Section title={t("Consistency")}>
         <Text className="font-body text-caption text-text-secondary">
-          {loadErrorMessage(history.error)}
+          {t(loadErrorMessage(history.error))}
         </Text>
         <Button
           variant="outline"
-          label={history.isFetching ? "Retrying…" : "Try again"}
+          label={history.isFetching ? t("Retrying…") : t("Try again")}
           disabled={history.isFetching}
           onPress={() => void history.refetch()}
         />
@@ -43,7 +45,7 @@ export function ProfileConsistency({
       />
       {!history.data.some((session) => session.status === "completed") && (
         <Text className="font-body text-caption text-text-secondary">
-          Your completed workouts will appear here.
+          {t("Your completed workouts will appear here.")}
         </Text>
       )}
     </View>

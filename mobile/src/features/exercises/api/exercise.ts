@@ -1,3 +1,4 @@
+import type { Language } from "@/shared/i18n/i18n";
 import { apiRequest } from "@/shared/api/client";
 import type {
   ExerciseCreated,
@@ -20,8 +21,24 @@ export async function getExercises(
   const qs = query.toString();
   const response = await apiRequest<ExerciseListResponse>(
     `/exercises/${qs ? `?${qs}` : ""}`,
+    {
+      headers: params.language
+        ? { "Accept-Language": params.language }
+        : undefined,
+    },
   );
   return response.exercises;
+}
+
+export async function getExerciseTranslations(
+  language: Language,
+): Promise<Map<string, string>> {
+  const { translations } = await apiRequest<{
+    translations: { exercise_id: string; name: string }[];
+  }>(`/exercises/translations?language=${language}`);
+  return new Map(
+    translations.map(({ exercise_id, name }) => [exercise_id, name]),
+  );
 }
 
 export function createExercise(

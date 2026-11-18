@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from app.models.exercise import Equipment, Exercise, MuscleGroup
+from app.models.exercise import Equipment, Exercise, ExerciseTranslation, MuscleGroup
 from app.models.routine import RoutineExercise
 from app.models.session import Session as SessionModel
 from app.models.session import Set_log
@@ -12,28 +12,43 @@ from app.features.exercises.schemas import (
     ExerciseSearchResult,
     ExerciseSessionLog,
     ExerciseStatsResponse,
+    ExerciseTranslationRead,
+    ExerciseTranslationsResponse,
     SearchResponse,
     SetLogRead,
 )
 from app.core.db_errors import commit_with_http_error_handling
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 from sqlmodel import Session, select
 
 
-def find_similar_exercises(name: str, session: Session, threshold: float = 0.3):
-    similarity_score = func.similarity(Exercise.name, name)
+def _translation_join(language: str):
+    return and_(
+        ExerciseTranslation.exercise_id == Exercise.id,
+        ExerciseTranslation.language == language,
+        Exercise.created_by_user.is_(None),
+    )
 
+
+def find_similar_exercises(
+    name: str, session: Session, threshold: float = 0.3, *, language: str = "en"
+):
+    canonical_score = func.similarity(Exercise.name, name)
+    score = canonical_score
+    if language != "en":
+        score = func.greatest(canonical_score, func.similarity(ExerciseTranslation.name, name))
+
+    statement = select(Exercise, score.label("score"))
+    if language != "en":
+        statement = statement.outerjoin(ExerciseTranslation, _translation_join(language))
     return session.exec(
-        select(Exercise, similarity_score.label("score"))
-        .where(similarity_score > threshold)
-        .order_by(similarity_score.desc())
-        .limit(5)
+        statement.where(score > threshold).order_by(score.desc(), Exercise.id).limit(5)
     ).all()
 
 
-def search(session: Session, query: str) -> SearchResponse:
-    similar_exercises = find_similar_exercises(query, session)
+def search(session: Session, query: str, language: str = "en") -> SearchResponse:
+    similar_exercises = find_similar_exercises(query, session, language=language)
 
     results = [
         ExerciseSearchResult(
@@ -52,22 +67,43 @@ def exercises_list(
     offset: int = 0,
     muscle_group: MuscleGroup | None = None,
     equipment: Equipment | None = None,
+    language: str = "en",
 ):
     statement = select(Exercise)
 
     if name:
-        statement = statement.where(Exercise.name.ilike(f"%{name}%"))
+        pattern = f"%{name}%"
+        matches = Exercise.name.ilike(pattern)
+        if language != "en":
+            statement = statement.outerjoin(ExerciseTranslation, _translation_join(language))
+            matches = or_(matches, ExerciseTranslation.name.ilike(pattern))
+        statement = statement.where(matches)
     if muscle_group:
         statement = statement.where(Exercise.muscle_group == muscle_group)
     if equipment:
         statement = statement.where(Exercise.equipment == equipment)
 
-    statement = statement.order_by(Exercise.name).offset(offset).limit(limit)
+    statement = statement.order_by(Exercise.name, Exercise.id).offset(offset).limit(limit)
 
     exercises = session.exec(statement).all()
 
     return ExerciseListResponse(
         exercises=[ExerciseRead.model_validate(exercise) for exercise in exercises]
+    )
+
+
+def exercise_translations(session: Session, language: str) -> ExerciseTranslationsResponse:
+    translations = session.exec(
+        select(ExerciseTranslation)
+        .join(Exercise, Exercise.id == ExerciseTranslation.exercise_id)
+        .where(
+            ExerciseTranslation.language == language,
+            Exercise.created_by_user.is_(None),
+        )
+        .order_by(ExerciseTranslation.exercise_id)
+    ).all()
+    return ExerciseTranslationsResponse(
+        translations=[ExerciseTranslationRead.model_validate(row) for row in translations]
     )
 
 

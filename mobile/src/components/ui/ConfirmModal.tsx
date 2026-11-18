@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IconButton } from "./IconButton";
@@ -21,8 +22,8 @@ export function ConfirmModal({
   visible,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   confirmVariant = "primary",
   isDestructive = false,
   isPending = false,
@@ -30,6 +31,7 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const resolvedVariant = isDestructive ? "danger" : confirmVariant;
 
@@ -44,7 +46,7 @@ export function ConfirmModal({
     >
       <View className="flex-1 justify-end bg-black/75">
         <Pressable
-          accessibilityLabel="Dismiss confirmation"
+          accessibilityLabel={t("Dismiss confirmation")}
           accessibilityRole="button"
           className="absolute inset-0"
           disabled={isPending}
@@ -66,7 +68,7 @@ export function ConfirmModal({
               </Text>
               <IconButton
                 icon="xmark"
-                label="Close confirmation"
+                label={t("Close confirmation")}
                 variant="bare"
                 disabled={isPending}
                 onPress={onCancel}
@@ -80,7 +82,7 @@ export function ConfirmModal({
           <View className="gap-sm">
             <Button
               variant={resolvedVariant}
-              label={confirmLabel}
+              label={confirmLabel ?? t("Confirm")}
               disabled={isPending || confirmDisabled}
               onPress={onConfirm}
             />
@@ -88,7 +90,7 @@ export function ConfirmModal({
             <Button
               disabled={isPending}
               variant="ghost"
-              label={cancelLabel}
+              label={cancelLabel ?? t("Cancel")}
               onPress={onCancel}
             />
           </View>

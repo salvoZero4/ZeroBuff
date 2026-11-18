@@ -16,8 +16,8 @@ enum RestCompletionAlerts {
     let remaining = state.endDate.timeIntervalSinceNow
     guard remaining > 0 else { return }
     let content = UNMutableNotificationContent()
-    content.title = "Rest complete"
-    content.body = "Your next set is ready."
+    content.title = state.isItalian ? "Recupero completato" : "Rest complete"
+    content.body = state.isItalian ? "Puoi iniziare la prossima serie." : "Your next set is ready."
     content.sound = .default
     content.userInfo = [
       "kind": "rest-timer", "timerId": state.id, "routineId": state.routineId,
