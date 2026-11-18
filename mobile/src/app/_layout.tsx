@@ -25,6 +25,7 @@ import {
 } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/features/auth/provider/AuthProvider";
+import { WorkoutSyncProvider } from "@/features/workout/sync/WorkoutSyncProvider";
 import { BackgroundRestTimerProvider } from "@/features/workout/notifications/BackgroundRestTimerProvider";
 import { queryClient } from "@/shared/api/queryClient";
 import { LanguageProvider, useLanguage } from "@/shared/i18n/LanguageProvider";
@@ -51,6 +52,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <AuthProvider>
+            <WorkoutSyncProvider />
             <BackgroundRestTimerProvider>
               <KeyboardProvider
                 statusBarTranslucent

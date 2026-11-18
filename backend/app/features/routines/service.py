@@ -111,6 +111,20 @@ def get_exercises_in_routine(
     )
 
 
+def require_routine_exercises(session: Session, exercise_ids: list[UUID]) -> None:
+    if not exercise_ids:
+        return
+    found_ids = set(session.exec(
+        select(Exercise.id)
+        .where(Exercise.id.in_(exercise_ids), Exercise.archived.is_(False))
+        .order_by(Exercise.id)
+        .with_for_update(read=True)
+    ).all())
+    if missing := set(exercise_ids) - found_ids:
+        ids = ", ".join(sorted(map(str, missing)))
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Exercises not found: {ids}")
+
+
 def create_routine(
     routine_data: RoutineCreate, session: Session, user: User
 ) -> RoutineRead:
@@ -132,19 +146,7 @@ def create_routine(
             status_code=status.HTTP_409_CONFLICT,
             detail="Duplicate exercise found in the routine.",
         )
-    if exercise_ids:
-        # Check if all exercise IDs exist in the database
-        found_ids = set(
-            session.exec(select(Exercise.id).where(Exercise.id.in_(exercise_ids))).all()
-        )
-
-        missing_ids = set(exercise_ids) - found_ids
-        if missing_ids:
-            missing_str = ", ".join(str(uid) for uid in missing_ids)
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Exercises not found: {missing_str}",
-            )
+    require_routine_exercises(session, exercise_ids)
     # Create a new Routine instance
     new_routine = Routine(user_id=user.id, name=normalized_name)
     # Create RoutineExercise instances for each exercise in the routine
@@ -204,6 +206,7 @@ def update_routine(
 
     # Update exercises in the routine if provided
     if routine_data.exercises is not None:
+        require_routine_exercises(session, [item.exercise_id for item in routine_data.exercises])
         # Delete existing exercises in the routine
         session.exec(
             delete(RoutineExercise)

@@ -2,7 +2,7 @@ from enum import Enum
 from uuid import UUID, uuid4
 
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Index, Text, UniqueConstraint
+from sqlalchemy import Boolean, Index, Text, UniqueConstraint, false
 from sqlmodel import ARRAY, Column, Field, SQLModel
 
 
@@ -64,6 +64,7 @@ class Exercise(SQLModel, table=True):
         default_factory=list, sa_column=Column(ARRAY(SAEnum(MuscleGroup)))
     )
     equipment: Equipment = Field(index=True)
+    archived: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default=false()))
     created_by_user: UUID | None = Field(
         default=None, foreign_key="user.id", index=True, nullable=True
     )

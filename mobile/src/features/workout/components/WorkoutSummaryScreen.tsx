@@ -27,10 +27,12 @@ export function WorkoutSummaryScreen({
   summary,
   onDone,
   onViewWorkout,
+  syncLabel,
 }: {
   summary: WorkoutSummary;
   onDone: () => void;
-  onViewWorkout: () => void;
+  onViewWorkout?: () => void;
+  syncLabel?: string;
 }) {
   const { t } = useTranslation();
   const exerciseName = useExerciseNames();
@@ -68,9 +70,9 @@ export function WorkoutSummaryScreen({
               accessibilityLiveRegion="polite"
               className="font-body text-body text-text-secondary"
             >
-              {empty
+              {syncLabel ?? (empty
                 ? t("Workout ended · No sets recorded")
-                : t("Workout saved")}
+                : t("Workout saved"))}
             </Text>
           </View>
         </Animated.View>
@@ -179,7 +181,7 @@ export function WorkoutSummaryScreen({
         className="gap-sm px-lg pt-sm"
         style={{ paddingBottom: Math.max(insets.bottom, 12) }}
       >
-        {summary.sessionId ? (
+        {summary.sessionId && onViewWorkout ? (
           <Button
             label={t("View workout")}
             variant="outline"

@@ -1,5 +1,8 @@
+import type { RoutineRead } from "@/features/routines/types/routine";
+
 export type ActiveSetLog = {
   backendId?: string;
+  localSaved?: boolean;
   saveStatus?: "pending" | "saved" | "error" | "dirty";
   saveError?: string;
   retryAction?: "save" | "delete" | "remove";
@@ -15,6 +18,9 @@ export type ActiveSetLog = {
 };
 
 export type ActiveWorkoutSession = {
+  localId?: string;
+  startedAtLocal?: string;
+  routineSnapshot?: RoutineRead;
   isFinishing?: boolean;
   autoRestEnabled?: boolean;
   restEndTimestamp?: number | null;

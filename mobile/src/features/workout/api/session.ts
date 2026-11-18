@@ -1,3 +1,4 @@
+import type { CompletedWorkout } from "../storage/offlineWorkoutTypes";
 import { apiRequest } from "@/shared/api/client";
 import type {
   GetSessionsParams,
@@ -80,5 +81,12 @@ export function deleteSetLogApi(
 ): Promise<void> {
   return apiRequest<void>(`/session/${sessionId}/log/${setId}`, {
     method: "DELETE",
+  });
+}
+
+export function uploadCompletedWorkout(workout: CompletedWorkout): Promise<{ id: string }> {
+  return apiRequest("/session/completed", {
+    method: "POST",
+    body: JSON.stringify(workout),
   });
 }

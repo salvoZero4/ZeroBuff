@@ -603,5 +603,13 @@
   "{{name}} rest: {{duration}}, minutes and seconds": "{{name}} rest: {{duration}}, minutes and seconds",
   "{{name}} sets": "{{name}} sets",
   "{{noIncreases}}Compared {{compared}} of {{total}} exercises using available previous sessions.{{partial}}": "{{noIncreases}}Compared {{compared}} of {{total}} exercises using available previous sessions.{{partial}}",
-  "{{saved}} of {{total}} saved": "{{saved}} of {{total}} saved"
+  "{{saved}} of {{total}} saved": "{{saved}} of {{total}} saved",
+  "Synced": "Synced",
+  "Saved on this device": "Saved on this device",
+  "Connect to download this routine.": "Connect to download this routine.",
+  "Connect to the server to prepare offline workouts.": "Connect to the server to prepare offline workouts.",
+  "Your workout couldn’t be saved. Please try again.": "Your workout couldn’t be saved. Please try again.",
+  "You are offline. Your workout is saved on this device.": "You are offline. Your workout is saved on this device.",
+  "Workout needs attention.": "Workout needs attention.",
+  "Exercises unavailable: {{exercises}}": "Exercises unavailable: {{exercises}}"
 }

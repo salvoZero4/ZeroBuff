@@ -1,5 +1,9 @@
+import { tokenStore } from "@/features/auth/store/tokenStore";
+import { removeRoutineFromOffline } from "@/features/workout/storage/workoutCache";
+import { savedRoutineKey, savedScheduleKey } from "@/features/workout/storage/useCachedWorkoutData";
 import { useTranslation } from "react-i18next";
 import { routineKeys } from "@/features/routines/api/queryKeys";
+import type { ScheduleRead } from "@/features/schedule/types/schedule";
 import { scheduleKeys } from "@/features/schedule/api/queryKeys";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -48,8 +52,20 @@ export function RoutinesScreen() {
   });
 
   const { mutate: handleDeleteRoutine, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => deleteRoutine(id),
-    onSuccess: () => {
+    mutationFn: async (id: string) => {
+      const account = tokenStore.getAccountId();
+      await deleteRoutine(id);
+      await removeRoutineFromOffline(account, id);
+    },
+    onSuccess: async (_, id) => {
+      await queryClient.cancelQueries({ queryKey: routineKeys.detail(id) });
+      queryClient.removeQueries({ queryKey: routineKeys.detail(id) });
+      queryClient.removeQueries({ queryKey: savedRoutineKey(tokenStore.getAccountId(), id) });
+      await queryClient.cancelQueries({ queryKey: scheduleKeys.list() });
+      queryClient.setQueryData<ScheduleRead[]>(scheduleKeys.list(), (rows) =>
+        rows?.filter((item) => item.routine_id !== id),
+      );
+      await queryClient.invalidateQueries({ queryKey: savedScheduleKey() });
       queryClient.invalidateQueries({ queryKey: routineKeys.all });
       queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
       setRoutineToDelete(null);

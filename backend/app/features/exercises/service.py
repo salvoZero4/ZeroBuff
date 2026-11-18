@@ -43,7 +43,7 @@ def find_similar_exercises(
     if language != "en":
         statement = statement.outerjoin(ExerciseTranslation, _translation_join(language))
     return session.exec(
-        statement.where(score > threshold).order_by(score.desc(), Exercise.id).limit(5)
+        statement.where(Exercise.archived.is_(False), score > threshold).order_by(score.desc(), Exercise.id).limit(5)
     ).all()
 
 
@@ -69,7 +69,7 @@ def exercises_list(
     equipment: Equipment | None = None,
     language: str = "en",
 ):
-    statement = select(Exercise)
+    statement = select(Exercise).where(Exercise.archived.is_(False))
 
     if name:
         pattern = f"%{name}%"
@@ -142,7 +142,7 @@ def create_custom_exercise(
 
 def exercise_details(exercise_id: UUID, session: Session) -> ExerciseRead:
     exercise = session.get(Exercise, exercise_id)
-    if not exercise:
+    if not exercise or exercise.archived:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
         )
@@ -156,7 +156,7 @@ def update_exercise(
     current_user,
 ) -> ExerciseRead:
     exercise = session.get(Exercise, exercise_id)
-    if not exercise:
+    if not exercise or exercise.archived:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
         )
@@ -186,8 +186,8 @@ def update_exercise(
 
 
 def delete_exercise(exercise_id: UUID, session: Session, current_user):
-    exercise = session.get(Exercise, exercise_id)
-    if not exercise:
+    exercise = session.get(Exercise, exercise_id, with_for_update=True)
+    if not exercise or exercise.archived:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
         )
@@ -224,7 +224,8 @@ def delete_exercise(exercise_id: UUID, session: Session, current_user):
             detail="Cannot delete exercise because it is referenced in logged workouts or routines",
         )
 
-    session.delete(exercise)
+    exercise.archived = True
+    session.add(exercise)
     commit_with_http_error_handling(
         session, "Error occurred while deleting the exercise"
     )
