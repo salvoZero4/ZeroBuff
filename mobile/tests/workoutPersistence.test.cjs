@@ -50,6 +50,7 @@ function runtime({
   disk = new Map(),
   scope = "login-a",
   storage = {},
+  offlineStorage = null,
   api = {},
 } = {}) {
   const calls = [];
@@ -92,12 +93,15 @@ function runtime({
       default: storageApi,
     },
     "@/features/auth/store/tokenStore": {
-      tokenStore: { getSessionScope: () => owner },
+      tokenStore: { getSessionScope: () => owner, getAccountId: () => offlineStorage ? owner : null },
+    },
+    "@/features/workout/storage/offlineWorkoutStorage": {
+      offlineWorkoutStorage: offlineStorage,
     },
     "@/features/routines/api/routines": { getRoutine: async () => routine },
     "@/features/workout/api/session": endpoints,
     "@/shared/api/queryClient": {
-      queryClient: { invalidateQueries: async () => {}, setQueriesData() {} },
+      queryClient: { invalidateQueries: async () => {}, setQueriesData() {}, setQueryData() {} },
     },
   };
   const modules = {};
@@ -577,4 +581,45 @@ test("successful retry of an empty snapshot clears the previous read error", asy
   fail = false;
   assert.equal(await current.store.restoreActiveWorkout(), null);
   assert.equal(current.store.getWorkoutPersistenceError(), null);
+});
+
+
+test("SQLite workout uses its starting routine and sends only the definitive local sets to the queue", async () => {
+  let active = null;
+  let queued;
+  const offlineStorage = {
+    createId: () => "offline-workout",
+    readDraft: async () => active,
+    saveDraft: async (_account, draft) => { active = structuredClone(draft); },
+    discardDraft: async () => { active = null; },
+    finish: async (_account, submission) => {
+      queued = submission;
+      active = null;
+    },
+  };
+
+  const original = runtime({ offlineStorage });
+  await original.workout.initOrResumeWorkout(routine, true);
+  original.store.editSetLog("exercise", 0, { weight: "0", reps: "8" });
+  await original.workout.logSetCompleted("exercise", 0, 0);
+  assert.equal(active.workoutLogs.exercise[0].saveStatus, "saved");
+  assert.deepEqual(original.calls, []);
+
+  const fresh = runtime({ offlineStorage });
+  const restored = await fresh.workout.initOrResumeWorkout({
+    ...routine,
+    name: "Changed on server",
+  }, true);
+  assert.equal(restored.routineSnapshot.name, "Push");
+  fresh.store.editSetLog("exercise", 0, { weight: "2,5", reps: "9", rir: "1" });
+  await fresh.workout.updateOrDeleteSetLog("exercise", 0, {});
+  const confirmed = [];
+  assert.equal(await fresh.workout.finishWorkoutSession((id) => confirmed.push(id), {}), true);
+  assert.deepEqual(confirmed, ["offline-workout"]);
+  assert.equal(fresh.store.getActiveWorkout(), null);
+  assert.deepEqual(queued.payload.sets, [
+    { exercise_id: "exercise", set_number: 1, reps: 9, weight: 2.5, rir: 1 },
+  ]);
+  assert.equal(queued.routine.name, "Push");
+  assert.deepEqual(fresh.calls, []);
 });

@@ -71,29 +71,22 @@ Selectors should return a primitive or a stable object. For several fields use
 `useShallow`; the notification provider selects only timer metadata and Analytics
 selects only the active session ID. API reads/writes stay in feature APIs and TanStack Query.
 
-Workout snapshots retain the existing versioned storage format and serial writer.
-The Zustand subscription persists only a changed session reference, excluding actions
-and persistence feedback. Hydration stays explicit after authentication, with login/revision
-checks; do not replace this with unconditional automatic hydration or persist picker callbacks.
+## Offline workouts
 
-## Active workout recovery
+On iOS and Android, SQLite stores the routine snapshot, the active workout, and
+completed workouts awaiting sync. Zustand exposes the active workout to the UI.
+Finish moves the draft into the queue in one database write. The app keeps the
+queued row until the server acknowledges its UUID, then refreshes session history.
+Queue rows are scoped to the account and survive logout and process restarts.
 
-`features/workout/storage/workoutDraftStorage.ts` stores a versioned AsyncStorage
-snapshot on each store change, without polling. Local drafts, added sets, navigation,
-pause and rest deadlines survive a process restart once the asynchronous write completes.
-Authentication restores the snapshot before showing Today; `initOrResumeWorkout` also
-checks disk before server recovery or session creation.
+Today can start a workout offline when the schedule and routine are cached.
+Set `EXPO_PUBLIC_OFFLINE_START=false` when building a version that enables offline
+resume and finish while requiring a connection for Start. Deploy the backend sync
+endpoint before distributing a build that uses it.
 
-The namespace is scoped to the current login and kept in SecureStore across token
-refreshes/restarts. Tokens never enter AsyncStorage. Logout, confirmed completion and
-active-session deletion clear the snapshot. Interrupted saves/deletions become retryable
-errors: an explicit Retry checks server state before another write. No automatic API
-replay or offline mutation queue is introduced. Invalid snapshots remain untouched and
-show recovery feedback; write failures show a Retry notice in Workout.
-
-AsyncStorage 2.2.0 is the Expo SDK 58-compatible dependency. Existing native development
-builds need rebuilding to include it. Test background termination on iOS and Android;
-a kill before the latest asynchronous write completes can still lose that last edit.
+The web client and workouts started in older builds use the legacy online flow.
+Legacy AsyncStorage drafts are restored for the existing login. Credentials are
+kept in SecureStore.
 
 ## Checks
 
@@ -103,4 +96,4 @@ npx expo lint
 node --test tests/*.test.cjs
 ```
 
-The Node suites test the real TypeScript logic with simulated native/network boundaries. They do not certify device behavior; revalidate native and notification flows on a real device.
+The Node suites exercise the TypeScript logic, including the workout SQL against SQLite and retries against a simulated network. They do not certify device behavior; revalidate native and notification flows on a real device.

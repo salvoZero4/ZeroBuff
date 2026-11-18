@@ -1,3 +1,6 @@
+import { tokenStore } from "@/features/auth/store/tokenStore";
+import { confirmRoutineForOffline } from "@/features/workout/storage/workoutCache";
+import { getWorkoutRoutine, savedRoutineKey } from "@/features/workout/storage/useCachedWorkoutData";
 import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
 import { errorText } from "@/shared/i18n/errors";
 import { useTranslation } from "react-i18next";
@@ -20,7 +23,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRoutineDraft } from "@/features/routines/hooks/useRoutineDraft";
 import {
   createRoutine,
-  getRoutine,
   updateRoutine,
 } from "@/features/routines/api/routines";
 import type { RoutineRead } from "@/features/routines/types/routine";
@@ -58,7 +60,7 @@ export function RoutineDetailScreen({
     isError,
   } = useQuery({
     queryKey: routineKeys.detail(routineId),
-    queryFn: () => getRoutine(routineId),
+    queryFn: () => getWorkoutRoutine(routineId),
     enabled: !isNewRoutine,
   });
 
@@ -144,13 +146,18 @@ function RoutineEditorForm({
   const { mutate: handleSave, isPending: isSaving } = useMutation({
     mutationFn: async () => {
       const payload = toRoutinePayload(draft);
-      if (isNewRoutine) {
-        return await createRoutine(payload);
-      } else {
-        return await updateRoutine(routineId, payload);
-      }
+      const account = tokenStore.getAccountId();
+      const scope = tokenStore.getSessionScope();
+      const saved = await (isNewRoutine ? createRoutine(payload) : updateRoutine(routineId, payload));
+      if (scope !== tokenStore.getSessionScope()) throw new Error("Account changed.");
+      await confirmRoutineForOffline(account, saved);
+      return saved;
     },
-    onSuccess: (saved) => {
+    onSuccess: async (saved) => {
+      await queryClient.cancelQueries({ queryKey: routineKeys.detail(saved.id) });
+      await queryClient.cancelQueries({ queryKey: savedRoutineKey(tokenStore.getAccountId(), saved.id) });
+      queryClient.setQueryData(routineKeys.detail(saved.id), saved);
+      queryClient.setQueryData(savedRoutineKey(tokenStore.getAccountId(), saved.id), saved);
       setLeaving(true);
       disableExitProtection();
       queryClient.invalidateQueries({ queryKey: routineKeys.all });

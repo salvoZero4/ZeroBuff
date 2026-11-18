@@ -7,7 +7,6 @@ import Animated, {
   useReducedMotion,
 } from "react-native-reanimated";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
-import { routineKeys } from "@/features/routines/api/queryKeys";
 import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
 import { WorkoutSummaryScreen } from "@/features/workout/components/WorkoutSummaryScreen";
 import {
@@ -41,7 +40,9 @@ import {
   KeyboardToolbar,
 } from "react-native-keyboard-controller";
 
-import { getRoutine } from "@/features/routines/api/routines";
+import { offlineStartEnabled, useWorkoutRoutine } from "../storage/useCachedWorkoutData";
+import { useAuth } from "@/features/auth/provider/AuthProvider";
+import { useQueuedWorkouts } from "../sync/WorkoutSyncProvider";
 import { getExerciseStats } from "@/features/exercises/api/exercise";
 import { Icon } from "@/components/ui/Icon";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -108,24 +109,24 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   const { t } = useTranslation();
   const exerciseName = useExerciseNames();
   const reduceMotion = useReducedMotion();
+  const session = useActiveWorkout();
+  const { accountId } = useAuth();
+  const [localSummary, setLocalSummary] = useState(false);
+  const queue = useQueuedWorkouts();
   const {
-    data: routine,
-    isLoading,
+    data: loadedRoutine,
     isError,
     error,
     refetch,
     isFetching,
-  } = useQuery({
-    queryKey: routineKeys.detail(routineId),
-    queryFn: () => getRoutine(routineId ?? ""),
-    enabled: !!routineId,
-  });
-
-  const session = useActiveWorkout();
+    loadingLocal,
+  } = useWorkoutRoutine(routineId, !session?.routineSnapshot && !localSummary);
+  const routine = session?.routineSnapshot ?? loadedRoutine;
   const persistenceError = useWorkoutPersistenceError();
   const [initError, setInitError] = useState(false);
   const [initAttempt, setInitAttempt] = useState(0);
   const network = useNetInfo();
+  const offline = network.isConnected === false || network.isInternetReachable === false;
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const previousSetsRef = useRef<
     Record<string, { weight: number; reps: number }[]>
@@ -170,10 +171,19 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   }, [session, session?.isPaused, session?.startedAtTimestamp]);
 
   useEffect(() => {
-    if (!routine) return;
+    if (session?.localId && session.routineId !== routineId) {
+      router.replace({ pathname: "/workout/[routineId]", params: { routineId: session.routineId } });
+    }
+  }, [session?.localId, session?.routineId, routineId]);
+
+  const hasSession = Boolean(session);
+  useEffect(() => {
+    if (!routine || summary || finishingRef.current || session?.localId || !routine.exercises.length) return;
+    if (offline && !offlineStartEnabled && !hasSession) return;
     let cancelled = false;
-    initOrResumeWorkout(routine)
+    initOrResumeWorkout(routine, offline)
       .then((active) => {
+        if (!cancelled) setInitError(false);
         if (!cancelled && active && active.routineId !== routine.id) {
           router.replace({
             pathname: "/workout/[routineId]",
@@ -187,7 +197,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     return () => {
       cancelled = true;
     };
-  }, [routine, initAttempt]);
+  }, [routine, initAttempt, offline, session?.localId, hasSession, summary, accountId]);
 
   useEffect(() => {
     if (!session || !activeExercise) return;
@@ -243,11 +253,14 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
     setCurrentExerciseIndex(index);
   }
 
-  if (summary)
+  if (summary) {
+    const queuedWorkout = queue.data?.find((item) => item.payload.id === summary.sessionId);
+    const synced = !localSummary || (queue.isSuccess && !queuedWorkout);
     return (
       <WorkoutSummaryScreen
         summary={summary}
         onDone={() => router.replace("/(tabs)")}
+        syncLabel={localSummary ? (synced ? t("Synced") : t("Saved on this device")) : undefined}
         onViewWorkout={() => {
           if (summary.sessionId)
             router.push({
@@ -257,12 +270,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         }}
       />
     );
+  }
 
-  if (isError || !routineId)
+  if ((!routine && !loadingLocal && (isError || offline)) || (offline && !offlineStartEnabled && !hasSession) || !routineId)
     return (
       <ScreenError
         title={t("Workout couldn’t load")}
-        message={t(loadErrorMessage(error))}
+        message={offline ? t("Connect to download this routine.") : t(loadErrorMessage(error))}
         onRetry={() => {
           void refetch();
         }}
@@ -270,7 +284,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         onBack={() => router.replace("/(tabs)")}
       />
     );
-  if (initError)
+  if (initError && !session?.localId)
     return (
       <ScreenError
         title={t("Workout recovery couldn’t finish")}
@@ -285,9 +299,9 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         onBack={() => router.replace("/(tabs)")}
       />
     );
-  if (isLoading || !routine || !session || session.routineId !== routine.id)
+  if (!routine || (!session && routine.exercises.length > 0) || (session && session.routineId !== routineId))
     return <WorkoutSkeleton />;
-  if (!activeExercise)
+  if (!activeExercise || !session)
     return (
       <ScreenError
         title={t("No exercises in this routine")}
@@ -408,25 +422,16 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       const snapshot = getActiveWorkout();
       const duration = getActiveWorkoutDurationSeconds();
       let confirmedSessionId = snapshot?.sessionId ?? null;
-      if (
-        await finishWorkoutSession((id) => {
-          confirmedSessionId = id;
-        })
-      ) {
-        if (snapshot)
-          setSummary(
-            summarizeWorkout(
-              { ...snapshot, sessionId: confirmedSessionId },
-              duration,
-              previousSetsRef.current,
-              Object.fromEntries(
-                (routine?.exercises ?? []).map((exercise) => [
-                  exercise.exercise_id,
-                  exercise.name,
-                ]),
-              ),
-            ),
-          );
+      if (!snapshot) return;
+      const result = summarizeWorkout(
+        { ...snapshot, sessionId: snapshot.localId ?? confirmedSessionId },
+        duration,
+        previousSetsRef.current,
+        Object.fromEntries((routine?.exercises ?? []).map((exercise) => [exercise.exercise_id, exercise.name])),
+      );
+      if (await finishWorkoutSession((id) => { confirmedSessionId = id; }, result)) {
+        setLocalSummary(Boolean(snapshot.localId));
+        setSummary({ ...result, sessionId: confirmedSessionId });
         setShowFinishModal(false);
       }
     } catch (error) {
@@ -469,15 +474,14 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         onFinish={openFinishModal}
       />
 
-      {network.isConnected === false ||
-      network.isInternetReachable === false ? (
+      {offline ? (
         <View
           accessibilityLiveRegion="polite"
           className="bg-surface px-lg py-sm"
         >
           <Text className="font-body text-caption text-text-secondary">
             {t(
-              "You are offline. Reconnect to save your sets and finish this workout.",
+              session.localId ? "You are offline. Your workout is saved on this device." : "You are offline. Reconnect to save your sets and finish this workout.",
             )}
           </Text>
         </View>
@@ -532,7 +536,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               logs.every(
                 (s) =>
                   s.completed &&
-                  s.backendId &&
+                  (s.backendId || s.localSaved) &&
                   (!s.saveStatus || s.saveStatus === "saved"),
               );
             return (

@@ -35,3 +35,11 @@ class Set_log(SQLModel, table=True):
         default=None,
         nullable=True,
     )
+
+
+class WorkoutSyncReceipt(SQLModel, table=True):
+    __tablename__ = "workout_sync_receipt"
+
+    id: UUID = Field(primary_key=True)
+    user_id: UUID = Field(foreign_key="user.id", ondelete="CASCADE")
+    payload_hash: str

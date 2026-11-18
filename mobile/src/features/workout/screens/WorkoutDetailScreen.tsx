@@ -16,7 +16,8 @@ import {
   getSessionDetails,
   deleteSetLogApi,
 } from "@/features/workout/api/session";
-import type { SetLogRead } from "@/features/workout/types/session";
+import { useQueuedWorkouts } from "../sync/WorkoutSyncProvider";
+import type { SessionDetailRead, SetLogRead } from "@/features/workout/types/session";
 import { WEIGHT_UNIT } from "@/features/workout/utils/experience";
 import {
   SetEditor,
@@ -36,12 +37,24 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
   const [target, setTarget] = useState<SetEditorTarget | null>(null);
   const [removing, setRemoving] = useState<SetLogRead | null>(null);
   const refresh = useRefreshTraining();
+  const queuedWorkouts = useQueuedWorkouts();
+  const queued = queuedWorkouts.data?.find((item) => item.payload.id === sessionId);
   const query = useQuery({
     queryKey: sessionKeys.detail(sessionId),
     queryFn: () => getSessionDetails(sessionId),
-    enabled: !!sessionId,
+    enabled: !!sessionId && !queued,
   });
-  const data = query.data;
+  const data: SessionDetailRead | undefined = queued ? {
+    ...queued.payload,
+    status: "completed",
+    date: queued.payload.started_at.slice(0, 10),
+    sets: queued.payload.sets.map((set) => ({
+      ...set,
+      id: `${set.exercise_id}:${set.set_number}`,
+      session_id: sessionId,
+      exercise_name: queued.routine.exercises.find((exercise) => exercise.exercise_id === set.exercise_id)?.name ?? t("Exercise"),
+    })),
+  } : query.data;
   const remove = useMutation({
     mutationFn: (id: string) => deleteSetLogApi(sessionId, id),
     onSuccess: () => {
@@ -82,7 +95,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
               }
             />
           </View>
-          {data?.status === "completed" && (
+          {data?.status === "completed" && !queued && (
             <IconButton
               icon={editing ? "check" : "pen-to-square"}
               label={editing ? t("Done editing session") : t("Edit session")}
@@ -90,11 +103,11 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
             />
           )}
         </View>
-        <QueryNotice
-          pending={query.isPending}
-          error={query.error}
-          retry={() => void query.refetch()}
-        />
+        {queued ? (
+          <Text className="font-body text-body text-text-secondary">{t("Saved on this device")}</Text>
+        ) : (
+          <QueryNotice pending={query.isPending} error={query.error} retry={() => void query.refetch()} />
+        )}
         {data && (
           <>
             {data.status !== "completed" && (
@@ -104,7 +117,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                 onPress={() => router.replace("/(tabs)")}
               />
             )}
-            {editing && (
+            {editing && !queued && (
               <Text className="font-body text-sm text-text-secondary">
                 {t("Tap a set to correct it. Each change is saved separately.")}
               </Text>
@@ -144,12 +157,12 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                     <Text className="w-12 font-body text-caption text-text-secondary">
                       RIR
                     </Text>
-                    {editing && <View className="w-12" />}
+                    {editing && !queued && <View className="w-12" />}
                   </View>
                   {sets.map((set, index) => (
                     <View key={set.id} className="flex-row items-center">
                       <Pressable
-                        disabled={!editing}
+                        disabled={!editing || Boolean(queued)}
                         accessibilityRole={editing ? "button" : undefined}
                         accessibilityLabel={t(
                           "Edit set {{number}}, {{weight}} {{unit}}, {{reps}} reps, RIR {{rir}}",
@@ -185,7 +198,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                           {set.rir ?? "—"}
                         </Text>
                       </Pressable>
-                      {editing && (
+                      {editing && !queued && (
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={t("Delete set {{number}}", {
@@ -203,7 +216,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                       )}
                     </View>
                   ))}
-                  {editing && (
+                  {editing && !queued && (
                     <Button
                       label={t("Add set")}
                       variant="outline"
@@ -227,7 +240,7 @@ export function WorkoutDetailScreen({ sessionId }: { sessionId: string }) {
                 )}
               </Text>
             )}
-            {editing && (
+            {editing && !queued && (
               <Button
                 label={t("Add exercise")}
                 icon="plus"

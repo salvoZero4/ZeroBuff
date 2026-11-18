@@ -603,5 +603,13 @@
   "{{name}} rest: {{duration}}, minutes and seconds": "Recupero per {{name}}: {{duration}}, minuti e secondi",
   "{{name}} sets": "{{name}} serie",
   "{{noIncreases}}Compared {{compared}} of {{total}} exercises using available previous sessions.{{partial}}": "{{noIncreases}}Confrontati {{compared}} esercizi su {{total}} in base alle sessioni precedenti disponibili.{{partial}}",
-  "{{saved}} of {{total}} saved": "{{saved}} di {{total}} salvate"
+  "{{saved}} of {{total}} saved": "{{saved}} di {{total}} salvate",
+  "Synced": "Sincronizzato",
+  "Saved on this device": "Salvato su questo dispositivo",
+  "Connect to download this routine.": "Connettiti per scaricare questa scheda.",
+  "Connect to the server to prepare offline workouts.": "Connettiti al server per preparare gli allenamenti offline.",
+  "Your workout couldn’t be saved. Please try again.": "Impossibile salvare l’allenamento. Riprova.",
+  "You are offline. Your workout is saved on this device.": "Sei offline. L’allenamento viene salvato su questo dispositivo.",
+  "Workout needs attention.": "L’allenamento richiede attenzione.",
+  "Exercises unavailable: {{exercises}}": "Esercizi non disponibili: {{exercises}}"
 }

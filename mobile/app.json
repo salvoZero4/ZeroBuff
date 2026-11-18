@@ -52,7 +52,8 @@
           "frequentUpdates": false
         }
       ],
-      ["expo-localization", { "supportedLocales": ["en", "it"] }]
+      ["expo-localization", { "supportedLocales": ["en", "it"] }],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

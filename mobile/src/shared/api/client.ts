@@ -11,7 +11,7 @@ const BASE_URL = `${API_HOST_URL}/${API_VERSION}`;
 const TIMEOUT_MS = 30_000; // generous on purpose: Render free tier cold start
 
 let onSessionExpired: () => void = () => {};
-let refreshPromise: Promise<void> | null = null;
+let refreshInFlight: { scope: string | null | undefined; promise: Promise<void> } | null = null;
 
 type RequestOptions = RequestInit & { auth?: boolean };
 
@@ -70,16 +70,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // Single-flight: concurrent 401s share ONE refresh request
-function refreshSession(): Promise<void> {
-  if (!refreshPromise) {
-    refreshPromise = doRefresh().finally(() => {
-      refreshPromise = null;
-    });
-  }
-  return refreshPromise;
+function refreshSession(scope: string | null | undefined): Promise<void> {
+  if (refreshInFlight && refreshInFlight.scope === scope) return refreshInFlight.promise;
+  const promise = doRefresh(scope).finally(() => {
+    if (refreshInFlight?.promise === promise) refreshInFlight = null;
+  });
+  refreshInFlight = { scope, promise };
+  return promise;
 }
 
-async function doRefresh(): Promise<void> {
+async function doRefresh(scope: string | null | undefined): Promise<void> {
   const refresh = tokenStore.getRefresh();
   if (!refresh) throw new ApiError(401, "No refresh token");
 
@@ -91,6 +91,7 @@ async function doRefresh(): Promise<void> {
   if (!res.ok) throw await toApiError(res);
 
   const data = await res.json();
+  if (tokenStore.getSessionScope?.() !== scope) throw new NetworkError();
   await tokenStore.setAccess(data.access_token);
 }
 
@@ -109,30 +110,34 @@ export async function apiRequest<T>(
     return rawFetch(path, { ...init, headers });
   };
 
+  const scope = tokenStore.getSessionScope?.();
   const tokenUsed = tokenStore.getAccess();
   let res = await send(tokenUsed);
 
   // Retry exactly once, and only for authenticated calls: a 401 on /login
   // just means "wrong password", not "expired token".
   if (res.status === 401 && auth) {
+    if (tokenStore.getSessionScope?.() !== scope) throw new NetworkError();
     // If another request already refreshed while ours was in flight, the token
     // in the store is newer than the one we used: just retry, no new refresh.
     if (tokenStore.getAccess() === tokenUsed) {
       try {
-        await refreshSession();
+        await refreshSession(scope);
       } catch (e) {
         // Only a definitive answer from the server ends the session.
         // Network errors and 5xx must NOT log the user out.
-        if (e instanceof ApiError && [400, 401, 403].includes(e.status)) {
+        if (tokenStore.getSessionScope?.() === scope && e instanceof ApiError && [400, 401, 403].includes(e.status)) {
           await tokenStore.clear();
           onSessionExpired();
         }
         throw e;
       }
     }
+    if (tokenStore.getSessionScope?.() !== scope) throw new NetworkError();
     res = await send(tokenStore.getAccess());
   }
 
+  if (auth && tokenStore.getSessionScope?.() !== scope) throw new NetworkError();
   if (!res.ok) throw await toApiError(res);
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }

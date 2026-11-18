@@ -1,7 +1,7 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 
 class SessionCreate(BaseModel):
@@ -58,3 +58,30 @@ class SetLogUpdate(BaseModel):
     reps: int | None = Field(default=None, gt=0)
     weight: float | None = Field(default=None, ge=0)
     rir: int | None = Field(default=None, ge=0, le=10)
+
+
+class CompletedSet(SetLogCreate):
+    exercise_id: UUID
+    weight: float = Field(ge=0, allow_inf_nan=False)
+
+
+class CompletedWorkout(BaseModel):
+    id: UUID
+    routine_id: UUID | None = None
+    started_at: AwareDatetime
+    ended_at: AwareDatetime
+    sets: list[CompletedSet]
+
+    @model_validator(mode="after")
+    def validate_workout(self):
+        if self.ended_at < self.started_at:
+            raise ValueError("Workout end must be at or after its start.")
+        if self.ended_at > datetime.now(UTC) + timedelta(minutes=5):
+            raise ValueError("Workout end cannot be in the future.")
+        if len({(item.exercise_id, item.set_number) for item in self.sets}) != len(self.sets):
+            raise ValueError("Duplicate set number for an exercise.")
+        return self
+
+
+class WorkoutSyncRead(BaseModel):
+    id: UUID

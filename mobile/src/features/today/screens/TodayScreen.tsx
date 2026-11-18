@@ -15,9 +15,12 @@ import {
 import { LoadingNotice } from "@/components/ui/ScreenState";
 import { loadErrorMessage } from "@/shared/api/loadError";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppState, ScrollView, Text, View } from "react-native";
 import { RefreshControl } from "react-native-gesture-handler";
+import { useNetInfo } from "@react-native-community/netinfo";
+import { useCachedWorkoutSchedule, useWorkoutRoutine, offlineStartEnabled } from "@/features/workout/storage/useCachedWorkoutData";
+import { cacheSchedule, refreshWorkoutCache } from "@/features/workout/storage/workoutCache";
 import { useQuery } from "@tanstack/react-query";
 import { ConsistencyGrid } from "@/features/analytics/components/ConsistencyGrid";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
@@ -28,11 +31,9 @@ import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { WeekStrip } from "@/features/today/components/WeekStrip";
 import { WeightLogModal } from "@/features/weight/components/WeightLogModal";
+import { initOrResumeWorkout, workoutErrorMessage } from "@/features/workout/utils/workout";
 import { useActiveWorkout } from "@/features/workout/store/activeWorkoutStore";
-import {
-  getSchedule,
-  getTodaySchedule,
-} from "@/features/schedule/api/schedule";
+import { getSchedule } from "@/features/schedule/api/schedule";
 import type { DayOfWeek } from "@/features/schedule/types/schedule";
 import { getTodayWeight } from "@/features/weight/api/weight";
 import type { WeightLogRead } from "@/features/weight/types/weight";
@@ -87,6 +88,9 @@ function SectionLoadError({
 
 export function TodayScreen() {
   const { t } = useTranslation();
+  const starting = useRef(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const [startButtonHeight, setStartButtonHeight] = useState(0);
   const [isRefetching, setIsRefetching] = useState(false);
   const [weightEditor, setWeightEditor] = useState<{
@@ -123,17 +127,9 @@ export function TodayScreen() {
   }, []);
 
   const activeSession = useActiveWorkout();
-
-  const {
-    data: todaySchedule,
-    isPending: pendingTodaySchedule,
-    isFetching: fetchingTodaySchedule,
-    error: errorTodaySchedule,
-    refetch: refetchTodaySchedule,
-  } = useQuery({
-    queryKey: scheduleKeys.today(),
-    queryFn: getTodaySchedule,
-  });
+  const network = useNetInfo();
+  const offline = network.isConnected === false || network.isInternetReachable === false;
+  const cachedSchedule = useCachedWorkoutSchedule();
 
   const {
     data: sessions,
@@ -161,7 +157,7 @@ export function TodayScreen() {
     queryFn: () => getRoutines(),
   });
   const routines = useMemo(() => routineList ?? [], [routineList]);
-  const needsFirstRoutine = routineList?.length === 0 && !todaySchedule;
+
 
   const {
     data: todayWeight,
@@ -175,15 +171,23 @@ export function TodayScreen() {
   });
 
   const {
-    data: weekSchedule,
-    isPending: pendingWeekSchedule,
+    data: serverSchedule,
+    isPending: pendingServerSchedule,
     isFetching: fetchingWeekSchedule,
     error: errorWeekSchedule,
     refetch: refetchWeekSchedule,
   } = useQuery({
     queryKey: scheduleKeys.list(),
-    queryFn: getSchedule,
+    queryFn: () => refreshWorkoutCache("schedule", getSchedule, cacheSchedule),
   });
+
+  const weekSchedule = serverSchedule ?? (offlineStartEnabled ? cachedSchedule.data ?? undefined : undefined);
+  const day = DAY_KEYS[(new Date(`${todayDateStr}T12:00:00`).getDay() + 6) % 7];
+  const todaySchedule = weekSchedule?.find((item) => item.day_of_week === day)
+    ?? (weekSchedule ? null : undefined);
+  const scheduledWorkout = useWorkoutRoutine(todaySchedule?.routine_id, Boolean(todaySchedule));
+  const pendingWeekSchedule = !weekSchedule && (offline ? cachedSchedule.isLoading : pendingServerSchedule);
+  const needsFirstRoutine = routineList?.length === 0 && !todaySchedule;
 
   const hasCompletedSessionToday = useMemo(() => {
     return sessions?.some(
@@ -191,14 +195,13 @@ export function TodayScreen() {
     );
   }, [sessions, todayDateStr]);
 
-  const canResumeWorkout = Boolean(activeSession || ongoingSession?.routine_id);
+  const canResumeWorkout = Boolean(activeSession || (!offline && ongoingSession?.routine_id));
   const loadingWorkout =
-    !canResumeWorkout &&
-    (pendingSessions ||
-      pendingTodaySchedule ||
+    !offline && !canResumeWorkout &&
+    (pendingWeekSchedule || (!scheduledWorkout.data && pendingSessions) ||
       (pendingRoutines && !todaySchedule));
   const showStartWorkoutButton =
-    canResumeWorkout || needsFirstRoutine || sessions !== undefined;
+    canResumeWorkout || (offline ? Boolean(offlineStartEnabled && scheduledWorkout.data?.exercises.length) : needsFirstRoutine || sessions !== undefined || Boolean(scheduledWorkout.data));
 
   const scheduledRoutine = routines.find(
     (routine) => routine.id === todaySchedule?.routine_id,
@@ -208,7 +211,6 @@ export function TodayScreen() {
     setIsRefetching(true);
     try {
       await Promise.all([
-        refetchTodaySchedule(),
         refetchWeekSchedule(),
         refetchSessions(),
         refetchRoutines(),
@@ -246,7 +248,9 @@ export function TodayScreen() {
     );
   }, [lastCompletedSession, routines, t]);
 
-  function handleStartWorkout() {
+  async function handleStartWorkout() {
+    if (starting.current) return;
+    setStartError(null);
     if (activeSession) {
       router.push({
         pathname: "/workout/[routineId]",
@@ -256,7 +260,7 @@ export function TodayScreen() {
     }
 
     // Resume the session left open on the server
-    if (ongoingSession?.routine_id) {
+    if (!offline && ongoingSession?.routine_id) {
       router.push({
         pathname: "/workout/[routineId]",
         params: { routineId: ongoingSession.routine_id },
@@ -264,14 +268,25 @@ export function TodayScreen() {
       return;
     }
 
-    if (needsFirstRoutine) {
+    if (needsFirstRoutine && !offline) {
       handleCreateRoutine();
-    } else if (todaySchedule && !hasCompletedSessionToday) {
-      router.push({
-        pathname: "/workout/[routineId]",
-        params: { routineId: todaySchedule.routine_id },
-      });
-    } else {
+    } else if (scheduledWorkout.data?.exercises.length && (offline ? offlineStartEnabled : !hasCompletedSessionToday)) {
+      starting.current = true;
+      setIsStarting(true);
+      try {
+        const workout = await initOrResumeWorkout(scheduledWorkout.data, offline);
+        if (workout) {
+          router.push({ pathname: "/workout/[routineId]", params: { routineId: workout.routineId } });
+        }
+      } catch (error) {
+        setStartError(workoutErrorMessage(error));
+      } finally {
+        starting.current = false;
+        setIsStarting(false);
+      }
+    } else if (!offline && todaySchedule && !hasCompletedSessionToday) {
+      router.push({ pathname: "/workout/[routineId]", params: { routineId: todaySchedule.routine_id } });
+    } else if (!offline) {
       setShowWorkoutPicker(true);
     }
   }
@@ -316,10 +331,7 @@ export function TodayScreen() {
         <ScreenHeader title={t("This week")} subtitle={todayLongStr} />
         <LoadingNotice
           loading={
-            pendingWeekSchedule ||
-            pendingTodaySchedule ||
-            pendingWeight ||
-            pendingSessions
+            !offline && (pendingWeekSchedule || pendingWeight || pendingSessions)
           }
         />
 
@@ -342,20 +354,24 @@ export function TodayScreen() {
         )}
 
         <Section title={t("Today's routine")}>
-          {pendingTodaySchedule ? (
+          {pendingWeekSchedule ? (
             <RoutineCardSkeleton />
-          ) : errorTodaySchedule && todaySchedule === undefined ? (
+          ) : errorWeekSchedule && todaySchedule === undefined ? (
             <SectionLoadError
               title={t("Today’s routine couldn’t load")}
-              error={errorTodaySchedule}
-              retrying={fetchingTodaySchedule}
-              onRetry={() => void refetchTodaySchedule()}
+              error={errorWeekSchedule}
+              retrying={fetchingWeekSchedule}
+              onRetry={() => void refetchWeekSchedule()}
             />
+          ) : offline && todaySchedule === undefined ? (
+            <Text className="font-body text-body text-text-secondary">{t("Connect to download this routine.")}</Text>
           ) : todaySchedule ? (
             <InfoCard
               title={todaySchedule.routine_name}
               description={
-                scheduledRoutine
+                offline && !scheduledWorkout.data
+                  ? t("Connect to download this routine.")
+                  : scheduledRoutine
                   ? t("exerciseCount", {
                       count: scheduledRoutine.exercises_count,
                     })
@@ -382,7 +398,7 @@ export function TodayScreen() {
           )}
         </Section>
 
-        {pendingWeight ? (
+        {pendingWeight && !offline ? (
           <WeightBannerSkeleton />
         ) : errorWeight && todayWeight === undefined ? (
           <SectionLoadError
@@ -420,14 +436,14 @@ export function TodayScreen() {
           </View>
         )}
 
-        {pendingSessions ? (
+        {pendingSessions && !offline ? (
           <ConsistencySkeleton />
         ) : sessions ? (
           <ConsistencyGrid sessions={sessions} mode="recent" framed={false} />
         ) : null}
 
         <Section title={t("Last session")}>
-          {pendingSessions ? (
+          {pendingSessions && !offline ? (
             <LastSessionSkeleton />
           ) : errorSessions && !sessions ? (
             <SectionLoadError
@@ -471,10 +487,16 @@ export function TodayScreen() {
               setStartButtonHeight(event.nativeEvent.layout.height)
             }
           >
+            {startError && (
+              <Text accessibilityLiveRegion="polite" className="bg-surface p-sm font-body text-caption text-text-primary">
+                {t(startError)}
+              </Text>
+            )}
             <Button
               variant="primary"
               label={workoutActionLabel}
-              onPress={handleStartWorkout}
+              disabled={isStarting}
+              onPress={() => void handleStartWorkout()}
             />
           </View>
         )

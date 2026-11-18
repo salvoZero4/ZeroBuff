@@ -94,8 +94,7 @@ export function summarizeWorkout(
 export function isSetSaved(set: ActiveSetLog): boolean {
   return Boolean(
     set.completed &&
-    set.backendId &&
-    !set.backendId.startsWith("tmp-") &&
+    (set.localSaved || (set.backendId && !set.backendId.startsWith("tmp-"))) &&
     (!set.saveStatus || set.saveStatus === "saved"),
   );
 }

@@ -28,7 +28,7 @@ The owner-confirmed product emphasis is integration of planning, training, and a
 - Users can switch exercises freely rather than follow a rigid sequence, for example when equipment is occupied.
 - The active workflow includes set logging, a rest timer, comparison with earlier performance, and ending the session.
 - Session history and progress analysis belong in Analytics. Planning belongs in routines and the weekly schedule.
-- The application requires a network connection. The backend can take time to respond after inactivity; distinguish waiting, failure, and genuinely empty data.
+- Account access, routine and schedule edits, and server analytics require a network connection. Mobile workouts can continue and finish offline after the first release. The backend can take time to respond after inactivity; distinguish waiting, failure, and genuinely empty data.
 
 ## Capabilities and Constraints
 
@@ -37,7 +37,7 @@ The owner-confirmed product emphasis is integration of planning, training, and a
 - Routine editing uses a local draft and a single request with the full saved state. Empty routines are permitted.
 - Workout sessions support set logging, editing, exercise switching, recovery timing, and completion. Preserve the card carousel and the ability to add sets.
 - Body-weight logging, session history, and exercise/routine statistics are part of the product scope. Existing code and tests determine implementation coverage; this document is not a release certification.
-- Online-only: no offline synchronization or persisted mutation queue. Pending writes must not be presented as confirmed saves. Preserve entered values and a recovery action after failure.
+- Offline workouts on iOS and Android use a local routine snapshot and save completed sessions for later sync. Show whether a workout is saved on the device or synced. In the second release, Today can start a workout from a previously downloaded routine and schedule.
 - UI copy is in English. Code identifiers and comments are also in English; conversation with the owner is in Italian.
 - The established application is the starting point for further work. Preserve its existing design system and behavior unless the owner requests a change; consult mobile/AGENTS.md for implementation and visual constraints.
 - The Today start/resume action is intended to float over the content. Reserve enough scroll space to reach the final actions without replacing that overlay with a separate footer.

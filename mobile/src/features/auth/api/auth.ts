@@ -12,7 +12,7 @@ async function authenticate(path: string, body: object): Promise<AuthResponse> {
     auth: false,
     body: JSON.stringify(body),
   });
-  await tokenStore.setTokens(data.access_token, data.refresh_token);
+  await tokenStore.setTokens(data.access_token, data.refresh_token, data.id);
   return data;
 }
 
