@@ -24,7 +24,7 @@ async function showAndroidBuild() {
         asset.browser_download_url.startsWith(assetPrefix)
       );
       const apk = apks.find((asset) => /universal/i.test(asset.name));
-      const label = release.prerelease ? `${release.tag_name} preview` : release.tag_name;
+      const label = release.name?.trim() || release.tag_name;
 
       if (apk || apks.length === 1) {
         link.href = (apk ?? apks[0]).browser_download_url;
@@ -60,11 +60,10 @@ async function showIosBuild() {
 
     const link = document.querySelector("#ios-download");
     link.href = url.href;
-    link.textContent = "Join TestFlight";
-    link.classList.replace("text-link", "button");
+    link.hidden = false;
     document.querySelector("#ios-status").textContent = "Install the beta through Apple TestFlight.";
   } catch {
-    // The release notes link remains available.
+    // Keep the public access status when the invitation cannot be loaded.
   }
 }
 
