@@ -29,6 +29,7 @@ export type IconName =
   | "check"
   | "play"
   | "pause"
+  | "stop"
   | "stopwatch"
   | "ruler-vertical"
   | "venus-mars"

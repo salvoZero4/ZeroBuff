@@ -531,6 +531,7 @@ export async function logSetCompleted(
     session?.startedAtTimestamp === original.startedAtTimestamp &&
     saved?.saveStatus === "saved" &&
     (session.autoRestEnabled ?? true) &&
+    session.restTimerOverride?.state !== "paused" &&
     (session.restEndTimestamp ?? 0) <= now &&
     restSeconds > 0
   ) {

@@ -18,6 +18,13 @@ export type RoutineDraft = {
   exercises: RoutineExerciseDraft[];
 };
 
+export function parseExerciseTarget(value: string): number | null {
+  const target = Number(value);
+  return /^\d+$/.test(value) && Number.isSafeInteger(target) && target > 0
+    ? target
+    : null;
+}
+
 export function toDraft(routine: RoutineRead | undefined): RoutineDraft {
   if (!routine) {
     return {

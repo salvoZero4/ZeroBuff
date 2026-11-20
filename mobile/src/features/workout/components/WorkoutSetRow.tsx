@@ -38,7 +38,8 @@ type WorkoutSetRowProps = {
   onSave: () => void;
   onRetry: () => void;
   disabled?: boolean;
-  totalSets?: number;
+  totalSets: number;
+  savedSets: number;
   onInteract?: () => void;
 };
 
@@ -57,6 +58,7 @@ export function WorkoutSetRow({
   onRetry,
   disabled = false,
   totalSets,
+  savedSets,
   onInteract,
 }: WorkoutSetRowProps) {
   const { t } = useTranslation();
@@ -107,12 +109,12 @@ export function WorkoutSetRow({
 
   return (
     <View
-      className={`w-full gap-sm rounded-lg border p-lg ${set.completed ? "border-accent/30 bg-surface-raised" : "border-border bg-surface"}`}
+      className={`w-full gap-xs rounded-lg border px-md py-xs ${set.completed ? "border-accent/30 bg-surface-raised" : "border-border bg-surface"}`}
     >
-      <View className="min-h-12 flex-row flex-wrap items-center justify-between gap-sm">
+      <View className="min-h-8 flex-row flex-wrap items-center justify-between gap-xs">
         <Text className="font-numeric-bold text-lg text-text-primary">
           {t("Set {{number}}", { number: set.setNumber })}
-          {totalSets ? t(" of {{total}}", { total: totalSets }) : ""}
+          {t(" of {{total}}", { total: totalSets })}
         </Text>
         <Text
           accessibilityLiveRegion="polite"
@@ -122,26 +124,11 @@ export function WorkoutSetRow({
             ? t("Saving…")
             : set.saveStatus === "dirty"
               ? t("Unsaved changes")
-              : saved
-                ? t("Saved")
-                : ""}
+              : t("{{saved}} of {{total}} saved", {
+                  saved: savedSets,
+                  total: totalSets,
+                })}
         </Text>
-        {isLast && onRemove ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("Remove set {{number}}", {
-              number: set.setNumber,
-            })}
-            disabled={pending}
-            onPress={onRemove}
-            className="min-h-12 flex-row items-center justify-center gap-xs px-sm"
-          >
-            <Icon name="trash" size={14} className="text-danger" />
-            <Text className="font-body text-caption text-danger">
-              {t("Remove set")}
-            </Text>
-          </Pressable>
-        ) : null}
       </View>
 
       <View className="flex-row gap-sm">
@@ -160,7 +147,7 @@ export function WorkoutSetRow({
             onFocus={onInteract}
             onChangeText={(weight) => onUpdate({ weight })}
             onBlur={onSave}
-            className="min-h-16 rounded-sm border border-border bg-surface-raised px-sm py-xs text-center font-numeric-bold text-[36px] text-text-primary"
+            className="min-h-12 rounded-sm border border-border bg-surface-raised px-sm py-0 text-center font-numeric-bold text-3xl text-text-primary placeholder:text-text-secondary"
           />
         </View>
         <View className="flex-1 gap-xs">
@@ -178,7 +165,7 @@ export function WorkoutSetRow({
             onFocus={onInteract}
             onChangeText={(reps) => onUpdate({ reps })}
             onBlur={onSave}
-            className="min-h-16 rounded-sm border border-border bg-surface-raised px-sm py-xs text-center font-numeric-bold text-[36px] text-text-primary"
+            className="min-h-12 rounded-sm border border-border bg-surface-raised px-sm py-0 text-center font-numeric-bold text-3xl text-text-primary placeholder:text-text-secondary"
           />
         </View>
         <View className="gap-xs">
@@ -199,7 +186,7 @@ export function WorkoutSetRow({
             }}
             disabled={pending}
             onPress={onToggleComplete}
-            className={`min-h-16 w-14 flex-1 items-center justify-center rounded-sm border ${saved ? "border-accent bg-accent" : "border-border bg-surface-raised"}`}
+            className={`min-h-12 w-12 flex-1 items-center justify-center rounded-sm border ${saved ? "border-accent bg-accent" : "border-border bg-surface-raised"}`}
           >
             {set.saveStatus === "pending" ? (
               <ActivityIndicator accessibilityLabel={t("Saving set")} />
@@ -212,7 +199,7 @@ export function WorkoutSetRow({
         </View>
       </View>
 
-      <View className="flex-row items-center gap-md">
+      <View className="flex-row items-center gap-sm">
         <View className="flex-1 flex-row flex-wrap items-center gap-xs">
           <Text className="font-body text-caption text-text-secondary">
             {t("Previous")}
@@ -238,8 +225,22 @@ export function WorkoutSetRow({
           onFocus={onInteract}
           onChangeText={(rir) => onUpdate({ rir })}
           onBlur={onSave}
-          className="min-h-12 w-12 rounded-sm border border-border bg-surface-raised py-xs text-center font-numeric text-[20px] text-text-primary"
+          className="min-h-12 w-12 rounded-sm border border-border bg-surface-raised py-0 text-center font-numeric text-[20px] text-text-primary placeholder:text-text-secondary"
         />
+        {isLast && onRemove ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("Options for set {{number}}", {
+              number: set.setNumber,
+            })}
+            accessibilityState={{ disabled: pending }}
+            disabled={pending}
+            onPress={onRemove}
+            className="h-12 w-12 items-center justify-center rounded-sm active:bg-surface-raised"
+          >
+            <Icon name="ellipsis" size={20} className="text-text-secondary" />
+          </Pressable>
+        ) : null}
       </View>
 
       {set.saveStatus === "error" ? (

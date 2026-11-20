@@ -49,6 +49,7 @@ export function BackgroundRestTimerProvider({
             startedAtTimestamp: state.session.startedAtTimestamp,
             restTimerId: state.session.restTimerId,
             restEndTimestamp: state.session.restEndTimestamp,
+            suppressNativeTimer: Boolean(state.session.restTimerOverride),
           }
         : null,
     ),
@@ -116,6 +117,10 @@ export function BackgroundRestTimerProvider({
     }
     if (!session) return;
     if (!sync) return;
+    if (session.suppressNativeTimer) {
+      void sync.update(null);
+      return;
+    }
     void sync.update({
       workoutKey: `${session.routineId}:${session.startedAtTimestamp}`,
       routineId: session.routineId,
@@ -132,6 +137,7 @@ export function BackgroundRestTimerProvider({
     session?.startedAtTimestamp,
     session?.restTimerId,
     session?.restEndTimestamp,
+    session?.suppressNativeTimer,
     session?.routineName,
     session,
     sync,
@@ -172,8 +178,9 @@ export function BackgroundRestTimerProvider({
       const active = getActiveWorkout();
       if (
         active &&
-        `${active.routineId}:${active.startedAtTimestamp}` !==
-          current.workoutKey
+        (active.restTimerOverride ||
+          `${active.routineId}:${active.startedAtTimestamp}` !== current.workoutKey ||
+          (active.restTimerId && active.restTimerId !== current.id))
       )
         return;
       router.navigate({

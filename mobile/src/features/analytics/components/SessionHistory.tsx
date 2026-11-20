@@ -26,6 +26,7 @@ import { dateLabel, dateLocale, numberLabel } from "@/shared/i18n/i18n";
 import { periodStart, type Period } from "../utils/progress";
 import { Empty, PeriodControl, QueryNotice } from "./AnalyticsControls";
 import { SessionActionsModal } from "./SessionActionsModal";
+import { useQueuedWorkouts } from "@/features/workout/sync/WorkoutSyncProvider";
 
 function RoutineComparison({ id }: { id: string }) {
   const exerciseName = useExerciseNames();
@@ -80,6 +81,9 @@ function RoutineComparison({ id }: { id: string }) {
 }
 export function SessionHistory() {
   const { t } = useTranslation();
+  const queue = useQueuedWorkouts();
+  const queuedWorkouts = queue.data ?? [];
+  const queuedIds = new Set(queuedWorkouts.map(({ payload }) => payload.id));
   const sessions = useHistory(),
     routines = useRoutineNames(),
     refresh = useRefreshTraining();
@@ -111,6 +115,7 @@ export function SessionHistory() {
   const data = (sessions.data ?? [])
     .filter(
       (s) =>
+        !queuedIds.has(s.id) &&
         s.date >= periodStart(period) &&
         (routine === "all" ||
           (routine === "custom" ? !s.routine_id : s.routine_id === routine)),
@@ -128,10 +133,11 @@ export function SessionHistory() {
         data={data}
         keyExtractor={(s) => s.id}
         showsVerticalScrollIndicator={false}
-        refreshing={sessions.isRefetching}
+        refreshing={sessions.isRefetching || queue.isRefetching}
         onRefresh={() => {
           void sessions.refetch();
           void routines.refetch();
+          if (queue.isEnabled) void queue.refetch();
         }}
         contentContainerClassName="pb-xl"
         ListHeaderComponent={
@@ -157,6 +163,39 @@ export function SessionHistory() {
                 className="text-text-secondary"
               />
             </Pressable>
+            {queuedWorkouts.length > 0 ? (
+              <View className="gap-sm">
+                {queuedWorkouts.map(({ payload, summary, routine, error }) => {
+                  const missing = error?.startsWith("Exercises not found:")
+                    ? routine.exercises
+                        .filter((exercise) => error.includes(exercise.exercise_id))
+                        .map((exercise) => exercise.name)
+                    : [];
+                  return (
+                    <Pressable
+                      key={payload.id}
+                      accessibilityRole="button"
+                      onPress={() => openSession(payload.id)}
+                      className="gap-xs rounded-md border border-border bg-surface p-md"
+                    >
+                      <Text className="font-body-semibold text-body text-text-primary">
+                        {summary.routineName}
+                      </Text>
+                      <Text className="font-body text-caption text-text-secondary">
+                        {t(error ? "Workout needs attention." : "Saved on this device")}
+                      </Text>
+                      {error ? (
+                        <Text className="font-body text-caption text-text-secondary">
+                          {missing.length
+                            ? t("Exercises unavailable: {{exercises}}", { exercises: missing.join(", ") })
+                            : error}
+                        </Text>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
             <QueryNotice
               pending={sessions.isPending || routines.isPending}
               error={sessions.error || routines.error}
@@ -256,7 +295,8 @@ export function SessionHistory() {
           );
         }}
         ListEmptyComponent={
-          !sessions.isPending && !sessions.error ? (
+          !sessions.isPending && !sessions.error &&
+          (queuedWorkouts.length === 0 || period !== "All" || routine !== "all") ? (
             <Empty
               title={t("No sessions here yet")}
               message={

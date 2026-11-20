@@ -32,6 +32,15 @@ test('drag order is saved with contiguous order indices', () => {
   assert.deepEqual(payload.exercises.map(e => [e.exercise_id, e.order_index]), [['b', 0], ['a', 1]]);
 });
 
+test('exercise settings accept only positive whole-number sets and reps', () => {
+  const { parseExerciseTarget } = mod.exports;
+  assert.equal(parseExerciseTarget('1'), 1);
+  assert.equal(parseExerciseTarget('012'), 12);
+  for (const invalid of ['', '0', '-1', '1.5', '4x', '1e2', '9007199254740992']) {
+    assert.equal(parseExerciseTarget(invalid), null);
+  }
+});
+
 test('bulk rest changes only recovery, preserves order, stays local and marks draft dirty', () => {
   const before = structuredClone(original);
   const updated = mod.exports.withRestForAll(original, 135);
