@@ -132,3 +132,5 @@ In **Settings → Pages**, select **GitHub Actions** as the source. The landing 
 
 - **Android** — attach an installable `.apk` to a published [GitHub Release](https://github.com/salvoZero4/ZeroBuff/releases). The landing checks recent releases and prefers stable builds. If a release contains several APKs, name the universal one with `universal` or visitors can choose on the release page.
 - **iOS** — set `testflight` in [`docs/builds.json`](docs/builds.json) to the public TestFlight invitation URL once it is available.
+
+If the app shows a server error on first launch after installing the Android release, or after a period of inactivity, the backend may still be starting up. ZeroBuff uses Render’s free plan, which pauses the server when it’s idle. Wait about a minute, then try again. [Render’s free service documentation](https://render.com/docs/free#spinning-down-on-idle)
