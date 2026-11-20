@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Tabs } from "expo-router";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon, type IconName } from "@/components/ui/Icon";
 
@@ -42,17 +43,20 @@ function TabLabel({
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+  const { bottom } = useSafeAreaInsets();
+  const tabBarPadding = 10;
+  const bottomPadding =
+    Platform.OS === "android" ? Math.max(tabBarPadding, bottom) : tabBarPadding;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          // Fixed height on purpose: the bar spans to the bottom of the window,
-          // so its background paints the gesture area with the tab color. Adding
-          // the bottom inset here would lift the icons (and shrink the screen).
-          height: 82,
-          paddingTop: 10,
-          paddingBottom: 10,
+          // Grow the bar with the Android inset to keep the tab row the same height.
+          height: 82 + bottomPadding - tabBarPadding,
+          paddingTop: tabBarPadding,
+          paddingBottom: bottomPadding,
           backgroundColor: "transparent",
           borderTopWidth: 0,
         },
