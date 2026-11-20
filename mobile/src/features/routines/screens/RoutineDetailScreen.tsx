@@ -6,7 +6,7 @@ import { errorText } from "@/shared/i18n/errors";
 import { useTranslation } from "react-i18next";
 import { routineKeys } from "@/features/routines/api/queryKeys";
 import { router, usePreventRemove } from "expo-router";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -16,9 +16,6 @@ import {
   View,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import DraggableFlatList, {
-  RenderItemParams,
-} from "react-native-draggable-flatlist";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRoutineDraft } from "@/features/routines/hooks/useRoutineDraft";
 import {
@@ -33,10 +30,11 @@ import {
 } from "@/features/routines/utils/routineDraft";
 import { openExercisePicker } from "@/features/exercises/store/exercisePickerStore";
 import { ApiError } from "@/shared/api/errors";
-import { RestDurationModal } from "@/features/routines/components/RestDurationModal";
+import { RoutineExerciseSettingsModal } from "@/features/routines/components/RoutineExerciseSettingsModal";
 import { formatRestDuration } from "@/features/routines/utils/restDuration";
 import { Icon } from "@/components/ui/Icon";
 import { ExerciseEditor } from "@/features/routines/components/ExerciseEditor";
+import { RoutineExerciseList } from "@/features/routines/components/RoutineExerciseList";
 import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
@@ -121,7 +119,13 @@ function RoutineEditorForm({
     reorderExercises,
   } = useRoutineDraft(initialRoutine);
 
-  const [restTarget, setRestTarget] = useState<string | null>(null);
+  const [settingsTarget, setSettingsTarget] = useState<
+    { kind: "all" } | { kind: "exercise"; id: string } | null
+  >(null);
+  const editingIndex = settingsTarget?.kind === "exercise"
+    ? draft.exercises.findIndex(({ id }) => id === settingsTarget.id)
+    : -1;
+  const editingExercise = draft.exercises[editingIndex];
   const uniformRest =
     draft.exercises.length > 0 &&
     draft.exercises.every(
@@ -134,8 +138,6 @@ function RoutineEditorForm({
   const saveInFlight = useRef(false);
   const dragInFlight = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
-  const scrollOffset = useRef(0);
-  const [listLayout, setListLayout] = useState({ revision: 0, offset: 0 });
   const hasChanges = routineDraftSignature(draft) !== baseline;
 
   const [nameError, setNameError] = useState<string | null>(null);
@@ -212,55 +214,39 @@ function RoutineEditorForm({
     router.push("/exercises");
   }
 
-  function renderExerciseItem({
-    item,
-    drag,
-    isActive,
-  }: RenderItemParams<RoutineExerciseDraft>) {
-    const index = draft.exercises.findIndex(
-      (exercise) => exercise.id === item.id,
+  function closeSettings() {
+    Keyboard.dismiss();
+    setSettingsTarget(null);
+  }
+
+  function moveEditedExercise(direction: -1 | 1) {
+    if (!editingExercise || saveInFlight.current || dragInFlight.current) return;
+    moveExercise(editingExercise.id, direction);
+    closeSettings();
+    AccessibilityInfo.announceForAccessibility(
+      t("{{name}} moved to position {{position}} of {{total}}.", {
+        name: exerciseName(editingExercise.exercise_id, editingExercise.name),
+        position: editingIndex + direction + 1,
+        total: draft.exercises.length,
+      }),
     );
-    const isLast = index === draft.exercises.length - 1;
+  }
 
-    function move(direction: -1 | 1) {
-      if (saveInFlight.current || dragInFlight.current) return;
-      moveExercise(item.id, direction);
-      AccessibilityInfo.announceForAccessibility(
-        t("{{name}} moved to position {{position}} of {{total}}.", {
-          name: exerciseName(item.exercise_id, item.name),
-          position: index + direction + 1,
-          total: draft.exercises.length,
-        }),
-      );
-    }
-
+  function renderExerciseItem(item: RoutineExerciseDraft, grip: ReactNode, isActive: boolean) {
     return (
-      <View>
-        <ExerciseEditor
-          disabled={isSaving || (isDragging && !isActive)}
-          isLast={isLast}
-          exercise={item}
-          displayName={exerciseName(item.exercise_id, item.name)}
-          onMoveUp={index > 0 ? () => move(-1) : undefined}
-          onMoveDown={index >= 0 && !isLast ? () => move(1) : undefined}
-          onEditRest={() => {
-            if (!saveInFlight.current && !dragInFlight.current) {
-              Keyboard.dismiss();
-              setRestTarget(item.id);
-            }
-          }}
-          onChange={(changes) => {
-            if (!saveInFlight.current) updateExercise(item.id, changes);
-          }}
-          onRemove={() => {
-            if (!saveInFlight.current) removeExercise(item.id);
-          }}
-          drag={() => {
-            if (!saveInFlight.current) drag();
-          }}
-          isActive={isActive}
-        />
-      </View>
+      <ExerciseEditor
+        disabled={isSaving || (isDragging && !isActive)}
+        isLast={draft.exercises.at(-1)?.id === item.id}
+        exercise={item}
+        displayName={exerciseName(item.exercise_id, item.name)}
+        onEdit={() => {
+          if (saveInFlight.current || dragInFlight.current) return;
+          Keyboard.dismiss();
+          setSettingsTarget({ kind: "exercise", id: item.id });
+        }}
+        grip={grip}
+        isActive={isActive}
+      />
     );
   }
 
@@ -305,7 +291,7 @@ function RoutineEditorForm({
           <View className="flex-1">
             <ScreenHeader
               title={isNewRoutine ? t("New routine") : t("Edit routine")}
-              subtitle={t("Hold and drag exercises to reorder.")}
+              subtitle={t("Drag the handles to reorder exercises.")}
             />
           </View>
 
@@ -345,7 +331,7 @@ function RoutineEditorForm({
           disabled={isSaving || isDragging}
           onPress={() => {
             Keyboard.dismiss();
-            setRestTarget("all");
+            setSettingsTarget({ kind: "all" });
           }}
           className="min-h-12 flex-row items-center justify-between gap-md"
         >
@@ -375,45 +361,25 @@ function RoutineEditorForm({
           className="flex-1"
         >
           {draft.exercises.length > 0 ? (
-            <DraggableFlatList
-              key={listLayout.revision}
-              contentOffset={{ x: 0, y: listLayout.offset }}
-              onScrollOffsetChange={(offset) => {
-                scrollOffset.current = offset;
-              }}
-              data={draft.exercises}
-              onDragBegin={() => {
+            <RoutineExerciseList
+              exercises={draft.exercises}
+              disabled={isSaving}
+              onDragStart={() => {
                 Keyboard.dismiss();
                 dragInFlight.current = true;
                 setIsDragging(true);
               }}
-              onDragEnd={({ data }) => {
-                if (!saveInFlight.current) reorderExercises(data);
+              onDrop={(from, to) => {
+                if (!saveInFlight.current && from !== to) {
+                  const exercises = [...draft.exercises];
+                  const [exercise] = exercises.splice(from, 1);
+                  exercises.splice(to, 0, exercise);
+                  reorderExercises(exercises);
+                }
                 dragInFlight.current = false;
                 setIsDragging(false);
-                // The library retains native cell transforms until onLayout fires.
-                // Reordering equal-sized rows can skip that event on Fabric.
-                // Recreate the list after drop, preserving its scroll position.
-                const offset = scrollOffset.current;
-                setListLayout((current) => ({
-                  revision: current.revision + 1,
-                  offset,
-                }));
               }}
-              renderPlaceholder={() => (
-                <View
-                  pointerEvents="none"
-                  className="flex-1 rounded-md border border-dashed border-border bg-surface"
-                />
-              )}
-              autoscrollThreshold={64}
-              autoscrollSpeed={120}
-              animationConfig={{ overshootClamping: true }}
-              keyExtractor={(item) => item.id}
-              renderItem={renderExerciseItem}
-              showsVerticalScrollIndicator={false}
-              containerStyle={{ flex: 1 }}
-              keyboardShouldPersistTaps="handled"
+              renderRow={renderExerciseItem}
             />
           ) : (
             <View className="py-lg">
@@ -436,24 +402,39 @@ function RoutineEditorForm({
           onPress={handleOpenExercisePicker}
         />
       </View>
-      {restTarget !== null && (
-        <RestDurationModal
-          initialSeconds={Number(
-            (restTarget === "all"
-              ? draft.exercises[0]
-              : draft.exercises.find((exercise) => exercise.id === restTarget)
-            )?.restSeconds ?? "90",
-          )}
-          all={restTarget === "all"}
-          onClose={() => setRestTarget(null)}
+      {settingsTarget?.kind === "all" ? (
+        <RoutineExerciseSettingsModal
+          key="all"
+          kind="all"
+          initialSeconds={Number(draft.exercises[0]?.restSeconds ?? "90")}
+          onClose={closeSettings}
           onApply={(seconds) => {
             if (saveInFlight.current || dragInFlight.current) return;
-            if (restTarget === "all") setRestForAll(seconds);
-            else updateExercise(restTarget, { restSeconds: String(seconds) });
-            setRestTarget(null);
+            setRestForAll(seconds);
+            closeSettings();
           }}
         />
-      )}
+      ) : editingExercise ? (
+        <RoutineExerciseSettingsModal
+          key={editingExercise.id}
+          kind="exercise"
+          exercise={editingExercise}
+          displayName={exerciseName(editingExercise.exercise_id, editingExercise.name)}
+          onClose={closeSettings}
+          onApply={(settings) => {
+            if (saveInFlight.current || dragInFlight.current) return;
+            updateExercise(editingExercise.id, settings);
+            closeSettings();
+          }}
+          onMoveUp={editingIndex > 0 ? () => moveEditedExercise(-1) : undefined}
+          onMoveDown={editingIndex < draft.exercises.length - 1 ? () => moveEditedExercise(1) : undefined}
+          onRemove={() => {
+            if (saveInFlight.current || dragInFlight.current) return;
+            removeExercise(editingExercise.id);
+            closeSettings();
+          }}
+        />
+      ) : null}
       <ConfirmModal
         visible={pendingExit !== null}
         title={t("Discard changes?")}

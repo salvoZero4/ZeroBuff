@@ -1,24 +1,22 @@
 import { useTranslation } from "react-i18next";
-import Animated, {
-  Easing,
-  FadeIn,
-  ReduceMotion,
-} from "react-native-reanimated";
 import { useEffect, useState } from "react";
 import { AppState, Pressable, Text, View } from "react-native";
 import { startForegroundTicker } from "@/features/workout/utils/foregroundTicker";
 import { useBackgroundRestTimerFeedback } from "@/features/workout/notifications/BackgroundRestTimerProvider";
+import { ActionSheet, type SheetAction } from "@/components/ui/ActionSheet";
 import { Icon } from "@/components/ui/Icon";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
-const stateEntrance = FadeIn.duration(180)
-  .easing(Easing.out(Easing.cubic))
-  .reduceMotion(ReduceMotion.System);
+export const REST_DIGIT_LINE_HEIGHT = 1.18;
 
 type RestTimerControlProps = {
   defaultSeconds: number;
   targetEndTimestamp: number | null;
+  pausedRemainingMs: number | null;
+  digitSize: number;
   onTargetChange: (value: number | null) => void;
+  onPause: () => void;
+  onResume: () => void;
+  onAdjust: (seconds: number) => void;
   autoRestEnabled: boolean;
   onToggleAutoRest: () => void;
 };
@@ -26,148 +24,179 @@ type RestTimerControlProps = {
 export function RestTimerControl({
   defaultSeconds,
   targetEndTimestamp,
+  pausedRemainingMs,
+  digitSize,
   onTargetChange,
+  onPause,
+  onResume,
+  onAdjust,
   autoRestEnabled,
   onToggleAutoRest,
 }: RestTimerControlProps) {
   const { t } = useTranslation();
   const background = useBackgroundRestTimerFeedback();
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [tick, setTick] = useState<{
+    deadline: number;
+    remainingMs: number;
+  } | null>(null);
+  const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
-    if (!targetEndTimestamp) {
-      const reset = setTimeout(() => setSecondsLeft(null), 0);
-      return () => clearTimeout(reset);
-    }
-
+    if (targetEndTimestamp === null) return;
     return startForegroundTicker(AppState, () => {
-      const remaining = Math.max(
-        0,
-        Math.ceil((targetEndTimestamp - Date.now()) / 1000),
-      );
-      setSecondsLeft(remaining);
-      return remaining > 0;
+      const remainingMs = Math.max(0, targetEndTimestamp - Date.now());
+      setTick({ deadline: targetEndTimestamp, remainingMs });
+      return remainingMs > 0;
     });
   }, [targetEndTimestamp]);
 
-  function startTimer(seconds?: number) {
-    const duration = seconds ?? (defaultSeconds > 0 ? defaultSeconds : 90);
-    onTargetChange(Date.now() + duration * 1000);
-  }
-
-  function adjustTime(amountSeconds: number) {
-    if (!targetEndTimestamp) return;
-    onTargetChange(targetEndTimestamp + amountSeconds * 1000);
-  }
-
-  function stopTimer() {
-    onTargetChange(null);
-    setSecondsLeft(null);
-  }
-
-  const isRunning = secondsLeft !== null && secondsLeft > 0;
-  const timerState = isRunning
-    ? "running"
-    : secondsLeft === 0
-      ? "complete"
-      : "idle";
-  const displaySeconds = secondsLeft ?? defaultSeconds;
+  const runningMs =
+    tick?.deadline === targetEndTimestamp ? tick.remainingMs : null;
+  const isRunning = targetEndTimestamp !== null && runningMs !== 0;
+  const isPaused = pausedRemainingMs !== null;
+  const defaultDuration = defaultSeconds > 0 ? defaultSeconds : 90;
+  const displaySeconds = Math.ceil(
+    (pausedRemainingMs ??
+      runningMs ??
+      (isRunning ? defaultDuration : defaultSeconds) * 1000) / 1000,
+  );
   const mins = Math.floor(displaySeconds / 60);
   const secs = displaySeconds % 60;
-  const timeFormatted = `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  const timeFormatted = `${mins}:${String(secs).padStart(2, "0")}`;
+
+  const primaryLabel = isRunning
+    ? t("Pause rest")
+    : isPaused
+      ? t("Resume rest")
+      : t("Start rest");
+  const primaryAction = isRunning
+    ? onPause
+    : isPaused
+      ? onResume
+      : () => onTargetChange(Date.now() + defaultDuration * 1000);
+
+  function adjustTime(amountSeconds: number) {
+    onAdjust(amountSeconds);
+    setShowOptions(false);
+  }
+
+  const options: SheetAction[] = [
+    {
+      label: autoRestEnabled ? t("Turn auto rest off") : t("Turn auto rest on"),
+      icon: "stopwatch",
+      onPress: () => {
+        onToggleAutoRest();
+        setShowOptions(false);
+      },
+    },
+  ];
+  if (isRunning) {
+    options.unshift(
+      {
+        label: t("Remove 15 seconds"),
+        icon: "minus",
+        onPress: () => adjustTime(-15),
+      },
+      {
+        label: t("Add 30 seconds"),
+        icon: "plus",
+        onPress: () => adjustTime(30),
+      },
+    );
+  }
+  if (background.message && background.onAction && background.actionLabel) {
+    options.push({
+      label: background.actionLabel,
+      icon: "circle-info",
+      onPress: () => {
+        setShowOptions(false);
+        background.onAction?.();
+      },
+    });
+  }
+  const status = isPaused
+    ? t("Rest paused")
+    : isRunning
+      ? t("Resting")
+      : runningMs === 0
+        ? t("Rest complete")
+        : t("Rest timer");
 
   return (
-    <View className="items-center gap-sm py-md">
-      <Animated.Text
-        key={timerState}
-        entering={stateEntrance}
+    <View className="items-center gap-xs">
+      <Text
         accessibilityLiveRegion="polite"
-        className="font-body text-body text-text-secondary"
+        className="text-center font-body text-caption text-text-secondary"
       >
-        {isRunning
-          ? t("Resting")
-          : secondsLeft === 0
-            ? t("Rest complete")
-            : t("Rest timer")}
-      </Animated.Text>
-      {/* Allow enough line height for Oswald’s tall digits. */}
+        {status}
+      </Text>
       <Text
         accessibilityLabel={t("{{minutes}} minutes {{seconds}} seconds", {
           minutes: mins,
           seconds: secs,
         })}
-        className="font-numeric-bold text-[96px] leading-[120px] text-text-primary"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        style={{
+          fontSize: digitSize,
+          lineHeight: Math.ceil(digitSize * REST_DIGIT_LINE_HEIGHT),
+        }}
+        className="w-full text-center font-numeric-bold text-text-primary"
       >
         {timeFormatted}
       </Text>
-      <View className="flex-row items-center justify-center gap-lg">
-        {isRunning ? (
+      <View className="w-full flex-row items-center justify-center gap-xs">
+        <View className="w-12" />
+        <View className="shrink flex-row justify-center gap-xs">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("Remove 15 seconds")}
-            onPress={() => adjustTime(-15)}
-            className="min-h-12 min-w-16 items-center justify-center rounded-sm border border-border"
+            accessibilityLabel={primaryLabel}
+            onPress={primaryAction}
+            className="min-h-12 min-w-12 shrink flex-row items-center justify-center gap-xs rounded-sm border border-border bg-surface-raised px-sm active:bg-surface"
           >
-            <Text className="font-numeric text-body text-text-secondary">
-              −15s
+            <Icon
+              name={isRunning ? "pause" : "play"}
+              size={14}
+              className="text-text-primary"
+            />
+            <Text className="shrink font-body-semibold text-body text-text-primary">
+              {isRunning ? t("Pause") : isPaused ? t("Resume") : t("Start")}
             </Text>
           </Pressable>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={isRunning ? t("Skip rest") : t("Start rest")}
-          onPress={isRunning ? stopTimer : () => startTimer()}
-          className="min-h-12 min-w-24 flex-row items-center justify-center gap-sm rounded-sm border border-border px-lg"
-        >
-          <Icon
-            name={isRunning ? "xmark" : "play"}
-            size={14}
-            className="text-text-primary"
-          />
-          <Text className="font-body-semibold text-body text-text-primary">
-            {isRunning ? t("Skip") : t("Start")}
-          </Text>
-        </Pressable>
-        {isRunning ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("Add 30 seconds")}
-            onPress={() => adjustTime(30)}
-            className="min-h-12 min-w-16 items-center justify-center rounded-sm border border-border"
-          >
-            <Text className="font-numeric text-body text-text-secondary">
-              +30s
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-      <ToggleSwitch
-        label={t("Auto rest")}
-        accessibilityHint={t("Automatically start rest after saving a set")}
-        value={autoRestEnabled}
-        onValueChange={onToggleAutoRest}
-      />
-      {background.message ? (
-        <View className="items-center gap-xs">
-          <Text
-            accessibilityLiveRegion="polite"
-            className="text-center font-body text-caption text-text-secondary"
-          >
-            {background.message}
-          </Text>
-          {background.onAction ? (
+          {isRunning || isPaused ? (
             <Pressable
               accessibilityRole="button"
-              onPress={background.onAction}
-              className="min-h-12 justify-center px-md"
+              accessibilityLabel={t("Stop rest")}
+              onPress={() => onTargetChange(null)}
+              className="min-h-12 min-w-12 shrink flex-row items-center justify-center gap-xs rounded-sm border border-border px-sm active:bg-surface"
             >
-              <Text className="font-body-semibold text-caption text-text-primary">
-                {background.actionLabel}
+              <Icon name="stop" size={14} className="text-text-primary" />
+              <Text className="shrink font-body-semibold text-body text-text-primary">
+                {t("Stop")}
               </Text>
             </Pressable>
           ) : null}
         </View>
-      ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Timer options")}
+          accessibilityHint={background.message ?? undefined}
+          onPress={() => setShowOptions(true)}
+          className="h-12 w-12 items-center justify-center rounded-sm active:bg-surface-raised"
+        >
+          <Icon
+            name={background.message ? "circle-info" : "ellipsis"}
+            className="text-text-primary"
+          />
+        </Pressable>
+      </View>
+      <ActionSheet
+        visible={showOptions}
+        title={t("Timer options")}
+        subtitle={background.message ?? undefined}
+        actions={options}
+        onClose={() => setShowOptions(false)}
+      />
     </View>
   );
 }

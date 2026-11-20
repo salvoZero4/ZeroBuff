@@ -51,7 +51,10 @@ import {
   WorkoutSetRow,
   type PreviousSet,
 } from "@/features/workout/components/WorkoutSetRow";
-import { RestTimerControl } from "@/features/workout/components/RestTimerControl";
+import {
+  RestTimerControl,
+  REST_DIGIT_LINE_HEIGHT,
+} from "@/features/workout/components/RestTimerControl";
 import { SessionHeader } from "@/features/workout/components/SessionHeader";
 import {
   useActiveWorkout,
@@ -66,6 +69,9 @@ import {
   getActiveWorkoutDurationSeconds,
   getActiveWorkout,
   setWorkoutRestEndTimestamp,
+  adjustRestTimer,
+  pauseRestTimer,
+  resumeRestTimer,
   toggleAutoRest,
 } from "@/features/workout/store/activeWorkoutStore";
 import {
@@ -131,20 +137,22 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
   const previousSetsRef = useRef<
     Record<string, { weight: number; reps: number }[]>
   >({});
-  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removeSetStep, setRemoveSetStep] = useState<"options" | "confirm" | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [finishError, setFinishError] = useState<string | null>(null);
   const finishingRef = useRef(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, fontScale } = useWindowDimensions();
   const [pageWidth, setPageWidth] = useState(windowWidth);
-  const [setCardHeight, setSetCardHeight] = useState(0);
+  const [workoutBodyHeight, setWorkoutBodyHeight] = useState(0);
+  const [exerciseHeadingHeight, setExerciseHeadingHeight] = useState(0);
+  const [setCardHeights, setSetCardHeights] = useState<Record<string, number>>({});
   const setsScrollRef = useRef<ScrollViewInstance>(null);
   const addingSetRef = useRef(false);
   const interactionEpoch = useRef(0);
-  const pagerContentWidthRef = useRef(0);
+  const pagerContentLayoutRef = useRef<{ key: string; width: number } | null>(null);
   const insets = useSafeAreaInsets();
 
   const activeExercise = routine?.exercises[session?.currentExerciseIndex ?? 0];
@@ -249,7 +257,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       setsScrollRef.current?.scrollTo({ x: 0, animated: false });
     }
     addingSetRef.current = false;
-    pagerContentWidthRef.current = 0;
+    pagerContentLayoutRef.current = null;
     setCurrentExerciseIndex(index);
   }
 
@@ -316,6 +324,24 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
   const ex = activeExercise;
   const activeExerciseLogs = session.workoutLogs[ex.exercise_id] ?? [];
+  const savedSets = activeExerciseLogs.filter(isSetSaved).length;
+  const pagerKey = `${ex.exercise_id}:${pageWidth}:${fontScale}`;
+  const firstCardHeight = setCardHeights[`${pagerKey}:0`];
+  const selectedCardHeight = setCardHeights[`${pagerKey}:${currentSetIndex}`];
+  const visibleCardHeight = selectedCardHeight ?? firstCardHeight;
+  // Reserve room for controls and spacing before sizing the timer digits.
+  const timerChromeHeight = 112;
+  const timerDigitBudget =
+    workoutBodyHeight -
+    (exerciseHeadingHeight || 76) -
+    (visibleCardHeight || 170) -
+    timerChromeHeight;
+  const timerDigitSize = workoutBodyHeight
+    ? Math.max(
+        44,
+        Math.min(96, Math.floor(timerDigitBudget / (REST_DIGIT_LINE_HEIGHT * fontScale))),
+      )
+    : 64;
   const isLastExercise =
     session.currentExerciseIndex === routine.exercises.length - 1;
 
@@ -364,7 +390,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
           session!.currentExerciseIndex
       )
         return;
-      setShowRemoveModal(false);
+      setRemoveSetStep(null);
       const nextIndex = Math.max(0, lastIndex - 1);
       setCurrentSetIndex(nextIndex);
       setsScrollRef.current?.scrollTo({
@@ -511,74 +537,89 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
 
       <KeyboardAwareScrollView
         className="flex-1"
-        contentContainerClassName="gap-lg p-lg"
+        contentContainerClassName="gap-sm px-md py-sm"
         contentContainerStyle={{ flexGrow: 1 }}
+        onLayout={({ nativeEvent }) =>
+          setWorkoutBodyHeight(nativeEvent.layout.height)
+        }
         keyboardShouldPersistTaps="handled"
         mode="layout"
         bottomOffset={80}
         extraKeyboardSpace={12}
       >
-        {/* Pills Esercizi */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          // A horizontal ScrollView defaults to flexGrow: 1 and would stretch
-          // vertically inside the column, stretching the active (white) pill
-          // into a full-height bar.
-          style={{ flexGrow: 0 }}
-          contentContainerClassName="gap-xs items-center"
-          keyboardShouldPersistTaps="handled"
+        <View
+          className="gap-xs"
+          onLayout={({ nativeEvent }) =>
+            setExerciseHeadingHeight(nativeEvent.layout.height)
+          }
         >
-          {routine.exercises.map((exItem, idx) => {
-            const logs = session.workoutLogs[exItem.exercise_id] ?? [];
-            const isCompleted =
-              logs.length > 0 &&
-              logs.every(
-                (s) =>
-                  s.completed &&
-                  (s.backendId || s.localSaved) &&
-                  (!s.saveStatus || s.saveStatus === "saved"),
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            // A horizontal ScrollView defaults to flexGrow: 1 and would stretch
+            // vertically inside the column, stretching the active (white) pill
+            // into a full-height bar.
+            style={{ flexGrow: 0 }}
+            contentContainerClassName="gap-xs items-center"
+            keyboardShouldPersistTaps="handled"
+          >
+            {routine.exercises.map((exItem, idx) => {
+              const logs = session.workoutLogs[exItem.exercise_id] ?? [];
+              const isCompleted =
+                logs.length > 0 &&
+                logs.every(
+                  (s) =>
+                    s.completed &&
+                    (s.backendId || s.localSaved) &&
+                    (!s.saveStatus || s.saveStatus === "saved"),
+                );
+              return (
+                <ExerciseStepPill
+                  key={exItem.exercise_id}
+                  index={idx}
+                  name={exerciseName(exItem.exercise_id, exItem.name)}
+                  isActive={idx === session.currentExerciseIndex}
+                  isCompleted={isCompleted}
+                  onPress={() => selectExercise(idx)}
+                />
               );
-            return (
-              <ExerciseStepPill
-                key={exItem.exercise_id}
-                index={idx}
-                name={exerciseName(exItem.exercise_id, exItem.name)}
-                isActive={idx === session.currentExerciseIndex}
-                isCompleted={isCompleted}
-                onPress={() => selectExercise(idx)}
-              />
-            );
-          })}
-        </ScrollView>
+            })}
+          </ScrollView>
 
-        {/* Info Esercizio */}
-        <Animated.View
-          key={ex.exercise_id}
-          entering={exerciseEntrance}
-          className="flex-row items-center gap-md"
-        >
-          <Text className="flex-1 font-body-semibold text-xl text-text-primary">
-            {exerciseName(ex.exercise_id, ex.name)}
-          </Text>
-          <Text className="font-body text-caption text-text-secondary">
-            {session.currentExerciseIndex + 1} / {routine.exercises.length}
-          </Text>
-        </Animated.View>
+          <Animated.View
+            key={ex.exercise_id}
+            entering={exerciseEntrance}
+            className="flex-row items-center gap-md"
+          >
+            <Text className="flex-1 font-body-semibold text-body text-text-primary">
+              {exerciseName(ex.exercise_id, ex.name)}
+            </Text>
+            <Text className="font-body text-caption text-text-secondary">
+              {session.currentExerciseIndex + 1} / {routine.exercises.length}
+            </Text>
+          </Animated.View>
+        </View>
 
-        <View className="flex-1 justify-center gap-lg">
-          {/* Timer Riposo */}
+        <View className="grow justify-center gap-sm">
           <RestTimerControl
             defaultSeconds={ex.rest_time}
             targetEndTimestamp={session.restEndTimestamp ?? null}
+            pausedRemainingMs={
+              session.restTimerOverride?.state === "paused"
+                ? session.restTimerOverride.remainingMs
+                : null
+            }
+            digitSize={timerDigitSize}
             onTargetChange={setWorkoutRestEndTimestamp}
+            onPause={pauseRestTimer}
+            onResume={resumeRestTimer}
+            onAdjust={adjustRestTimer}
             autoRestEnabled={session.autoRestEnabled ?? true}
             onToggleAutoRest={toggleAutoRest}
           />
 
-          {/* Carosello Set */}
           <ScrollView
-            key={`${ex.exercise_id}:${pageWidth}`}
+            key={pagerKey}
             ref={setsScrollRef}
             horizontal
             pagingEnabled
@@ -587,8 +628,9 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             decelerationRate="fast"
             disableIntervalMomentum
             onContentSizeChange={(width) => {
-              if (width === pagerContentWidthRef.current) return;
-              pagerContentWidthRef.current = width;
+              const previous = pagerContentLayoutRef.current;
+              if (previous?.key === pagerKey && previous.width === width) return;
+              pagerContentLayoutRef.current = { key: pagerKey, width };
               setsScrollRef.current?.scrollTo({
                 x:
                   pageWidth *
@@ -597,13 +639,14 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               });
             }}
             showsHorizontalScrollIndicator={false}
-            style={{ flexGrow: 0 }}
+            style={{ flexGrow: 0, flexShrink: 0, height: visibleCardHeight }}
+            contentContainerClassName="items-start"
             keyboardShouldPersistTaps="handled"
             onMomentumScrollEnd={handleSetsScrollEnd}
             onLayout={(e) => {
               const width = e.nativeEvent.layout.width;
               if (width > 0 && width !== pageWidth) {
-                pagerContentWidthRef.current = 0;
+                pagerContentLayoutRef.current = null;
                 setPageWidth(width);
               }
             }}
@@ -616,22 +659,22 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
               >
                 <View
                   className="w-full"
-                  onLayout={
-                    setIdx === 0
-                      ? (e) => {
-                          const height = Math.round(
-                            e.nativeEvent.layout.height,
-                          );
-                          if (height > 0 && height !== setCardHeight) {
-                            setSetCardHeight(height);
-                          }
-                        }
-                      : undefined
-                  }
+                  onLayout={({ nativeEvent }) => {
+                    const height = Math.ceil(nativeEvent.layout.height);
+                    const key = `${pagerKey}:${setIdx}`;
+                    if (height > 0) {
+                      setSetCardHeights((heights) =>
+                        heights[key] === height
+                          ? heights
+                          : { ...heights, [key]: height },
+                      );
+                    }
+                  }}
                 >
                   <WorkoutSetRow
                     set={setLog}
                     totalSets={activeExerciseLogs.length}
+                    savedSets={savedSets}
                     onInteract={() => {
                       interactionEpoch.current++;
                     }}
@@ -651,7 +694,11 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
                     onToggleComplete={() => handleToggleComplete(setIdx)}
                     onRemove={
                       activeExerciseLogs.length > 1
-                        ? handleRemoveLastSet
+                        ? () => {
+                            Keyboard.dismiss();
+                            setRemoveError(null);
+                            setRemoveSetStep("options");
+                          }
                         : undefined
                     }
                   />
@@ -669,7 +716,7 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
                 accessibilityLabel={t("Add set")}
                 onPress={handleAddSet}
                 style={
-                  setCardHeight > 0 ? { minHeight: setCardHeight } : undefined
+                  visibleCardHeight ? { minHeight: visibleCardHeight } : undefined
                 }
                 className="w-full items-center justify-center gap-sm rounded-lg border border-dashed border-border bg-surface active:bg-surface-raised"
               >
@@ -684,18 +731,6 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
             </View>
           </ScrollView>
 
-          <View className="flex-row items-center justify-end gap-sm">
-            <Text
-              accessibilityLiveRegion="polite"
-              className="font-body text-caption text-text-secondary"
-            >
-              {t("{{saved}} of {{total}} saved", {
-                saved: activeExerciseLogs.filter(isSetSaved).length,
-                total: activeExerciseLogs.length,
-              })}
-            </Text>
-          </View>
-
           {removeError ? (
             <Text
               accessibilityLiveRegion="polite"
@@ -707,13 +742,13 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
         </View>
       </KeyboardAwareScrollView>
       <View
-        className="bg-bg px-lg pt-sm"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+        className="bg-bg px-md pt-xs"
+        style={{ paddingBottom: Math.max(insets.bottom, 8) }}
       >
         <Pressable
           accessibilityRole="button"
           onPress={handleNextExercise}
-          className="w-full min-h-14 items-center justify-center rounded-md bg-accent active:bg-accent-pressed"
+          className="w-full min-h-12 items-center justify-center rounded-md bg-accent active:bg-accent-pressed"
         >
           <Text className="font-body-semibold text-body text-on-accent">
             {isLastExercise ? t("Complete workout") : t("Next exercise")}
@@ -722,21 +757,26 @@ export function WorkoutScreen({ routineId }: WorkoutScreenProp) {
       </View>
 
       <ConfirmModal
-        visible={showRemoveModal}
-        title={t("Remove saved set?")}
+        visible={removeSetStep !== null}
+        title={
+          removeSetStep === "options"
+            ? t("Options for set {{number}}", { number: activeExerciseLogs.at(-1)?.setNumber })
+            : t("Remove saved set?")
+        }
         description={
-          removeError ??
-          t(
-            "This removes the last set and its saved performance from this workout.",
-          )
+          removeSetStep === "confirm"
+            ? (removeError ??
+              t("This removes the last set and its saved performance from this workout."))
+            : undefined
         }
         confirmLabel={t("Remove set")}
         isDestructive
         isPending={activeExerciseLogs.at(-1)?.saveStatus === "pending"}
         onConfirm={() => {
-          void handleRemoveLastSet();
+          if (removeSetStep === "options") setRemoveSetStep("confirm");
+          else void handleRemoveLastSet();
         }}
-        onCancel={() => setShowRemoveModal(false)}
+        onCancel={() => setRemoveSetStep(null)}
       />
 
       <ConfirmModal

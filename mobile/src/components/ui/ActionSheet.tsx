@@ -19,7 +19,7 @@ export function ActionSheet({
 }: {
   visible: boolean;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   actions: SheetAction[];
   onClose: () => void;
 }) {
@@ -52,9 +52,11 @@ export function ActionSheet({
               >
                 {title}
               </Text>
-              <Text className="font-body text-caption text-text-secondary">
-                {subtitle}
-              </Text>
+              {subtitle ? (
+                <Text className="font-body text-caption text-text-secondary">
+                  {subtitle}
+                </Text>
+              ) : null}
             </View>
             <IconButton
               icon="xmark"
@@ -73,6 +75,7 @@ export function ActionSheet({
                 <Pressable
                   key={action.label}
                   accessibilityRole="button"
+                  accessibilityLabel={action.label}
                   onPress={action.onPress}
                   className={`min-h-14 flex-row items-center gap-md py-lg active:bg-surface ${index < actions.length - 1 ? "border-b border-border" : ""}`}
                 >

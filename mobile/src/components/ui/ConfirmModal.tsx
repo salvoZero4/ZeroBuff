@@ -7,7 +7,7 @@ import { Button, type ButtonVariant } from "./Button";
 type ConfirmModalProps = {
   visible: boolean;
   title: string;
-  description: string;
+  description?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   confirmVariant?: ButtonVariant;
@@ -74,9 +74,11 @@ export function ConfirmModal({
                 onPress={onCancel}
               />
             </View>
-            <Text className="font-body text-body leading-6 text-text-secondary">
-              {description}
-            </Text>
+            {description ? (
+              <Text className="font-body text-body leading-6 text-text-secondary">
+                {description}
+              </Text>
+            ) : null}
           </ScrollView>
 
           <View className="gap-sm">

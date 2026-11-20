@@ -25,6 +25,7 @@ export type ActiveWorkoutSession = {
   autoRestEnabled?: boolean;
   restEndTimestamp?: number | null;
   restTimerId?: string;
+  restTimerOverride?: { state: "paused"; remainingMs: number } | { state: "stopped" };
   sessionId: string | null;
   routineId: string;
   routineName: string;

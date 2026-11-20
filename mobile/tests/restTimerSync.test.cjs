@@ -102,6 +102,23 @@ test("adjustment replaces the same timer; skip clears the pending alert", async 
   assert.equal(t.native(), null);
 });
 
+test("an explicit clear discards recovered native state and a resumed timer uses a fresh identity", async () => {
+  const previous = nativeState({ version: 2 });
+  const t = setup(previous);
+  await t.sync.update(null);
+  assert.equal(t.native(), null);
+  t.change(previous);
+  await t.sync.refresh();
+  assert.deepEqual(t.applied, []);
+
+  await t.sync.update(snapshot({ id: "resumed", endAt: 130_000 }));
+  assert.equal(t.native().id, "resumed");
+  assert.equal(t.native().endAt, 130_000);
+  t.change(previous);
+  await t.sync.refresh();
+  assert.deepEqual(t.applied.map(({ id }) => id), ["resumed"]);
+});
+
 test("native +30 and skip reconcile without overwriting them with stale JS state", async () => {
   const t = setup();
   await t.sync.update(snapshot());

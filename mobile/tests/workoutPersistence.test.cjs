@@ -166,6 +166,43 @@ test("memory-kill restores edited drafts, extra sets, navigation, pause and rest
   assert.deepEqual(fresh.calls, []);
 });
 
+test("paused and stopped rest timers survive a restart in legacy and local drafts", async (context) => {
+  let now = 10_000;
+  context.mock.method(Date, "now", () => now);
+  let active = null;
+  const localStorage = {
+    readDraft: async () => active,
+    saveDraft: async (_account, draft) => { active = structuredClone(draft); },
+  };
+  for (const offlineStorage of [null, localStorage]) {
+    const disk = new Map();
+    const original = runtime({ disk, offlineStorage });
+    original.store.setActiveWorkout({
+      ...fixture(),
+      ...(offlineStorage ? { localId: "local" } : {}),
+    });
+    original.store.setWorkoutRestEndTimestamp(now + 90_000);
+    now += 25_000;
+    original.store.pauseRestTimer();
+    await original.store.flushWorkoutPersistence();
+
+    now += 200_000;
+    const restarted = runtime({ disk, offlineStorage });
+    const paused = await restarted.store.restoreActiveWorkout();
+    assert.equal(paused.restTimerOverride.state, "paused");
+    assert.equal(paused.restTimerOverride.remainingMs, 65_000);
+    assert.equal(paused.restEndTimestamp, null);
+    restarted.store.resumeRestTimer();
+    assert.equal(restarted.store.getActiveWorkout().restEndTimestamp, now + 65_000);
+
+    restarted.store.setWorkoutRestEndTimestamp(null);
+    await restarted.store.flushWorkoutPersistence();
+    const stopped = await runtime({ disk, offlineStorage }).store.restoreActiveWorkout();
+    assert.equal(stopped.restTimerOverride.state, "stopped");
+    assert.equal(stopped.restEndTimestamp, null);
+  }
+});
+
 test("a POST committed before a kill is reconciled with GET then PATCH only on explicit retry", async () => {
   const disk = new Map();
   const lostResponse = deferred();

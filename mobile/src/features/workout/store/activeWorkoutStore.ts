@@ -30,6 +30,9 @@ type ActiveWorkoutActions = {
     changes: Partial<ActiveSetLog>,
   ) => void;
   setWorkoutRestEndTimestamp: (restEndTimestamp: number | null) => void;
+  adjustRestTimer: (seconds: number) => void;
+  pauseRestTimer: () => void;
+  resumeRestTimer: () => void;
   toggleAutoRest: () => void;
   pauseWorkout: () => void;
   applyNativeRestTimer: (state: {
@@ -340,11 +343,39 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
         session: {
           ...activeSession,
           restEndTimestamp,
+          restTimerOverride:
+            restEndTimestamp === null ? { state: "stopped" } : undefined,
           restTimerId: starting
             ? `${activeSession.startedAtTimestamp}:${Date.now()}:${++restSequence}`
             : activeSession.restTimerId,
         },
       });
+    },
+    pauseRestTimer: () => {
+      const activeSession = get().session;
+      if (!activeSession?.restEndTimestamp || activeSession.isFinishing) return;
+      const remainingMs = activeSession.restEndTimestamp - Date.now();
+      if (remainingMs <= 0) return;
+      set({
+        session: {
+          ...activeSession,
+          restEndTimestamp: null,
+          restTimerOverride: { state: "paused", remainingMs },
+        },
+      });
+    },
+    adjustRestTimer: (seconds) => {
+      const deadline = get().session?.restEndTimestamp;
+      const now = Date.now();
+      if (deadline && deadline > now)
+        get().setWorkoutRestEndTimestamp(
+          Math.max(now, deadline + seconds * 1000),
+        );
+    },
+    resumeRestTimer: () => {
+      const rest = get().session?.restTimerOverride;
+      if (rest?.state === "paused")
+        get().setWorkoutRestEndTimestamp(Date.now() + rest.remainingMs);
     },
     toggleAutoRest: () => {
       const activeSession = get().session;
@@ -369,6 +400,7 @@ export const activeWorkoutStore = createStore<ActiveWorkoutState>()(
       const activeSession = get().session;
       if (
         !activeSession ||
+        activeSession.restTimerOverride ||
         state.workoutKey !==
           `${activeSession.routineId}:${activeSession.startedAtTimestamp}`
       )
@@ -436,6 +468,9 @@ export const {
   setWorkoutFinishing,
   editSetLog,
   setWorkoutRestEndTimestamp,
+  adjustRestTimer,
+  pauseRestTimer,
+  resumeRestTimer,
   toggleAutoRest,
   pauseWorkout,
   applyNativeRestTimer,

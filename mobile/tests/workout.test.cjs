@@ -656,6 +656,54 @@ test("rest intervals keep identity for adjustments and reject old native actions
   assert.notEqual(store.getActiveWorkout().restTimerId, id);
 });
 
+test("pausing freezes rest, resuming creates a new deadline, and stopping rejects late native updates", (context) => {
+  let now = 10_000;
+  context.mock.method(Date, "now", () => now);
+  const { store } = setup();
+  store.setWorkoutRestEndTimestamp(now + 90_000);
+  const previousId = store.getActiveWorkout().restTimerId;
+  const native = { id: previousId, workoutKey: "routine:1", endAt: now + 120_000, status: "active" };
+
+  now += 21_500;
+  store.pauseRestTimer();
+  store.applyNativeRestTimer(native);
+  const paused = store.getActiveWorkout();
+  assert.deepEqual(paused.restTimerOverride, { state: "paused", remainingMs: 68_500 });
+  assert.equal(paused.restEndTimestamp, null);
+  assert.equal(paused.isPaused, false);
+
+  now += 200_000;
+  store.resumeRestTimer();
+  store.applyNativeRestTimer(native);
+  const resumed = store.getActiveWorkout();
+  assert.equal(resumed.restEndTimestamp, now + 68_500);
+  assert.notEqual(resumed.restTimerId, previousId);
+  assert.equal(resumed.restTimerOverride, undefined);
+
+  store.setWorkoutRestEndTimestamp(null);
+  store.applyNativeRestTimer({ ...native, id: resumed.restTimerId });
+  store.resumeRestTimer();
+  assert.equal(store.getActiveWorkout().restEndTimestamp, null);
+  assert.deepEqual(store.getActiveWorkout().restTimerOverride, { state: "stopped" });
+});
+
+test("automatic rest preserves a paused timer and can start again after a stop", async () => {
+  const { store, workout } = setup();
+  store.setWorkoutRestEndTimestamp(Date.now() + 90_000);
+  store.pauseRestTimer();
+  const paused = store.getActiveWorkout().restTimerOverride;
+  assert.equal(paused?.state, "paused");
+  await workout.logSetCompleted("exercise", 0);
+  assert.equal(store.getActiveWorkout().restTimerOverride, paused);
+  assert.equal(store.getActiveWorkout().restEndTimestamp, null);
+
+  store.setWorkoutRestEndTimestamp(null);
+  store.addLocalSetToExercise("exercise", 8);
+  store.editSetLog("exercise", 1, { weight: "20" });
+  await workout.logSetCompleted("exercise", 1);
+  assert.ok(store.getActiveWorkout().restEndTimestamp > Date.now());
+  assert.equal(store.getActiveWorkout().restTimerOverride, undefined);
+});
 
 test("saving a set refreshes session lists, its real detail key and exercise stats", async () => {
   const t = setup();

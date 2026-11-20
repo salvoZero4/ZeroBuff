@@ -54,6 +54,12 @@ function isSession(value: unknown): value is ActiveWorkoutSession {
     optionalBoolean(value.autoRestEnabled) &&
     optionalBoolean(value.isFinishing) &&
     optionalString(value.restTimerId) &&
+    (value.restTimerOverride === undefined ||
+      (isRecord(value.restTimerOverride) &&
+        (value.restTimerOverride.state === "stopped" ||
+          (value.restTimerOverride.state === "paused" &&
+            finite(value.restTimerOverride.remainingMs) &&
+            value.restTimerOverride.remainingMs > 0)))) &&
     (value.restEndTimestamp === undefined ||
       value.restEndTimestamp === null ||
       finite(value.restEndTimestamp)) &&
