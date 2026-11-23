@@ -46,41 +46,6 @@ def add_fake_exercises(session):
     session.commit()
 
 
-class TestExerciseSearch:
-    def test_search_exercises(self, authenticated_client, session: Session):
-
-        add_fake_exercises(session)
-
-        search_response = authenticated_client.get("/v1/exercises/search?query=Bench")
-
-        assert search_response.status_code == 200
-        assert len(search_response.json()["results"]) == 2
-
-    def test_search_exercises_no_results(self, authenticated_client, session: Session):
-        add_fake_exercises(session)
-
-        search_response = authenticated_client.get(
-            "/v1/exercises/search?query=NonExistentExercise"
-        )
-
-        assert search_response.status_code == 200
-        assert len(search_response.json()["results"]) == 0
-
-    def test_search_exercises_short_query(self, authenticated_client, session: Session):
-        add_fake_exercises(session)
-
-        search_response = authenticated_client.get("/v1/exercises/search?query=be")
-
-        assert search_response.status_code == 422
-
-    def test_search_exercises_unauthenticated(self, client, session: Session):
-        add_fake_exercises(session)
-
-        search_response = client.get("/v1/exercises/search?query=Bench")
-
-        assert search_response.status_code == 401
-
-
 class TestExerciseList:
     def test_get_exercises(self, authenticated_client, session: Session):
         add_fake_exercises(session)
@@ -109,6 +74,30 @@ class TestExerciseList:
 
         assert response.status_code == 200
         assert len(response.json()["exercises"]) == 3
+
+    def test_list_matches_typo_with_filters_and_pagination(
+        self, authenticated_client, session: Session
+    ):
+        add_fake_exercises(session)
+        session.add(
+            Exercise(
+                name="Benhc Press",
+                muscle_group=MuscleGroup.chest,
+                equipment=Equipment.dumbbell,
+            )
+        )
+        session.commit()
+
+        params = {"name": "benhc", "equipment": "barbell", "limit": 1}
+        first = authenticated_client.get("/v1/exercises/", params=params)
+        second = authenticated_client.get("/v1/exercises/", params={**params, "offset": 1})
+        assert first.status_code == second.status_code == 200
+        assert [row["name"] for row in first.json()["exercises"]] == ["Bench Press"]
+        assert [row["name"] for row in second.json()["exercises"]] == ["Incline Bench Press"]
+
+        unfiltered = authenticated_client.get("/v1/exercises/", params={"name": "benhc"})
+        assert unfiltered.status_code == 200
+        assert unfiltered.json()["exercises"][0]["name"] == "Benhc Press"
 
     def test_get_exercises_unauthenticated(self, client, session: Session):
         add_fake_exercises(session)

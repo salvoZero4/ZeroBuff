@@ -351,12 +351,14 @@ export function ExercisesScreen() {
       />
 
       {/* Modale Creazione Esercizio */}
-      <CreateExerciseModal
-        visible={isCreateModalOpen}
-        initialName={search}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreated={(created) => handleSelect(created)}
-      />
+      {isCreateModalOpen && (
+        <CreateExerciseModal
+          visible
+          initialName={search}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSelect={handleSelect}
+        />
+      )}
     </View>
   );
 }

@@ -3,6 +3,7 @@ import { useLanguage } from "@/shared/i18n/LanguageProvider";
 import { useTranslation } from "react-i18next";
 import { userKeys } from "@/features/profile/api/queryKeys";
 import { useState } from "react";
+import { router } from "expo-router";
 import {
   ActivityIndicator,
   Pressable,
@@ -134,6 +135,13 @@ export function ProfileScreen() {
         />
 
         <ProfileConsistency history={history} />
+
+        <SettingRow
+          title={t("My exercises")}
+          detail={t("Manage your custom exercises")}
+          isLast
+          onPress={() => router.push("/my-exercises")}
+        />
 
         <Section title={t("Personal info")}>
           <View>

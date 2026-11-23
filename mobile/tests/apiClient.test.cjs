@@ -4,10 +4,14 @@ const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const ts = require("typescript");
 
-const clientCode = ts.transpileModule(
-  readFileSync(join(__dirname, "../src/shared/api/client.ts"), "utf8"),
-  { compilerOptions: { module: ts.ModuleKind.CommonJS } },
-).outputText;
+function transpile(source) {
+  return ts.transpileModule(
+    readFileSync(join(__dirname, "../src", source), "utf8"),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+  ).outputText;
+}
+
+const clientCode = transpile("shared/api/client.ts");
 
 for (const [configuredUrl, backendUrl] of [
   [undefined, "http://localhost:8000"],
@@ -47,3 +51,46 @@ for (const [configuredUrl, backendUrl] of [
     assert.deepEqual(requests, [endpoint, `${backendUrl}/v1/auth/refresh`, endpoint]);
   });
 }
+
+test("a catalog conflict preserves the existing exercise for reuse", async () => {
+  const errors = {};
+  new Function("exports", transpile("shared/api/errors.ts"))(errors);
+  const existing = {
+    id: "441dfa84-88ea-4bc4-a236-d6858143d144",
+    name: "Bench Press",
+    equipment: "barbell",
+    muscle_group: "chest",
+  };
+
+  const client = {};
+  new Function("require", "exports", "process", "fetch", clientCode)(
+    (path) => path === "./errors"
+      ? errors
+      : { tokenStore: { getAccess: () => "test" } },
+    client,
+    { env: {} },
+    async () => Response.json(
+      { detail: "An exercise with a similar name already exists: Bench Press", matches: [existing] },
+      { status: 409 },
+    ),
+  );
+
+  const exercises = {};
+  new Function("require", "exports", transpile("features/exercises/api/exercise.ts"))(
+    (path) => path.endsWith("/errors") ? errors : client,
+    exercises,
+  );
+  await assert.rejects(
+    exercises.createExercise({
+      name: "Bench-Press",
+      equipment: "barbell",
+      muscle_group: "chest",
+    }),
+    (error) => {
+      assert.equal(error.status, 409);
+      assert.match(error.message, /Bench Press/);
+      assert.deepEqual(exercises.getExerciseNameMatches(error), [existing]);
+      return true;
+    },
+  );
+});

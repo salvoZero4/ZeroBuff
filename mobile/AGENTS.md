@@ -251,7 +251,7 @@ One weight per day per user.
 ### 6.4 Exercises (`/v1/exercises`)
 
 - `GET /v1/exercises/?name=&limit=10&offset=0&muscle_group=` (limit max 100) → `{ exercises: ExerciseRead[] }`
-- `GET /v1/exercises/search?query=` (min 3 chars) → `{ results: { exercise, score }[] }`
+  For `name` queries of at least 3 characters, literal matches appear before similar names.
 - `POST /v1/exercises/` — body `ExerciseCreated` → 201 `ExerciseRead`
 - `GET /v1/exercises/{exercise_id}` → `ExerciseRead`
 - `PATCH /v1/exercises/{exercise_id}` (only custom exercises created by the user) — body `ExerciseModified` → `ExerciseRead`

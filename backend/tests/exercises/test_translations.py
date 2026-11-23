@@ -67,25 +67,41 @@ def test_list_matches_both_names_before_filtering_and_paging(authenticated_clien
     assert [entry["name"] for entry in response.json()["exercises"]] == [bench.name, incline.name]
 
 
-def test_fuzzy_language_and_canonical_response(authenticated_client, session):
+def test_list_language_preferences_and_canonical_response(authenticated_client, session):
     bench = add_exercise(session, "Bench Press")
     upsert_translations(session, "it", {bench.name: "Panca piana"})
     session.commit()
 
+    params = {"name": "Panca piana"}
     translated = authenticated_client.get(
-        "/v1/exercises/search?query=Panca+piana", headers={"Accept-Language": "it-IT"}
+        "/v1/exercises/", params=params, headers={"Accept-Language": "it-IT"}
     )
-    assert [(item["exercise"]["name"], item["score"]) for item in translated.json()["results"]] == [
-        ("Bench Press", 1.0)
-    ]
+    assert [item["name"] for item in translated.json()["exercises"]] == ["Bench Press"]
     for header in ("fr", "en;q=0.9, it;q=0.4", "it;q=0,en;q=1"):
         response = authenticated_client.get(
-            "/v1/exercises/search?query=Panca+piana", headers={"Accept-Language": header}
+            "/v1/exercises/", params=params, headers={"Accept-Language": header}
         )
-        assert response.json()["results"] == []
+        assert response.json()["exercises"] == []
 
     detail = authenticated_client.get(f"/v1/exercises/{bench.id}", headers={"Accept-Language": "it"})
     assert detail.json()["name"] == "Bench Press"
+
+
+def test_list_tolerates_typos_in_translated_name(authenticated_client, session):
+    bench = add_exercise(session, "Bench Press")
+    upsert_translations(session, "it", {bench.name: "Panca piana"})
+    session.commit()
+
+    params = {"name": "pancca"}
+    response = authenticated_client.get(
+        "/v1/exercises/", params=params, headers={"Accept-Language": "it"}
+    )
+    assert response.status_code == 200
+    assert [exercise["id"] for exercise in response.json()["exercises"]] == [str(bench.id)]
+
+    response = authenticated_client.get("/v1/exercises/", params=params)
+    assert response.status_code == 200
+    assert response.json()["exercises"] == []
 
 
 def test_dictionary_exposes_only_global_translations(authenticated_client, session):

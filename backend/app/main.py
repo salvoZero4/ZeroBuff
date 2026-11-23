@@ -5,7 +5,9 @@ from slowapi.errors import RateLimitExceeded
 
 from app.core.limiter import limiter
 from app.features.auth.router import router as auth_router
+from app.features.exercises.router import exercise_name_conflict_response
 from app.features.exercises.router import router as exercises_router
+from app.features.exercises.service import ExerciseNameConflict
 from app.features.routines.router import router as routines_router
 from app.features.schedule.router import router as schedule_router
 from app.features.users.router import router as users_router
@@ -22,6 +24,7 @@ app.add_middleware(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(ExerciseNameConflict, exercise_name_conflict_response)
 
 app.include_router(auth_router)
 app.include_router(users_router)
@@ -32,7 +35,6 @@ app.include_router(workout_sessions_router)
 app.include_router(weight_router)
 
 
-# Rotta di prova
-@app.get("/")
-def home():
-    return {"Server running"}
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}

@@ -4,6 +4,7 @@ export class ApiError extends Error {
     message: string,
     // Per-field messages, filled for 422 validation errors.
     public fieldErrors?: Record<string, string>,
+    public responseBody?: unknown,
   ) {
     super(message);
     this.name = "ApiError";

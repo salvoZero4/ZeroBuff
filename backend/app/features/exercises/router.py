@@ -9,24 +9,32 @@ from app.features.exercises.schemas import (
     ExerciseCreated,
     ExerciseListResponse,
     ExerciseModified,
+    ExerciseNameConflictResponse,
     ExerciseRead,
     ExerciseStatsResponse,
     ExerciseTranslationsResponse,
-    SearchResponse,
 )
 from app.features.exercises.service import (
+    ExerciseNameConflict,
     create_custom_exercise,
     delete_exercise,
     exercise_details,
     exercise_translations,
     exercises_list,
     get_stats,
-    search,
     update_exercise,
 )
-from fastapi import APIRouter, Header, Query, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/v1/exercises", tags=["Exercises"])
+
+
+async def exercise_name_conflict_response(
+    _request: Request, exc: ExerciseNameConflict
+) -> JSONResponse:
+    body = ExerciseNameConflictResponse(detail=exc.detail, matches=exc.matches)
+    return JSONResponse(status_code=exc.status_code, content=body.model_dump(mode="json"))
 
 
 @router.get(
@@ -42,6 +50,7 @@ def get_exercises(
     muscle_group: MuscleGroup | None = None,
     equipment: Equipment | None = None,
     accept_language: Annotated[str | None, Header()] = None,
+    mine: bool = False,
 ):
     """Get a list of exercises with optional filters and pagination."""
     response.headers.append("Vary", "Accept-Language")
@@ -53,22 +62,8 @@ def get_exercises(
         muscle_group=muscle_group,
         equipment=equipment,
         language=preferred_language(accept_language),
+        created_by_user=current_user.id if mine else None,
     )
-
-
-@router.get(
-    "/search", response_model=SearchResponse
-)  # rotta per cercare esercizi per similarità di nome
-def search_exercises(
-    response: Response,
-    session: sessionDep,
-    current_user: currentUserDep,
-    query: Annotated[str, Query(min_length=3)],
-    accept_language: Annotated[str | None, Header()] = None,
-):
-    """Search for exercises for similarity by name."""
-    response.headers.append("Vary", "Accept-Language")
-    return search(session, query=query, language=preferred_language(accept_language))
 
 
 @router.get("/translations", response_model=ExerciseTranslationsResponse)
@@ -82,7 +77,10 @@ def get_exercise_translations(
 
 
 @router.post(
-    "/", response_model=ExerciseRead, status_code=status.HTTP_201_CREATED
+    "/",
+    response_model=ExerciseRead,
+    status_code=status.HTTP_201_CREATED,
+    responses={409: {"model": ExerciseNameConflictResponse}},
 )  # rotta per creare un esercizio personalizzato per l'utente autenticato
 def post_exercise(
     new_exercise: ExerciseCreated, session: sessionDep, current_user: currentUserDep
@@ -102,7 +100,9 @@ def get_exercise_details(
 
 
 @router.patch(
-    "/{exercise_id}", response_model=ExerciseRead
+    "/{exercise_id}",
+    response_model=ExerciseRead,
+    responses={409: {"model": ExerciseNameConflictResponse}},
 )  # rotta per aggiornare un esercizio personalizzato, aggiornabile solo dall'utente che l'ha creato
 def update_custom_exercise(
     exercise_id: UUID,

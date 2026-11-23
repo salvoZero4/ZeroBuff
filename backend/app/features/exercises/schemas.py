@@ -22,13 +22,9 @@ class ExerciseRead(ExerciseBase):
     id: UUID
 
 
-class ExerciseSearchResult(BaseModel):
-    exercise: ExerciseRead
-    score: float
-
-
-class SearchResponse(BaseModel):
-    results: list[ExerciseSearchResult]
+class ExerciseNameConflictResponse(BaseModel):
+    detail: str
+    matches: list[ExerciseRead] | None = None
 
 
 class ExerciseCreated(BaseModel):

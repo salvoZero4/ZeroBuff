@@ -59,10 +59,9 @@ async function toApiError(res: Response): Promise<ApiError> {
     return new ApiError(422, "Validation error", fieldErrors);
   }
 
-  const detailMessage = isRecord(body) ? body.detail : undefined;
   const message =
-    typeof detailMessage === "string" ? detailMessage : res.statusText;
-  return new ApiError(res.status, message);
+    typeof detail === "string" ? detail : res.statusText;
+  return new ApiError(res.status, message, undefined, body);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

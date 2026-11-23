@@ -12,17 +12,19 @@ export function ExerciseListRow({
   detail?: string;
   onPress: () => void;
   isLast: boolean;
-  action?: "open" | "add";
+  action?: "open" | "add" | "detail" | "reuse";
 }) {
   const { t } = useTranslation();
+  const actionLabel = {
+    open: "Open progress for {{name}}",
+    add: "Add {{name}}",
+    detail: "Open details for {{name}}",
+    reuse: "Use {{name}}",
+  }[action];
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={
-        action === "add"
-          ? t("Add {{name}}", { name })
-          : t("Open progress for {{name}}", { name })
-      }
+      accessibilityLabel={t(actionLabel, { name })}
       onPress={onPress}
       className={`min-h-14 flex-row items-center gap-md py-lg active:bg-surface ${isLast ? "" : "border-b border-border"}`}
     >
@@ -37,7 +39,7 @@ export function ExerciseListRow({
         ) : null}
       </View>
       <Icon
-        name={action === "add" ? "plus" : "chevron-right"}
+        name={action === "add" || action === "reuse" ? "plus" : "chevron-right"}
         size={16}
         className="text-text-secondary"
       />

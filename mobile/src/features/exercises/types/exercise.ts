@@ -64,6 +64,7 @@ export type ExerciseCreated = {
 };
 
 export type GetExercisesParams = {
+  mine?: boolean;
   language?: Language;
   name?: string;
   muscle_group?: MuscleGroup;
@@ -71,6 +72,8 @@ export type GetExercisesParams = {
   offset?: number;
   limit?: number;
 };
+
+export type ExerciseModified = Partial<ExerciseCreated>;
 
 export type ExerciseSessionLog = {
   session_id: string;

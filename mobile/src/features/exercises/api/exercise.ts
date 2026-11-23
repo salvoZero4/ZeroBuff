@@ -1,7 +1,9 @@
 import type { Language } from "@/shared/i18n/i18n";
 import { apiRequest } from "@/shared/api/client";
+import { ApiError } from "@/shared/api/errors";
 import type {
   ExerciseCreated,
+  ExerciseModified,
   ExerciseListResponse,
   ExerciseRead,
   ExerciseStatsResponse,
@@ -12,6 +14,7 @@ export async function getExercises(
   params: GetExercisesParams = {},
 ): Promise<ExerciseRead[]> {
   const query = new URLSearchParams();
+  if (params.mine) query.set("mine", "true");
   if (params.name?.trim()) query.set("name", params.name.trim());
   if (params.muscle_group) query.set("muscle_group", params.muscle_group);
   if (params.equipment) query.set("equipment", params.equipment);
@@ -50,6 +53,13 @@ export function createExercise(
   });
 }
 
+export function getExerciseNameMatches(error: unknown): ExerciseRead[] {
+  if (!(error instanceof ApiError) || error.status !== 409) return [];
+  const body = error.responseBody;
+  if (!body || typeof body !== "object" || !("matches" in body)) return [];
+  return Array.isArray(body.matches) ? body.matches : [];
+}
+
 export function getExerciseStats(
   exerciseId: string,
   params: { offset?: number; limit?: number } = {},
@@ -57,4 +67,19 @@ export function getExerciseStats(
   return apiRequest<ExerciseStatsResponse>(
     `/exercises/${exerciseId}/stats?offset=${params.offset ?? 0}&limit=${params.limit ?? 10}`,
   );
+}
+
+export function getExercise(exerciseId: string): Promise<ExerciseRead> {
+  return apiRequest<ExerciseRead>(`/exercises/${exerciseId}`);
+}
+
+export function updateExercise(exerciseId: string, payload: ExerciseModified) {
+  return apiRequest<ExerciseRead>(`/exercises/${exerciseId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteExercise(exerciseId: string) {
+  return apiRequest<void>(`/exercises/${exerciseId}`, { method: "DELETE" });
 }

@@ -9,17 +9,15 @@ from app.features.exercises.schemas import (
     ExerciseListResponse,
     ExerciseModified,
     ExerciseRead,
-    ExerciseSearchResult,
     ExerciseSessionLog,
     ExerciseStatsResponse,
     ExerciseTranslationRead,
     ExerciseTranslationsResponse,
-    SearchResponse,
     SetLogRead,
 )
 from app.core.db_errors import commit_with_http_error_handling
 from fastapi import HTTPException, status
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, case, func, or_
 from sqlmodel import Session, select
 
 
@@ -31,33 +29,70 @@ def _translation_join(language: str):
     )
 
 
-def find_similar_exercises(
-    name: str, session: Session, threshold: float = 0.3, *, language: str = "en"
-):
-    canonical_score = func.similarity(Exercise.name, name)
-    score = canonical_score
-    if language != "en":
-        score = func.greatest(canonical_score, func.similarity(ExerciseTranslation.name, name))
-
-    statement = select(Exercise, score.label("score"))
-    if language != "en":
-        statement = statement.outerjoin(ExerciseTranslation, _translation_join(language))
-    return session.exec(
-        statement.where(Exercise.archived.is_(False), score > threshold).order_by(score.desc(), Exercise.id).limit(5)
-    ).all()
-
-
-def search(session: Session, query: str, language: str = "en") -> SearchResponse:
-    similar_exercises = find_similar_exercises(query, session, language=language)
-
-    results = [
-        ExerciseSearchResult(
-            exercise=ExerciseRead.model_validate(exercise), score=score
+class ExerciseNameConflict(HTTPException):
+    def __init__(self, matches: list[ExerciseRead]):
+        names = ", ".join(exercise.name for exercise in matches)
+        super().__init__(
+            status.HTTP_409_CONFLICT,
+            f"An exercise with a similar name already exists: {names}",
         )
-        for exercise, score in similar_exercises
-    ]
+        self.matches = matches
 
-    return SearchResponse(results=results)
+
+def _exercise_name_similarity(name: str, language: str):
+    score = func.word_similarity(name, Exercise.name)
+    if language != "en":
+        score = func.greatest(score, func.word_similarity(name, ExerciseTranslation.name))
+    return score
+
+
+def ensure_exercise_name_available(
+    name: str, session: Session, *, excluding: UUID | None = None
+) -> None:
+    # Serialize catalog name writes so two requests cannot both pass the check.
+    session.exec(
+        select(func.pg_advisory_xact_lock(func.hashtext("zerobuff.exercise_names")))
+    )
+
+    def name_key(value):
+        return func.regexp_replace(func.lower(value), "[^[:alnum:]]+", "", "g")
+
+    normalized_name = name_key(name)
+
+    def duplicate_score(candidate):
+        return case(
+            (
+                and_(normalized_name != "", name_key(candidate) == normalized_name),
+                1.0,
+            ),
+            (func.lower(candidate) == func.lower(name), 1.0),
+            else_=func.similarity(candidate, name),
+        )
+
+    translated_scores = (
+        select(
+            ExerciseTranslation.exercise_id,
+            func.max(duplicate_score(ExerciseTranslation.name)).label("score"),
+        )
+        .group_by(ExerciseTranslation.exercise_id)
+        .subquery()
+    )
+    score = func.greatest(
+        duplicate_score(Exercise.name),
+        translated_scores.c.score,
+    )
+    statement = (
+        select(Exercise)
+        .outerjoin(translated_scores, Exercise.id == translated_scores.c.exercise_id)
+        .where(Exercise.archived.is_(False), score > 0.8)
+        .order_by(score.desc(), Exercise.id)
+        .limit(5)
+    )
+    if excluding is not None:
+        statement = statement.where(Exercise.id != excluding)
+    matches = session.exec(statement).all()
+    if matches:
+        raise ExerciseNameConflict([ExerciseRead.model_validate(row) for row in matches])
 
 
 def exercises_list(
@@ -68,22 +103,34 @@ def exercises_list(
     muscle_group: MuscleGroup | None = None,
     equipment: Equipment | None = None,
     language: str = "en",
+    created_by_user: UUID | None = None,
 ):
     statement = select(Exercise).where(Exercise.archived.is_(False))
+    name_order = []
 
+    if created_by_user is not None:
+        statement = statement.where(Exercise.created_by_user == created_by_user)
     if name:
         pattern = f"%{name}%"
         matches = Exercise.name.ilike(pattern)
         if language != "en":
             statement = statement.outerjoin(ExerciseTranslation, _translation_join(language))
             matches = or_(matches, ExerciseTranslation.name.ilike(pattern))
+        if len(name.strip()) >= 3:
+            score = _exercise_name_similarity(name, language)
+            name_order.append(case((matches, 2.0), else_=score).desc())
+            matches = or_(matches, score > 0.3)
         statement = statement.where(matches)
     if muscle_group:
         statement = statement.where(Exercise.muscle_group == muscle_group)
     if equipment:
         statement = statement.where(Exercise.equipment == equipment)
 
-    statement = statement.order_by(Exercise.name, Exercise.id).offset(offset).limit(limit)
+    statement = (
+        statement.order_by(*name_order, Exercise.name, Exercise.id)
+        .offset(offset)
+        .limit(limit)
+    )
 
     exercises = session.exec(statement).all()
 
@@ -113,15 +160,7 @@ def create_custom_exercise(
 
     user_id = current_user.id
 
-    similar_exercises = find_similar_exercises(
-        new_exercise.name, session, threshold=0.8
-    )
-    if similar_exercises:
-        similar_names = [exercise.name for exercise, _ in similar_exercises]
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"An exercise with a similar name already exists: {', '.join(similar_names)}",
-        )
+    ensure_exercise_name_available(new_exercise.name, session)
 
     exercise = Exercise(
         name=new_exercise.name,
@@ -169,12 +208,11 @@ def update_exercise(
     updated_fields = {
         k: v for k, v in modified_exercise.model_dump().items() if v is not None
     }
-    if updated_fields:
-        for field, value in updated_fields.items():
-            if field == "name":
-                setattr(exercise, field, value.strip().title())
-            else:
-                setattr(exercise, field, value)
+    name = modified_exercise.name
+    if name is not None and name != exercise.name:
+        ensure_exercise_name_available(name, session, excluding=exercise.id)
+    for field, value in updated_fields.items():
+        setattr(exercise, field, value)
 
     session.add(exercise)
     commit_with_http_error_handling(

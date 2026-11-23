@@ -133,6 +133,14 @@ function RootNavigator() {
                 }}
               />
               <Stack.Screen
+                name="my-exercises/index"
+                options={{ animation: "slide_from_right" }}
+              />
+              <Stack.Screen
+                name="my-exercises/[exerciseId]"
+                options={{ animation: "slide_from_right" }}
+              />
+              <Stack.Screen
                 name="session/[sessionId]"
                 options={{ headerShown: false }}
               />

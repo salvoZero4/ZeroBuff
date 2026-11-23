@@ -1,4 +1,6 @@
-from app.models.exercise import Equipment, MuscleGroup
+import pytest
+
+from app.models.exercise import Equipment, Exercise, ExerciseTranslation, MuscleGroup
 
 
 class TestCreateExercise:
@@ -20,7 +22,10 @@ class TestCreateExercise:
         assert response.status_code == 201
         assert response.json()["id"] is not None
 
-    def test_create_exercise_with_similar_name(self, authenticated_client):
+    @pytest.mark.parametrize("name", ["bench_press", " Bench Press ", "BenchPress"])
+    def test_create_exercise_with_similar_name(
+        self, authenticated_client, authenticated_client2, name
+    ):
         # First, create an exercise with a specific name
         response1 = authenticated_client.post(
             "/v1/exercises/",
@@ -34,10 +39,10 @@ class TestCreateExercise:
         assert response1.status_code == 201
 
         # Now, try to create another exercise with a similar name
-        response2 = authenticated_client.post(
+        response2 = authenticated_client2.post(
             "/v1/exercises/",
             json={
-                "name": "bench_press",  # Similar name (case-insensitive)
+                "name": name,
                 "muscle_group": MuscleGroup.chest,
                 "secondary_muscle_groups": [MuscleGroup.triceps],
                 "equipment": Equipment.dumbbell,
@@ -49,6 +54,35 @@ class TestCreateExercise:
             "An exercise with a similar name already exists"
             in response2.json()["detail"]
         )
+        assert response2.json()["matches"] == [response1.json()]
+
+    def test_create_exercise_with_translated_name(self, authenticated_client, session):
+        existing = Exercise(
+            name="Seated Cable Row",
+            muscle_group=MuscleGroup.upper_back,
+            equipment=Equipment.cable,
+        )
+        session.add(existing)
+        for language in ("it", "it-IT"):
+            session.add(
+                ExerciseTranslation(
+                    exercise_id=existing.id,
+                    language=language,
+                    name="Rematore al cavo da seduto",
+                )
+            )
+        session.commit()
+
+        response = authenticated_client.post(
+            "/v1/exercises/",
+            json={
+                "name": "rematore al cavo da seduto",
+                "muscle_group": MuscleGroup.upper_back,
+                "equipment": Equipment.cable,
+            },
+        )
+        assert response.status_code == 409
+        assert [match["id"] for match in response.json()["matches"]] == [str(existing.id)]
 
     def test_create_exercise_unauthenticated(self, client):
         response = client.post(

@@ -1,8 +1,15 @@
 import { errorText } from "@/shared/i18n/errors";
 import { useTranslation } from "react-i18next";
 import { exerciseKeys } from "@/features/exercises/api/queryKeys";
-import { useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Keyboard,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +18,16 @@ import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError } from "@/shared/api/errors";
-import { createExercise } from "@/features/exercises/api/exercise";
+import { routineKeys } from "@/features/routines/api/queryKeys";
+import { scheduleKeys } from "@/features/schedule/api/queryKeys";
+import { sessionKeys } from "@/features/workout/api/queryKeys";
+import {
+  createExercise,
+  getExerciseNameMatches,
+  updateExercise,
+} from "@/features/exercises/api/exercise";
+import { useExerciseNames } from "@/features/exercises/api/useExerciseNames";
+import { ExerciseListRow } from "./ExerciseListRow";
 import {
   EQUIPMENT_LIST,
   MUSCLE_GROUPS,
@@ -31,16 +47,34 @@ type CreateExerciseModalProps = {
   visible: boolean;
   initialName?: string;
   onClose: () => void;
-  onCreated: (exercise: ExerciseRead) => void;
+  onSelect: (exercise: ExerciseRead) => void;
 };
 
 export function CreateExerciseModal({
+  onSelect,
+  ...props
+}: CreateExerciseModalProps) {
+  return (
+    <ExerciseFormModal {...props} onSaved={onSelect} onUseExisting={onSelect} />
+  );
+}
+
+export function ExerciseFormModal({
   visible,
   initialName = "",
   onClose,
-  onCreated,
-}: CreateExerciseModalProps) {
+  onSaved,
+  onUseExisting,
+  exercise,
+  onUnavailable,
+}: Omit<CreateExerciseModalProps, "onSelect"> & {
+  onSaved?: (exercise: ExerciseRead) => void;
+  onUseExisting?: (exercise: ExerciseRead) => void;
+  exercise?: ExerciseRead;
+  onUnavailable?: () => void;
+}) {
   const { t } = useTranslation();
+  const exerciseName = useExerciseNames();
   const MUSCLE_OPTIONS: PickerOption[] = MUSCLE_GROUPS.map((mg) => ({
     value: mg,
     label: t(`exercise.${mg}`),
@@ -52,50 +86,94 @@ export function CreateExerciseModal({
   }));
 
   const insets = useSafeAreaInsets();
-  const [name, setName] = useState(initialName);
-  const [primaryMuscle, setPrimaryMuscle] = useState<MuscleGroup>("chest");
-  const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroup[]>([]);
-  const [equipment, setEquipment] = useState<Equipment>("barbell");
+  const [name, setName] = useState(exercise?.name ?? initialName);
+  const [primaryMuscle, setPrimaryMuscle] = useState<MuscleGroup>(
+    exercise?.muscle_group ?? "chest",
+  );
+  const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroup[]>(
+    exercise?.secondary_muscle_groups ?? [],
+  );
+  const [equipment, setEquipment] = useState<Equipment>(
+    exercise?.equipment ?? "barbell",
+  );
 
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [matches, setMatches] = useState<ExerciseRead[]>([]);
 
   const queryClient = useQueryClient();
 
-  const { mutate: handleCreate, isPending } = useMutation({
-    mutationFn: (payload: ExerciseCreated) => createExercise(payload),
-    onSuccess: (newExercise) => {
-      queryClient.invalidateQueries({ queryKey: exerciseKeys.infiniteLists() });
-      setName("");
-      setSecondaryMuscles([]);
+  const submitting = useRef(false);
+  const { mutate: save, isPending } = useMutation({
+    mutationFn: (payload: ExerciseCreated) =>
+      exercise ? updateExercise(exercise.id, payload) : createExercise(payload),
+    onSuccess: async (savedExercise) => {
+      if (exercise) {
+        const detailKey = exerciseKeys.detail(exercise.id);
+        await queryClient.cancelQueries({ queryKey: detailKey });
+        queryClient.setQueryData(detailKey, savedExercise);
+        void queryClient.invalidateQueries({ queryKey: routineKeys.all });
+        void queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
+        void queryClient.invalidateQueries({
+          queryKey: sessionKeys.loggedExercises(),
+        });
+        void queryClient.invalidateQueries({ queryKey: sessionKeys.details() });
+      } else {
+        setName("");
+        setSecondaryMuscles([]);
+      }
+      void queryClient.invalidateQueries({
+        queryKey: exerciseKeys.infiniteLists(),
+      });
       setErrorMessage(null);
-      onCreated(newExercise);
+      onSaved?.(savedExercise);
       onClose();
     },
     onError: (err) => {
-      if (err instanceof ApiError) {
-        setErrorMessage(
-          errorText(
-            err,
-            err.status === 409
+      if (exercise && err instanceof ApiError && err.status === 404) {
+        onUnavailable?.();
+        return;
+      }
+      const existing = getExerciseNameMatches(err);
+      if (existing.length) {
+        Keyboard.dismiss();
+        setMatches(existing);
+        setErrorMessage(t("An exercise with a similar name already exists."));
+        return;
+      }
+      setErrorMessage(
+        errorText(
+          err,
+          exercise
+            ? "Failed to update exercise."
+            : err instanceof ApiError && err.status === 409
               ? "An exercise with a similar name already exists."
               : "Failed to create exercise.",
-          ),
-        );
-      } else {
-        setErrorMessage(t("Network error. Please try again."));
-      }
+        ),
+      );
+    },
+    onSettled: () => {
+      submitting.current = false;
     },
   });
 
   function handleSubmit() {
+    if (submitting.current || matches.length) return;
     const trimmed = name.trim();
     if (!trimmed) {
       setErrorMessage(t("Enter an exercise name."));
       return;
     }
 
-    handleCreate({
+    const length = Array.from(trimmed).length;
+    if (exercise && (length < 3 || length > 100)) {
+      setErrorMessage(t("Exercise names must be 3 to 100 characters."));
+      return;
+    }
+
+    setErrorMessage(null);
+    submitting.current = true;
+    save({
       name: trimmed,
       muscle_group: primaryMuscle,
       equipment,
@@ -103,12 +181,23 @@ export function CreateExerciseModal({
     });
   }
 
+  function handleClose() {
+    if (!submitting.current) onClose();
+  }
+
+  function selectExisting(existing: ExerciseRead) {
+    if (submitting.current || !onUseExisting) return;
+    submitting.current = true;
+    onClose();
+    onUseExisting(existing);
+  }
+
   return (
     <Modal
       animationType="slide"
       transparent
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
         behavior="padding"
@@ -119,7 +208,8 @@ export function CreateExerciseModal({
           accessibilityLabel={t("Close modal")}
           accessibilityRole="button"
           className="absolute inset-0"
-          onPress={onClose}
+          disabled={isPending}
+          onPress={handleClose}
         />
 
         <View
@@ -134,17 +224,20 @@ export function CreateExerciseModal({
                 accessibilityRole="header"
                 className="font-body-bold text-xl text-text-primary"
               >
-                {t("New custom exercise")}
+                {t(exercise ? "Edit exercise" : "New custom exercise")}
               </Text>
-              <Text className="font-body text-caption text-text-secondary">
-                {t("Will be added to the shared catalog")}
-              </Text>
+              {exercise ? null : (
+                <Text className="font-body text-caption text-text-secondary">
+                  {t("Will be added to the shared catalog")}
+                </Text>
+              )}
             </View>
             <IconButton
               icon="xmark"
               label={t("Close")}
               variant="bare"
-              onPress={onClose}
+              disabled={isPending}
+              onPress={handleClose}
             />
           </View>
 
@@ -160,10 +253,46 @@ export function CreateExerciseModal({
               onChangeText={(val) => {
                 setName(val);
                 setErrorMessage(null);
+                setMatches([]);
               }}
               error={errorMessage}
               editable={!isPending}
             />
+
+            {matches.length > 0 && (
+              <View className="gap-xs">
+                <Text
+                  accessibilityLiveRegion="polite"
+                  className="font-body-semibold text-caption text-text-primary"
+                >
+                  {t(
+                    onUseExisting
+                      ? "Use an existing exercise"
+                      : "Choose a different name",
+                  )}
+                </Text>
+                {matches.map((existing, index) => {
+                  const name = exerciseName(existing.id, existing.name);
+                  return onUseExisting ? (
+                    <ExerciseListRow
+                      key={existing.id}
+                      action="reuse"
+                      name={name}
+                      detail={`${t(`exercise.${existing.muscle_group}`)} · ${t(`exercise.${existing.equipment}`)}`}
+                      isLast={index === matches.length - 1}
+                      onPress={() => selectExisting(existing)}
+                    />
+                  ) : (
+                    <Text
+                      key={existing.id}
+                      className="font-body text-body text-text-secondary"
+                    >
+                      {name}
+                    </Text>
+                  );
+                })}
+              </View>
+            )}
 
             <View className="gap-xs">
               <Text className="font-body-semibold text-caption text-text-primary">
@@ -171,6 +300,7 @@ export function CreateExerciseModal({
               </Text>
               <Pressable
                 accessibilityRole="button"
+                disabled={isPending}
                 onPress={() => setActivePicker("primary_muscle")}
                 className="min-h-14 flex-row items-center justify-between rounded-sm border border-border bg-surface-raised px-lg active:bg-surface"
               >
@@ -191,6 +321,7 @@ export function CreateExerciseModal({
               </Text>
               <Pressable
                 accessibilityRole="button"
+                disabled={isPending}
                 onPress={() => setActivePicker("secondary_muscles")}
                 className="min-h-14 flex-row items-center justify-between rounded-sm border border-border bg-surface-raised px-lg active:bg-surface"
               >
@@ -222,6 +353,7 @@ export function CreateExerciseModal({
               </Text>
               <Pressable
                 accessibilityRole="button"
+                disabled={isPending}
                 onPress={() => setActivePicker("equipment")}
                 className="min-h-14 flex-row items-center justify-between rounded-sm border border-border bg-surface-raised px-lg active:bg-surface"
               >
@@ -237,9 +369,13 @@ export function CreateExerciseModal({
             </View>
 
             <Button
-              label={isPending ? t("Saving...") : t("Create exercise")}
+              label={
+                isPending
+                  ? t("Saving...")
+                  : t(exercise ? "Save changes" : "Create exercise")
+              }
               onPress={handleSubmit}
-              disabled={isPending}
+              disabled={isPending || matches.length > 0}
             />
           </ScrollView>
         </View>
@@ -250,7 +386,15 @@ export function CreateExerciseModal({
           options={MUSCLE_OPTIONS}
           selectedValues={[primaryMuscle]}
           multiSelect={false}
-          onConfirm={(vals) => setPrimaryMuscle(vals[0] as MuscleGroup)}
+          onConfirm={(vals) => {
+            const next = vals[0] as MuscleGroup;
+            setPrimaryMuscle(next);
+            if (exercise) {
+              setSecondaryMuscles((previous) =>
+                previous.filter((muscle) => muscle !== next),
+              );
+            }
+          }}
           onClose={() => setActivePicker(null)}
         />
 

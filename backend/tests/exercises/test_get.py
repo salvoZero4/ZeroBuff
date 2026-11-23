@@ -1,7 +1,50 @@
 import json
 from uuid import uuid4
 
-from app.models.exercise import Equipment, MuscleGroup
+from sqlmodel import select
+
+from app.models.exercise import Equipment, Exercise, MuscleGroup
+from app.models.user import User
+
+
+def test_get_my_exercises_filters_before_pagination(
+    authenticated_client, authenticated_client2, session
+):
+    owner = session.exec(select(User).where(User.email == "test@example.com")).one()
+    other = session.exec(select(User).where(User.email == "test2@example.com")).one()
+    for name, author_id, archived in [
+        ("Mine A Global", None, False),
+        ("Mine B Other", other.id, False),
+        ("Mine C Archived", owner.id, True),
+        ("Mine D Owned", owner.id, False),
+        ("Mine E Owned", owner.id, False),
+    ]:
+        session.add(
+            Exercise(
+                name=name,
+                muscle_group=MuscleGroup.chest,
+                equipment=Equipment.barbell,
+                created_by_user=author_id,
+                archived=archived,
+            )
+        )
+    session.commit()
+
+    def names(client, **params):
+        response = client.get("/v1/exercises/", params={"name": "Mine", **params})
+        assert response.status_code == 200
+        return [exercise["name"] for exercise in response.json()["exercises"]]
+
+    assert names(authenticated_client, mine="true", limit=1) == ["Mine D Owned"]
+    assert names(authenticated_client, mine="true", limit=1, offset=1) == ["Mine E Owned"]
+    assert names(authenticated_client, mine="true", limit=1, offset=2) == []
+    assert names(authenticated_client2, mine="true") == ["Mine B Other"]
+    assert names(authenticated_client) == [
+        "Mine A Global",
+        "Mine B Other",
+        "Mine D Owned",
+        "Mine E Owned",
+    ]
 
 
 class TestGetExerciseById:

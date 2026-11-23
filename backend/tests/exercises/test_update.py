@@ -4,6 +4,31 @@ from app.models.exercise import Equipment, Exercise, MuscleGroup
 
 
 class TestUpdateExercise:
+    def test_rejects_rename_to_existing_exercise(self, authenticated_client):
+        def create(name):
+            response = authenticated_client.post(
+                "/v1/exercises/",
+                json={
+                    "name": name,
+                    "muscle_group": MuscleGroup.chest,
+                    "equipment": Equipment.barbell,
+                },
+            )
+            assert response.status_code == 201
+            return response.json()
+
+        original = create("Incline Bench Press")
+        existing = create("Floor Press")
+        url = f"/v1/exercises/{original['id']}"
+        response = authenticated_client.patch(url, json={"name": "Floor-Press"})
+        assert response.status_code == 409
+        assert response.json()["matches"] == [existing]
+        assert authenticated_client.get(url).json() == original
+
+        response = authenticated_client.patch(url, json={"name": original["name"]})
+        assert response.status_code == 200
+        assert response.json() == original
+
     def test_update_exercise(self, authenticated_client):
         # First, create an exercise
         create_response = authenticated_client.post(
